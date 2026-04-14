@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npx create-vite@latest . --template react-ts)",
+      "Bash(npx --yes create-vite@latest zek-studio --template react-ts)",
+      "Bash(mv zek-studio/* .)",
+      "Bash(mv zek-studio/.gitignore .)",
+      "Bash(rmdir zek-studio:*)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init --yes)",
+      "Bash(npx shadcn@latest init --help)",
+      "Bash(npx shadcn@latest init -t vite -b radix --yes)",
+      "Bash(npx shadcn@latest init -t vite -b radix -p nova --yes)"
+    ]
+  }
+}
