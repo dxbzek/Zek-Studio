@@ -42,8 +42,8 @@ export function useCalendar(brandId: string | null, year: number, month: number)
       queryClient.invalidateQueries({ queryKey: ['calendar-entries', brandId] }),
   })
 
-  const updateEntry = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: CalendarEntryUpdate }) => {
+  const updateEntry = useMutation<CalendarEntry, Error, { id: string; patch: CalendarEntryUpdate }>({
+    mutationFn: async ({ id, patch }) => {
       const { data, error } = await (supabase as any)
         .from('calendar_entries')
         .update({ ...patch, updated_at: new Date().toISOString() })

@@ -35,8 +35,8 @@ export function useTasks(brandId: string | null) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   })
 
-  const updateTask = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TaskUpdate }) => {
+  const updateTask = useMutation<Task, Error, { id: string; patch: TaskUpdate }>({
+    mutationFn: async ({ id, patch }) => {
       const { data, error } = await (supabase as any)
         .from('tasks')
         .update({ ...patch, updated_at: new Date().toISOString() })
@@ -46,7 +46,7 @@ export function useTasks(brandId: string | null) {
       if (error) throw error
       return data as Task
     },
-    onMutate: async ({ id, patch }: { id: string; patch: TaskUpdate }) => {
+    onMutate: async ({ id, patch }) => {
       await queryClient.cancelQueries({ queryKey })
       const previous = queryClient.getQueryData<Task[]>(queryKey)
       queryClient.setQueryData<Task[]>(queryKey,
@@ -93,8 +93,8 @@ export function useMyTasks() {
     },
   })
 
-  const updateTask = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: TaskUpdate }) => {
+  const updateTask = useMutation<Task, Error, { id: string; patch: TaskUpdate }>({
+    mutationFn: async ({ id, patch }) => {
       const { data, error } = await (supabase as any)
         .from('tasks')
         .update({ ...patch, updated_at: new Date().toISOString() })
