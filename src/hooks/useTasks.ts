@@ -46,7 +46,7 @@ export function useTasks(brandId: string | null) {
       if (error) throw error
       return data as Task
     },
-    onMutate: async ({ id, patch }) => {
+    onMutate: async ({ id, patch }: { id: string; patch: TaskUpdate }) => {
       await queryClient.cancelQueries({ queryKey })
       const previous = queryClient.getQueryData<Task[]>(queryKey)
       queryClient.setQueryData<Task[]>(queryKey,

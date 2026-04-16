@@ -20,7 +20,6 @@ import {
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTasks, useMyTasks } from '@/hooks/useTasks'
 import { useTeam } from '@/hooks/useTeam'
-import { PLATFORMS } from '@/types'
 import type { Task, TaskStatus, TaskType, TaskPriority, TaskInsert } from '@/types'
 
 // ─── Constants ───────────────────────────────────────────────────────────────

@@ -599,15 +599,17 @@ export default function AnalyticsPage() {
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} />
                   <YAxis type="category" dataKey="day" tick={{ fontSize: 11 }} width={80} />
                   <Tooltip
-                    formatter={(value: number, _name: string, props: { payload?: { posts: number } }) => [
-                      `${fmt(value)} avg views · ${props.payload?.posts ?? 0} post${(props.payload?.posts ?? 0) !== 1 ? 's' : ''}`,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    formatter={(value: any, _name: any, props: any) => [
+                      `${fmt(Number(value))} avg views · ${props.payload?.posts ?? 0} post${(props.payload?.posts ?? 0) !== 1 ? 's' : ''}`,
                       'Performance',
                     ]}
                   />
                   <Bar
                     dataKey="avg"
                     radius={[0, 4, 4, 0]}
-                    label={{ position: 'right', fontSize: 10, formatter: (v: number) => v > 0 ? fmt(v) : '' }}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    label={{ position: 'right', fontSize: 10, formatter: (v: any) => Number(v) > 0 ? fmt(Number(v)) : '' }}
                   >
                     {bestTimesData.map((entry, i) => {
                       const maxAvg = Math.max(...bestTimesData.map((d) => d.avg))
@@ -648,7 +650,8 @@ export default function AnalyticsPage() {
                     <Bar
                       dataKey="avg"
                       radius={[0, 4, 4, 0]}
-                      label={{ position: 'right', fontSize: 10, formatter: (v: number) => v > 0 ? fmt(v) : '' }}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    label={{ position: 'right', fontSize: 10, formatter: (v: any) => Number(v) > 0 ? fmt(Number(v)) : '' }}
                     >
                       {bestHoursData.map((entry, i) => {
                         const maxAvg = Math.max(...bestHoursData.map((d) => d.avg))
@@ -694,7 +697,7 @@ export default function AnalyticsPage() {
                 >
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => fmt(v)} />
-                  <Tooltip formatter={(v: number) => fmt(v)} />
+                  <Tooltip formatter={(v: any) => fmt(Number(v))} />
                   <Legend />
                   <Line
                     type="monotone"
