@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, Heart, MessageCircle, Share2, Bookmark, BookmarkCheck, ExternalLink, Quote } from 'lucide-react'
+import { Eye, Heart, MessageCircle, Share2, Bookmark, BookmarkCheck, ExternalLink, Quote, Loader2, FileText, ChevronDown, ChevronUp, Video, Image } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -40,13 +40,19 @@ interface PostCardProps {
   onSaveHook: (text: string, postId: string, platform: Platform) => void
   isSaving: boolean
   alreadySaved: boolean
+  onTranscribe: (postId: string, videoUrl: string) => void
+  isTranscribing: boolean
 }
 
-export function PostCard({ post, handle, onSaveHook, isSaving, alreadySaved }: PostCardProps) {
-  const defaultHook = post.hook ?? post.caption?.split('\n').find((l) => l.trim())?.slice(0, 200) ?? ''
+export function PostCard({ post, handle, onSaveHook, isSaving, alreadySaved, onTranscribe, isTranscribing }: PostCardProps) {
+  const defaultHook = post.transcript
+    ? (post.transcript.match(/^.{20,}?[.!?]/)?.[0] ?? post.transcript.slice(0, 180)).trim()
+    : ''
+
   const [hookMode, setHookMode] = useState(false)
   const [hookText, setHookText] = useState(defaultHook)
   const [captionExpanded, setCaptionExpanded] = useState(false)
+  const [transcriptExpanded, setTranscriptExpanded] = useState(false)
   const [imgFailed, setImgFailed] = useState(false)
 
   function handleSave() {
@@ -57,6 +63,8 @@ export function PostCard({ post, handle, onSaveHook, isSaving, alreadySaved }: P
   }
 
   const showThumbnail = post.thumbnail_url && !imgFailed
+  const hasVideo = !!post.video_url
+  const hasTranscript = !!post.transcript
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
@@ -75,11 +83,15 @@ export function PostCard({ post, handle, onSaveHook, isSaving, alreadySaved }: P
       ) : (
         <div
           className={cn(
-            'aspect-video flex items-center justify-center bg-gradient-to-br',
+            'aspect-video flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br',
             PLATFORM_BG[post.platform] ?? 'from-muted to-muted',
           )}
         >
-          <span className="text-xs font-medium text-muted-foreground opacity-60">
+          {hasVideo
+            ? <Video className="h-6 w-6 text-muted-foreground opacity-40" />
+            : <Image className="h-6 w-6 text-muted-foreground opacity-40" />
+          }
+          <span className="text-xs text-muted-foreground opacity-50">
             {PLATFORM_LABEL[post.platform] ?? post.platform}
           </span>
         </div>
@@ -126,6 +138,28 @@ export function PostCard({ post, handle, onSaveHook, isSaving, alreadySaved }: P
               </button>
             )}
           </>
+        )}
+
+        {/* Transcript section */}
+        {hasTranscript && (
+          <div className="rounded-lg border border-border bg-muted/40 p-2.5 space-y-1.5">
+            <button
+              onClick={() => setTranscriptExpanded((v) => !v)}
+              className="flex items-center gap-1.5 w-full text-left"
+            >
+              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-xs font-medium text-muted-foreground flex-1">Video script</span>
+              {transcriptExpanded
+                ? <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                : <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              }
+            </button>
+            {transcriptExpanded && (
+              <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap">
+                {post.transcript}
+              </p>
+            )}
+          </div>
         )}
 
         {/* Metrics */}
@@ -181,23 +215,34 @@ export function PostCard({ post, handle, onSaveHook, isSaving, alreadySaved }: P
             </div>
           </div>
         ) : (
-          <Button
-            size="sm"
-            variant={alreadySaved ? 'secondary' : 'outline'}
-            className="h-7 text-xs gap-1.5 w-full mt-1"
-            onClick={() => !alreadySaved && setHookMode(true)}
-            disabled={alreadySaved}
-          >
-            {alreadySaved ? (
-              <>
-                <BookmarkCheck className="h-3.5 w-3.5" /> Hook saved
-              </>
-            ) : (
-              <>
-                <Bookmark className="h-3.5 w-3.5" /> Save hook
-              </>
+          <div className="flex gap-2 mt-1">
+            {!hasTranscript && hasVideo && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1 flex-1"
+                onClick={() => onTranscribe(post.id, post.video_url!)}
+                disabled={isTranscribing}
+              >
+                {isTranscribing
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Transcribing…</>
+                  : <><FileText className="h-3.5 w-3.5" /> Get script</>
+                }
+              </Button>
             )}
-          </Button>
+            <Button
+              size="sm"
+              variant={alreadySaved ? 'secondary' : 'outline'}
+              className="h-7 text-xs gap-1 flex-1"
+              onClick={() => !alreadySaved && setHookMode(true)}
+              disabled={alreadySaved}
+            >
+              {alreadySaved
+                ? <><BookmarkCheck className="h-3.5 w-3.5" /> Saved</>
+                : <><Bookmark className="h-3.5 w-3.5" /> Save hook</>
+              }
+            </Button>
+          </div>
         )}
       </div>
     </div>

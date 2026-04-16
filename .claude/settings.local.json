@@ -11,7 +11,29 @@
       "Bash(npx shadcn@latest init --yes)",
       "Bash(npx shadcn@latest init --help)",
       "Bash(npx shadcn@latest init -t vite -b radix --yes)",
-      "Bash(npx shadcn@latest init -t vite -b radix -p nova --yes)"
+      "Bash(npx shadcn@latest init -t vite -b radix -p nova --yes)",
+      "Bash(npx shadcn@latest add button input dialog card badge select textarea label avatar tooltip dropdown-menu sheet tabs separator scroll-area skeleton form popover sonner --yes)",
+      "Bash(npx shadcn@latest add alert-dialog --yes)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(npx --prefix \"c:/Zek Studio\" tsc --noEmit --project \"c:/Zek Studio/tsconfig.app.json\")",
+      "Bash(cmd /c \"cd /d \\\\\"c:\\\\Zek Studio\\\\\" && npx tsc --noEmit --project tsconfig.app.json 2>&1\")",
+      "mcp__claude_ai_Supabase__deploy_edge_function",
+      "mcp__claude_ai_Supabase__get_logs",
+      "Bash(gh api *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Read(//c/Users/Zek/.claude/commands/**)",
+      "Read(//c/Users/Zek/.claude/commands/superpowers/**)",
+      "Bash(npx supabase *)",
+      "Bash(npx vite *)",
+      "Bash(gh repo *)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(git clone *)",
+      "Read(//c/Temp/obsidian-skills/**)",
+      "Read(//c/Temp/obsidian-skills/skills/**)",
+      "Bash(mkdir -p \"C:/ascendbyzek/Ascend/.claude/skills\")",
+      "Bash(cp -r \"C:/Temp/obsidian-skills/skills/\"* \"C:/ascendbyzek/Ascend/.claude/skills/\")"
     ]
   }
 }

@@ -39,14 +39,14 @@ function buildApifyInput(platform: string, handle: string): unknown {
       return {
         directUrls: [`https://www.instagram.com/${clean}/`],
         resultsType: 'posts',
-        resultsLimit: 30,
+        resultsLimit: 10,
       }
     case 'tiktok':
-      return { profiles: [`@${clean}`], resultsPerPage: 30 }
+      return { profiles: [`@${clean}`], resultsPerPage: 10 }
     case 'facebook':
       return { startUrls: [{ url: `https://www.facebook.com/${clean}` }] }
     case 'youtube':
-      return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResults: 30 }
+      return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResults: 10 }
     default:
       throw new Error(`Unsupported platform: ${platform}`)
   }
@@ -66,6 +66,7 @@ function normalizePost(platform: string, raw: Record<string, any>) {
         shares: null,
         hook,
         thumbnail_url: raw.displayUrl ?? raw.thumbnailSrc ?? raw.images?.[0]?.url ?? null,
+        video_url: raw.videoUrl ?? null,
         posted_at: raw.timestamp ?? null,
       }
     }
@@ -81,6 +82,7 @@ function normalizePost(platform: string, raw: Record<string, any>) {
         shares: raw.shareCount ?? null,
         hook,
         thumbnail_url: raw.videoMeta?.coverUrl ?? null,
+        video_url: raw.videoMeta?.downloadAddr ?? raw.videoUrl ?? null,
         posted_at: raw.createTime ? new Date(raw.createTime * 1000).toISOString() : null,
       }
     }
@@ -94,6 +96,7 @@ function normalizePost(platform: string, raw: Record<string, any>) {
         shares: raw.shares ?? null,
         hook: null,
         thumbnail_url: null,
+        video_url: raw.videoUrl ?? null,
         posted_at: raw.time ?? null,
       }
     case 'youtube':
@@ -106,14 +109,49 @@ function normalizePost(platform: string, raw: Record<string, any>) {
         shares: null,
         hook: raw.title ?? null,
         thumbnail_url: raw.thumbnailUrl ?? null,
+        video_url: null,
         posted_at: raw.publishedAt ?? null,
       }
     default:
       return {
         url: null, caption: null, views: null, likes: null,
         comments: null, shares: null, hook: null,
-        thumbnail_url: null, posted_at: null,
+        thumbnail_url: null, video_url: null, posted_at: null,
       }
+  }
+}
+
+async function storeThumbnail(
+  supabase: any,
+  thumbnailUrl: string,
+  competitorId: string,
+  index: number,
+): Promise<string | null> {
+  try {
+    const res = await fetch(thumbnailUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.instagram.com/',
+      },
+    })
+    if (!res.ok) return null
+
+    const buffer = await res.arrayBuffer()
+    const path = `${competitorId}/${index}.jpg`
+
+    const { error } = await supabase.storage
+      .from('competitor-thumbnails')
+      .upload(path, buffer, { contentType: 'image/jpeg', upsert: true })
+
+    if (error) return null
+
+    const { data } = supabase.storage
+      .from('competitor-thumbnails')
+      .getPublicUrl(path)
+
+    return data.publicUrl
+  } catch {
+    return null
   }
 }
 
@@ -163,12 +201,12 @@ serve(async (req) => {
 
     if (competitorError) throw new Error(competitorError.message)
 
-    // Run Apify actor — waitForFinish=60 blocks for up to 60s then returns run status
+    // Run Apify actor — waitForFinish=90 blocks up to 90s then returns run status
     const actorId = ACTORS[platform]
     const input = buildApifyInput(platform, cleanHandle)
 
     const runRes = await fetch(
-      `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/runs?waitForFinish=60&token=${APIFY_TOKEN}`,
+      `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/runs?waitForFinish=90&token=${APIFY_TOKEN}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,7 +220,23 @@ serve(async (req) => {
     }
 
     const runData = await runRes.json()
-    const run = runData.data
+    let run = runData.data
+
+    // Poll if still queued/running after initial wait (free accounts can be slow to start)
+    if (run.status === 'READY' || run.status === 'RUNNING') {
+      const runId = run.id
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 5000))
+        const pollRes = await fetch(
+          `https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`,
+        )
+        if (pollRes.ok) {
+          const pollData = await pollRes.json()
+          run = pollData.data
+        }
+        if (run.status !== 'READY' && run.status !== 'RUNNING') break
+      }
+    }
 
     if (run.status !== 'SUCCEEDED') {
       throw new Error(
@@ -192,20 +246,29 @@ serve(async (req) => {
 
     // Fetch dataset items
     const itemsRes = await fetch(
-      `https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=30&clean=true`,
+      `https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=10&clean=true`,
     )
 
     if (!itemsRes.ok) throw new Error('Failed to fetch Apify dataset items')
 
     const rawPosts: Record<string, any>[] = await itemsRes.json()
 
-    // Normalize posts
-    const posts = rawPosts.slice(0, 30).map((raw) => ({
-      ...normalizePost(platform, raw),
-      competitor_id: competitor.id,
-      brand_id,
-      platform,
-    }))
+    // Normalize posts and store thumbnails in Supabase Storage
+    const posts = await Promise.all(
+      rawPosts.slice(0, 10).map(async (raw, index) => {
+        const normalized = normalizePost(platform, raw)
+        if (normalized.thumbnail_url) {
+          const stored = await storeThumbnail(supabase, normalized.thumbnail_url, competitor.id, index)
+          if (stored) normalized.thumbnail_url = stored
+        }
+        return {
+          ...normalized,
+          competitor_id: competitor.id,
+          brand_id,
+          platform,
+        }
+      })
+    )
 
     // Replace old posts for this competitor
     await supabase.from('competitor_posts').delete().eq('competitor_id', competitor.id)

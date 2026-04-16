@@ -5,10 +5,16 @@ import type { BrandProfile } from '@/types'
 export interface BrandUpsert {
   name: string
   niche: string
+  target_location?: string | null
   website_url?: string | null
   platforms: string[]
   color?: string | null
   avatar_url?: string | null
+  instagram_handle?: string | null
+  tiktok_handle?: string | null
+  facebook_handle?: string | null
+  youtube_handle?: string | null
+  linkedin_handle?: string | null
 }
 
 export function useBrands() {

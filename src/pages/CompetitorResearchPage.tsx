@@ -79,8 +79,10 @@ export function CompetitorResearchPage() {
   const [selectedCompetitorId, setSelectedCompetitorId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>('engagement')
   const [savingPostId, setSavingPostId] = useState<string | null>(null)
+  const [transcribingPostId, setTranscribingPostId] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(10)
 
-  const { competitors, runResearch, deleteCompetitor } = useCompetitors(activeBrand?.id ?? null)
+  const { competitors, runResearch, deleteCompetitor, transcribePost } = useCompetitors(activeBrand?.id ?? null)
   const { data: posts = [], isLoading: postsLoading } = useCompetitorPosts(
     activeBrand?.id ?? null,
     selectedCompetitorId,
@@ -135,10 +137,23 @@ export function CompetitorResearchPage() {
     }
   }
 
+  async function handleTranscribe(postId: string, videoUrl: string) {
+    setTranscribingPostId(postId)
+    try {
+      await transcribePost.mutateAsync({ postId, videoUrl })
+      toast.success('Script transcribed!')
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setTranscribingPostId(null)
+    }
+  }
+
   const savedPostIds = new Set(
     savedHooks.map((h) => h.source_post_id).filter(Boolean) as string[],
   )
   const sortedPosts = sortPosts(posts, sortKey)
+  const visiblePosts = sortedPosts.slice(0, visibleCount)
 
   return (
     <div className="p-6 space-y-6">
@@ -219,7 +234,7 @@ export function CompetitorResearchPage() {
           {competitors.length > 0 && (
             <div className="flex flex-wrap gap-2 items-center">
               <button
-                onClick={() => setSelectedCompetitorId(null)}
+                onClick={() => { setSelectedCompetitorId(null); setVisibleCount(10) }}
                 className={cn(
                   'rounded-full border px-3 py-1 text-sm font-medium transition-colors',
                   selectedCompetitorId === null
@@ -232,9 +247,10 @@ export function CompetitorResearchPage() {
               {competitors.map((c) => (
                 <div key={c.id} className="flex items-center gap-1">
                   <button
-                    onClick={() =>
+                    onClick={() => {
                       setSelectedCompetitorId(c.id === selectedCompetitorId ? null : c.id)
-                    }
+                      setVisibleCount(10)
+                    }}
                     className={cn(
                       'rounded-full border px-3 py-1 text-sm font-medium transition-colors',
                       c.id === selectedCompetitorId
@@ -264,7 +280,7 @@ export function CompetitorResearchPage() {
               {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
                 <button
                   key={key}
-                  onClick={() => setSortKey(key)}
+                  onClick={() => { setSortKey(key); setVisibleCount(10) }}
                   className={cn(
                     'text-sm px-3 py-1 rounded-full border transition-colors',
                     sortKey === key
@@ -289,20 +305,34 @@ export function CompetitorResearchPage() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : sortedPosts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {sortedPosts.map((post) => {
-                const competitor = competitors.find((c) => c.id === post.competitor_id)
-                return (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    handle={competitor?.handle ?? 'unknown'}
-                    onSaveHook={handleSaveHook}
-                    isSaving={savingPostId === post.id}
-                    alreadySaved={savedPostIds.has(post.id)}
-                  />
-                )
-              })}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {visiblePosts.map((post) => {
+                  const competitor = competitors.find((c) => c.id === post.competitor_id)
+                  return (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      handle={competitor?.handle ?? 'unknown'}
+                      onSaveHook={handleSaveHook}
+                      isSaving={savingPostId === post.id}
+                      alreadySaved={savedPostIds.has(post.id)}
+                      onTranscribe={handleTranscribe}
+                      isTranscribing={transcribingPostId === post.id}
+                    />
+                  )
+                })}
+              </div>
+              {visibleCount < sortedPosts.length && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount((n) => n + 10)}
+                  >
+                    See more ({sortedPosts.length - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
           ) : competitors.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center gap-2">

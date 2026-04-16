@@ -34,9 +34,15 @@ function isValidHex(value: string) {
 const schema = z.object({
   name: z.string().min(1, 'Brand name is required').max(60),
   niche: z.string().min(1, 'Niche is required').max(100),
+  target_location: z.string().max(100).optional(),
   website_url: z.string().url('Must be a valid URL').or(z.literal('')).optional(),
   platforms: z.array(z.string()).min(1, 'Select at least one platform'),
   color: z.string().optional(),
+  instagram_handle: z.string().max(100).optional(),
+  tiktok_handle: z.string().max(100).optional(),
+  facebook_handle: z.string().max(100).optional(),
+  youtube_handle: z.string().max(100).optional(),
+  linkedin_handle: z.string().max(100).optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -61,9 +67,15 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
     defaultValues: {
       name: defaultValues?.name ?? '',
       niche: defaultValues?.niche ?? '',
+      target_location: defaultValues?.target_location ?? '',
       website_url: defaultValues?.website_url ?? '',
       platforms: (defaultValues?.platforms as string[]) ?? [],
       color: defaultValues?.color ?? BRAND_COLORS[0],
+      instagram_handle: defaultValues?.instagram_handle ?? '',
+      tiktok_handle: defaultValues?.tiktok_handle ?? '',
+      facebook_handle: defaultValues?.facebook_handle ?? '',
+      youtube_handle: defaultValues?.youtube_handle ?? '',
+      linkedin_handle: defaultValues?.linkedin_handle ?? '',
     },
   })
 
@@ -89,6 +101,14 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
         <Label htmlFor="niche">Niche</Label>
         <Input id="niche" placeholder="e.g. Fitness, SaaS, Fashion" {...register('niche')} />
         {errors.niche && <p className="text-xs text-destructive">{errors.niche.message}</p>}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="target_location">
+          Target Location <span className="text-muted-foreground">(optional)</span>
+        </Label>
+        <Input id="target_location" placeholder="e.g. Dubai, UAE, New York" {...register('target_location')} />
+        {errors.target_location && <p className="text-xs text-destructive">{errors.target_location.message}</p>}
       </div>
 
       <div className="space-y-1.5">
@@ -130,6 +150,28 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
           <p className="text-xs text-destructive">{errors.platforms.message}</p>
         )}
       </div>
+
+      {/* Social handles (shown per selected platform, used for analytics sync) */}
+      {(
+        [
+          { platform: 'instagram', field: 'instagram_handle', label: 'Instagram handle', placeholder: '@brandname' },
+          { platform: 'tiktok',    field: 'tiktok_handle',    label: 'TikTok handle',    placeholder: '@brandname' },
+          { platform: 'facebook',  field: 'facebook_handle',  label: 'Facebook page',    placeholder: 'pagename' },
+          { platform: 'youtube',   field: 'youtube_handle',   label: 'YouTube channel',    placeholder: '@channelname' },
+          { platform: 'linkedin',  field: 'linkedin_handle',  label: 'LinkedIn company page', placeholder: 'company-slug' },
+        ] as const
+      )
+        .filter(({ platform }) => selectedPlatforms.includes(platform))
+        .map(({ field, label, placeholder }) => (
+          <div key={field} className="space-y-1.5">
+            <Label htmlFor={field}>
+              {label}{' '}
+              <span className="text-muted-foreground font-normal text-xs">(for analytics sync)</span>
+            </Label>
+            <Input id={field} placeholder={placeholder} {...register(field)} />
+          </div>
+        ))
+      }
 
       {/* Color Picker */}
       <Controller

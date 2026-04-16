@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Globe, ExternalLink } from 'lucide-react'
 import { useBrands } from '@/hooks/useBrands'
 import type { BrandUpsert } from '@/hooks/useBrands'
@@ -49,6 +50,8 @@ export function BrandProfilesPage() {
       const brand = await createBrand.mutateAsync(values)
       setActiveBrand(brand)
       setShowForm(false)
+    } catch (err) {
+      toast.error('Failed to create brand', { description: err instanceof Error ? err.message : String(err) })
     } finally {
       setSubmitting(false)
     }
@@ -58,8 +61,11 @@ export function BrandProfilesPage() {
     if (!editing) return
     setSubmitting(true)
     try {
-      await updateBrand.mutateAsync({ id: editing.id, values })
+      const updated = await updateBrand.mutateAsync({ id: editing.id, values })
+      setActiveBrand(updated)
       setEditing(null)
+    } catch (err) {
+      toast.error('Failed to save changes', { description: err instanceof Error ? err.message : String(err) })
     } finally {
       setSubmitting(false)
     }
@@ -185,7 +191,7 @@ export function BrandProfilesPage() {
 
       {/* Create Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg overflow-y-auto max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>New Brand Profile</DialogTitle>
           </DialogHeader>
@@ -199,7 +205,7 @@ export function BrandProfilesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg overflow-y-auto max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>Edit Brand Profile</DialogTitle>
           </DialogHeader>

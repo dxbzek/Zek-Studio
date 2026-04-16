@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
@@ -10,6 +10,16 @@ import { CompetitorResearchPage } from '@/pages/CompetitorResearchPage'
 import { NicheResearchPage } from '@/pages/NicheResearchPage'
 import { ContentGeneratorPage } from '@/pages/ContentGeneratorPage'
 import { ContentCalendarPage } from '@/pages/ContentCalendarPage'
+import TeamPage from '@/pages/TeamPage'
+import TaskBoardPage from '@/pages/TaskBoardPage'
+import AnalyticsPage from '@/pages/AnalyticsPage'
+import CampaignsPage from '@/pages/CampaignsPage'
+import ReplyTemplatesPage from '@/pages/ReplyTemplatesPage'
+import { ResearchShell }  from '@/pages/shells/ResearchShell'
+import { ContentShell }   from '@/pages/shells/ContentShell'
+import { WorkspaceShell } from '@/pages/shells/WorkspaceShell'
+import PublicReportPage from '@/pages/PublicReportPage'
+import PublicApprovalPage from '@/pages/PublicApprovalPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,13 +37,37 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/report/:token" element={<PublicReportPage />} />
+            <Route path="/approve/:token" element={<PublicApprovalPage />} />
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/brands" element={<BrandProfilesPage />} />
-              <Route path="/competitors" element={<CompetitorResearchPage />} />
-              <Route path="/research" element={<NicheResearchPage />} />
-              <Route path="/generator" element={<ContentGeneratorPage />} />
+              {/* Research */}
+              <Route path="/research" element={<ResearchShell />}>
+                <Route index element={<Navigate to="niche" replace />} />
+                <Route path="niche"       element={<NicheResearchPage />} />
+                <Route path="competitors" element={<CompetitorResearchPage />} />
+              </Route>
+
+              {/* Content */}
+              <Route path="/content" element={<ContentShell />}>
+                <Route index element={<Navigate to="generator" replace />} />
+                <Route path="generator" element={<ContentGeneratorPage />} />
+                <Route path="templates" element={<ReplyTemplatesPage />} />
+              </Route>
+
+              {/* Workspace */}
+              <Route path="/workspace" element={<WorkspaceShell />}>
+                <Route index element={<Navigate to="tasks" replace />} />
+                <Route path="tasks" element={<TaskBoardPage />} />
+                <Route path="team"  element={<TeamPage />} />
+              </Route>
+
               <Route path="/calendar" element={<ContentCalendarPage />} />
+
+              {/* Campaigns — accessed from Calendar header, not in sidebar */}
+              <Route path="/campaigns" element={<CampaignsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

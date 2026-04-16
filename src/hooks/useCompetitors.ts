@@ -60,7 +60,27 @@ export function useCompetitors(brandId: string | null) {
     },
   })
 
-  return { competitors, competitorsLoading, runResearch, deleteCompetitor }
+  const transcribePost = useMutation({
+    mutationFn: async ({ postId, videoUrl }: { postId: string; videoUrl: string }) => {
+      const { data, error } = await (supabase as any).functions.invoke('transcribe-video', {
+        body: { post_id: postId, video_url: videoUrl },
+      })
+      if (error) {
+        try {
+          const body = await error.context?.json?.()
+          throw new Error(body?.error ?? body?.message ?? error.message)
+        } catch (inner) {
+          throw inner instanceof Error ? inner : error
+        }
+      }
+      return data as { transcript: string }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['competitor-posts', brandId] })
+    },
+  })
+
+  return { competitors, competitorsLoading, runResearch, deleteCompetitor, transcribePost }
 }
 
 // ─── Competitor Posts ─────────────────────────────────────────────────────────

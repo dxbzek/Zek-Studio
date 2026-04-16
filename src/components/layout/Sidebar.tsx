@@ -1,14 +1,16 @@
+import { useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Briefcase,
-  Users,
   TrendingUp,
   Sparkles,
   CalendarDays,
   LogOut,
   ChevronDown,
   Plus,
+  UsersRound,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useActiveBrand } from '@/stores/activeBrand'
@@ -26,18 +28,27 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/brands', label: 'Brand Profiles', icon: Briefcase },
-  { to: '/competitors', label: 'Competitors', icon: Users },
-  { to: '/research', label: 'Niche Research', icon: TrendingUp },
-  { to: '/generator', label: 'AI Generator', icon: Sparkles },
-  { to: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { to: '/',          label: 'Dashboard',      icon: LayoutDashboard },
+  { to: '/brands',    label: 'Brand Profiles', icon: Briefcase },
+  { to: '/research',  label: 'Research',       icon: TrendingUp },
+  { to: '/content',   label: 'Content',        icon: Sparkles },
+  { to: '/calendar',  label: 'Calendar',       icon: CalendarDays },
+  { to: '/workspace', label: 'Workspace',      icon: UsersRound },
+  { to: '/analytics', label: 'Analytics',      icon: BarChart3 },
 ]
 
 export function Sidebar() {
   const navigate = useNavigate()
   const { activeBrand, setActiveBrand } = useActiveBrand()
   const { brands } = useBrands()
+
+  // Keep activeBrand in sync with latest data from the server
+  useEffect(() => {
+    if (activeBrand && brands.length > 0) {
+      const fresh = brands.find((b) => b.id === activeBrand.id)
+      if (fresh) setActiveBrand(fresh)
+    }
+  }, [brands])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
