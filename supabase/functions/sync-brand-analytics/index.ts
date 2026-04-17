@@ -257,14 +257,6 @@ Deno.serve(async (req) => {
     if (!itemsRes.ok) throw new Error('Failed to fetch Apify results')
     const rawPosts: Record<string, any>[] = await itemsRes.json()
 
-    // Log first item shape for debugging
-    if (rawPosts.length > 0) {
-      console.log(`[${platform}] raw item keys:`, Object.keys(rawPosts[0]))
-      console.log(`[${platform}] first item sample:`, JSON.stringify(rawPosts[0]).slice(0, 500))
-    } else {
-      console.log(`[${platform}] Apify returned 0 items`)
-    }
-
     // Upsert into post_metrics
     let synced = 0
     for (const raw of rawPosts) {

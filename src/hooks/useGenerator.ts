@@ -9,7 +9,7 @@ export function useGenerator(brandId: string | null) {
     queryKey: ['generated-content', brandId],
     queryFn: async () => {
       if (!brandId) return []
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('generated_content')
         .select('*')
         .eq('brand_id', brandId)
@@ -29,7 +29,7 @@ export function useGenerator(brandId: string | null) {
       source: GenerateSource
     }) => {
       if (!brandId) throw new Error('No brand selected')
-      const { data, error } = await (supabase as any).functions.invoke('ai-generate', {
+      const { data, error } = await supabase.functions.invoke('ai-generate', {
         body: { brand_id: brandId, ...params },
       })
       if (error) {
@@ -62,7 +62,7 @@ export function useGenerator(brandId: string | null) {
       scheduledDate: string
     }) => {
       if (!brandId) throw new Error('No brand selected')
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('calendar_entries')
         .insert({
           brand_id: brandId,

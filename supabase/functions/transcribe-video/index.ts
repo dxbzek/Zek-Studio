@@ -11,6 +11,20 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function getVideoHeaders(url: string): HeadersInit {
+  const headers: HeadersInit = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  }
+  if (url.includes('instagram.com') || url.includes('cdninstagram.com')) {
+    headers['Referer'] = 'https://www.instagram.com/'
+  } else if (url.includes('tiktok.com') || url.includes('tiktokcdn.com')) {
+    headers['Referer'] = 'https://www.tiktok.com/'
+  } else if (url.includes('youtube.com') || url.includes('googlevideo.com')) {
+    headers['Referer'] = 'https://www.youtube.com/'
+  }
+  return headers
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
@@ -37,10 +51,7 @@ serve(async (req) => {
 
     // Download the video
     const videoRes = await fetch(video_url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer': 'https://www.instagram.com/',
-      },
+      headers: getVideoHeaders(video_url),
     })
 
     if (!videoRes.ok) {

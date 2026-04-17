@@ -9,8 +9,7 @@ export function useReplyTemplates(brandId: string | null) {
     queryKey: ['reply-templates', brandId],
     queryFn: async () => {
       if (!brandId) return []
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('reply_templates')
         .select('*')
         .eq('brand_id', brandId)
@@ -23,8 +22,7 @@ export function useReplyTemplates(brandId: string | null) {
 
   const createTemplate = useMutation({
     mutationFn: async (payload: ReplyTemplateInsert) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('reply_templates')
         .insert(payload)
         .select()
@@ -37,8 +35,7 @@ export function useReplyTemplates(brandId: string | null) {
 
   const deleteTemplate = useMutation({
     mutationFn: async (id: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from('reply_templates').delete().eq('id', id)
+      const { error } = await supabase.from('reply_templates').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reply-templates', brandId] }),

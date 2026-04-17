@@ -11,7 +11,7 @@ export function useTasks(brandId: string | null) {
     queryKey,
     queryFn: async () => {
       if (!brandId) return []
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('brand_id', brandId)
@@ -24,7 +24,7 @@ export function useTasks(brandId: string | null) {
 
   const createTask = useMutation({
     mutationFn: async (payload: TaskInsert) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tasks')
         .insert(payload)
         .select()
@@ -37,7 +37,7 @@ export function useTasks(brandId: string | null) {
 
   const updateTask = useMutation<Task, Error, { id: string; patch: TaskUpdate }>({
     mutationFn: async ({ id, patch }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tasks')
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -53,7 +53,7 @@ export function useTasks(brandId: string | null) {
         (old) => old?.map((t) => t.id === id ? { ...t, ...patch } : t) ?? [])
       return { previous }
     },
-    onError: (_err: unknown, _vars: unknown, ctx: any) => {
+    onError: (_err: unknown, _vars: unknown, ctx: { previous: Task[] | undefined } | undefined) => {
       if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
@@ -61,7 +61,7 @@ export function useTasks(brandId: string | null) {
 
   const deleteTask = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('tasks')
         .delete()
         .eq('id', id)
@@ -81,9 +81,9 @@ export function useMyTasks() {
   const tasks = useQuery({
     queryKey,
     queryFn: async () => {
-      const { data: { user } } = await (supabase as any).auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return []
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('assignee_id', user.id)
@@ -95,7 +95,7 @@ export function useMyTasks() {
 
   const updateTask = useMutation<Task, Error, { id: string; patch: TaskUpdate }>({
     mutationFn: async ({ id, patch }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tasks')
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -111,7 +111,7 @@ export function useMyTasks() {
         (old) => old?.map((t) => t.id === id ? { ...t, ...patch } : t) ?? [])
       return { previous }
     },
-    onError: (_err: unknown, _vars: unknown, ctx: any) => {
+    onError: (_err: unknown, _vars: unknown, ctx: { previous: Task[] | undefined } | undefined) => {
       if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
