@@ -332,10 +332,16 @@ export interface BlogPost {
   target_wc: number
   publish_date: string | null
   url: string | null
+  content: string | null
   has_h1h2: boolean
   has_internal_links: boolean
   has_meta_description: boolean
   keyword_in_title: boolean
+  has_faq: boolean
+  has_schema: boolean
+  has_citations: boolean
+  has_eeat: boolean
+  has_author_bio: boolean
   created_at: string
   updated_at: string
 }

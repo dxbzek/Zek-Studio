@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, ExternalLink, CheckSquare, Square, Loader2 } from 'lucide-react'
+import { Plus, Trash2, ExternalLink, CheckSquare, Square, Loader2, Sparkles, Copy, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
@@ -14,8 +14,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 import { useSeoKeywords, useBlogPosts, useSeoAudit, useReviewSnapshots } from '@/hooks/useSeo'
 import type {
+  BrandProfile,
   SeoKeyword, SeoKeywordDifficulty, SeoKeywordIntent, SeoKeywordStatus,
   BlogPost, BlogPostStatus,
   SeoAuditItem, SeoAuditCategory, SeoAuditStatus, SeoAuditPriority,
@@ -78,6 +80,27 @@ const AUDIT_CATEGORY_LABELS: Record<SeoAuditCategory, string> = {
 }
 
 const AUDIT_CATEGORIES: SeoAuditCategory[] = ['technical', 'on_page', 'off_page', 'local']
+
+// ─── Blog checklist sections ──────────────────────────────────────────────────
+
+const BLOG_CHECKS = {
+  seo: [
+    { key: 'has_h1h2' as const,           label: 'H1/H2 structure' },
+    { key: 'has_meta_description' as const, label: 'Meta description' },
+    { key: 'has_internal_links' as const,   label: 'Internal links' },
+    { key: 'keyword_in_title' as const,     label: 'Keyword in title' },
+  ],
+  aeo: [
+    { key: 'has_faq' as const,    label: 'FAQ section' },
+    { key: 'has_schema' as const, label: 'Schema markup' },
+  ],
+  geo: [
+    { key: 'has_citations' as const,   label: 'Citations / sources' },
+    { key: 'has_eeat' as const,        label: 'E-E-A-T signals' },
+    { key: 'has_author_bio' as const,  label: 'Author bio' },
+  ],
+}
+const ALL_CHECKS = [...BLOG_CHECKS.seo, ...BLOG_CHECKS.aeo, ...BLOG_CHECKS.geo]
 
 // ─── Keywords Tab ─────────────────────────────────────────────────────────────
 
@@ -228,10 +251,12 @@ function KeywordRow({ kw, onUpdate, onDelete }: { kw: SeoKeyword; onUpdate: (p: 
 
 // ─── Blog Planner Tab ────────────────────────────────────────────────────────
 
-function BlogTab({ brandId }: { brandId: string }) {
-  const { posts, isLoading, addPost, updatePost, deletePost } = useBlogPosts(brandId)
-  const { keywords } = useSeoKeywords(brandId)
+function BlogTab({ brand }: { brand: BrandProfile }) {
+  const { posts, isLoading, addPost, updatePost, deletePost } = useBlogPosts(brand.id)
+  const { keywords } = useSeoKeywords(brand.id)
   const [adding, setAdding] = useState(false)
+  const [ideas, setIdeas] = useState<string[]>([])
+  const [loadingIdeas, setLoadingIdeas] = useState(false)
   const [form, setForm] = useState({ title: '', keyword_id: '', status: 'idea' as BlogPostStatus, target_wc: '800', publish_date: '', url: '' })
 
   const published = posts.filter((p) => p.status === 'published').length
@@ -242,11 +267,49 @@ function BlogTab({ brandId }: { brandId: string }) {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
   }).length
 
+  async function handleGenerateIdeas() {
+    setLoadingIdeas(true)
+    setIdeas([])
+    try {
+      const { data, error } = await (supabase as any).functions.invoke('generate-blog', {
+        body: { mode: 'ideas', brandName: brand.name, niche: brand.niche },
+      })
+      if (error) throw new Error(error.message)
+      setIdeas(data.titles ?? [])
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setLoadingIdeas(false)
+    }
+  }
+
+  async function handleAddIdea(title: string) {
+    try {
+      await addPost.mutateAsync({
+        brand_id: brand.id,
+        title,
+        keyword_id: null,
+        status: 'idea',
+        word_count: null,
+        target_wc: 800,
+        publish_date: null,
+        url: null,
+        content: null,
+        has_h1h2: false, has_internal_links: false, has_meta_description: false, keyword_in_title: false,
+        has_faq: false, has_schema: false, has_citations: false, has_eeat: false, has_author_bio: false,
+      })
+      setIdeas((prev) => prev.filter((t) => t !== title))
+      toast.success('Post added to planner')
+    } catch (err) {
+      toast.error((err as Error).message)
+    }
+  }
+
   async function handleAdd() {
     if (!form.title.trim()) return
     try {
       await addPost.mutateAsync({
-        brand_id: brandId,
+        brand_id: brand.id,
         title: form.title.trim(),
         keyword_id: form.keyword_id || null,
         status: form.status,
@@ -254,10 +317,9 @@ function BlogTab({ brandId }: { brandId: string }) {
         target_wc: parseInt(form.target_wc) || 800,
         publish_date: form.publish_date || null,
         url: form.url.trim() || null,
-        has_h1h2: false,
-        has_internal_links: false,
-        has_meta_description: false,
-        keyword_in_title: false,
+        content: null,
+        has_h1h2: false, has_internal_links: false, has_meta_description: false, keyword_in_title: false,
+        has_faq: false, has_schema: false, has_citations: false, has_eeat: false, has_author_bio: false,
       })
       setForm({ title: '', keyword_id: '', status: 'idea', target_wc: '800', publish_date: '', url: '' })
       setAdding(false)
@@ -277,10 +339,33 @@ function BlogTab({ brandId }: { brandId: string }) {
           <div className="text-center"><div className="text-2xl font-bold text-green-600 dark:text-green-400">{published}</div><div className="text-xs text-muted-foreground">Published</div></div>
           <div className="text-center"><div className="text-2xl font-bold text-primary">{thisMonth}</div><div className="text-xs text-muted-foreground">This month</div></div>
         </div>
-        <Button size="sm" onClick={() => setAdding((v) => !v)} variant={adding ? 'outline' : 'default'} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Add Post
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={handleGenerateIdeas} disabled={loadingIdeas} className="gap-1.5">
+            {loadingIdeas ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Generate Ideas
+          </Button>
+          <Button size="sm" onClick={() => setAdding((v) => !v)} variant={adding ? 'outline' : 'default'} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Add Post
+          </Button>
+        </div>
       </div>
+
+      {ideas.length > 0 && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <p className="text-sm font-medium flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> AI-suggested blog ideas</p>
+          <div className="space-y-2">
+            {ideas.map((idea) => (
+              <div key={idea} className="flex items-center gap-3">
+                <span className="flex-1 text-sm">{idea}</span>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => handleAddIdea(idea)}>
+                  <Plus className="h-3.5 w-3.5" /> Add
+                </Button>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setIdeas([])} className="text-xs text-muted-foreground hover:text-foreground">Dismiss</button>
+        </div>
+      )}
 
       {adding && (
         <div className="p-4 rounded-xl border border-border bg-card space-y-3">
@@ -328,12 +413,12 @@ function BlogTab({ brandId }: { brandId: string }) {
       {posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center gap-2">
           <p className="font-medium">No posts planned yet</p>
-          <p className="text-sm text-muted-foreground">Add blog posts and track them from idea to published</p>
+          <p className="text-sm text-muted-foreground">Use "Generate Ideas" to get AI suggestions, or add posts manually</p>
         </div>
       ) : (
         <div className="space-y-2">
           {posts.map((post) => (
-            <BlogPostRow key={post.id} post={post} keywords={keywords} onUpdate={(patch) => updatePost.mutate({ id: post.id, patch })} onDelete={() => deletePost.mutate(post.id)} />
+            <BlogPostRow key={post.id} post={post} brand={brand} keywords={keywords} onUpdate={(patch) => updatePost.mutate({ id: post.id, patch })} onDelete={() => deletePost.mutate(post.id)} />
           ))}
         </div>
       )}
@@ -341,17 +426,36 @@ function BlogTab({ brandId }: { brandId: string }) {
   )
 }
 
-function BlogPostRow({ post, keywords, onUpdate, onDelete }: { post: BlogPost; keywords: SeoKeyword[]; onUpdate: (p: Partial<BlogPost>) => void; onDelete: () => void }) {
+function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: { post: BlogPost; brand: BrandProfile; keywords: SeoKeyword[]; onUpdate: (p: Partial<BlogPost>) => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false)
+  const [loadingDraft, setLoadingDraft] = useState(false)
+  const [copied, setCopied] = useState(false)
   const keyword = keywords.find((k) => k.id === post.keyword_id)
+  const doneChecks = ALL_CHECKS.filter((c) => post[c.key]).length
 
-  const checks = [
-    { key: 'has_h1h2' as const, label: 'H1/H2 structure' },
-    { key: 'has_internal_links' as const, label: 'Internal links' },
-    { key: 'has_meta_description' as const, label: 'Meta description' },
-    { key: 'keyword_in_title' as const, label: 'Keyword in title' },
-  ]
-  const doneChecks = checks.filter((c) => post[c.key]).length
+  async function handleGenerateDraft() {
+    setLoadingDraft(true)
+    try {
+      const { data, error } = await (supabase as any).functions.invoke('generate-blog', {
+        body: { mode: 'draft', brandName: brand.name, niche: brand.niche, title: post.title },
+      })
+      if (error) throw new Error(error.message)
+      onUpdate({ content: data.content, status: post.status === 'idea' ? 'draft' : post.status })
+      setExpanded(true)
+      toast.success('Draft generated')
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setLoadingDraft(false)
+    }
+  }
+
+  async function handleCopy() {
+    if (!post.content) return
+    await navigator.clipboard.writeText(post.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -361,39 +465,66 @@ function BlogPostRow({ post, keywords, onUpdate, onDelete }: { post: BlogPost; k
           <div className="flex items-center gap-2 mt-1">
             {keyword && <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{keyword.keyword}</span>}
             {post.publish_date && <span className="text-xs text-muted-foreground">{post.publish_date}</span>}
-            <span className="text-xs text-muted-foreground">{doneChecks}/4 checks</span>
+            <span className="text-xs text-muted-foreground">{doneChecks}/9 checks</span>
+            {post.content && <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">Draft ready</span>}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div onClick={(e) => e.stopPropagation()}>
-          <Select value={post.status} onValueChange={(v) => { onUpdate({ status: v as BlogPostStatus }); }}>
-            <SelectTrigger className="h-7 w-[110px] text-xs">
-              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium capitalize', BLOG_STATUS_STYLES[post.status])}>{post.status}</span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="idea">Idea</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-            </SelectContent>
-          </Select>
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground hover:text-primary" onClick={handleGenerateDraft} disabled={loadingDraft}>
+              {loadingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {post.content ? 'Regenerate' : 'Draft'}
+            </Button>
+          </div>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Select value={post.status} onValueChange={(v) => { onUpdate({ status: v as BlogPostStatus }) }}>
+              <SelectTrigger className="h-7 w-[110px] text-xs">
+                <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium capitalize', BLOG_STATUS_STYLES[post.status])}>{post.status}</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="idea">Idea</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {post.url && <a href={post.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-primary"><ExternalLink className="h-3.5 w-3.5" /></a>}
           <button onClick={(e) => { e.stopPropagation(); onDelete() }} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       </div>
       {expanded && (
-        <div className="border-t border-border px-4 py-3 bg-muted/20">
-          <p className="text-xs font-medium text-muted-foreground mb-2">On-Page Checklist</p>
-          <div className="grid grid-cols-2 gap-2">
-            {checks.map((c) => (
-              <button key={c.key} onClick={() => onUpdate({ [c.key]: !post[c.key] })} className="flex items-center gap-2 text-sm hover:text-foreground text-muted-foreground transition-colors">
-                {post[c.key] ? <CheckSquare className="h-4 w-4 text-green-500 shrink-0" /> : <Square className="h-4 w-4 shrink-0" />}
-                {c.label}
-              </button>
+        <div className="border-t border-border px-4 py-3 bg-muted/20 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {(['seo', 'aeo', 'geo'] as const).map((section) => (
+              <div key={section}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{section.toUpperCase()}</p>
+                <div className="space-y-1.5">
+                  {BLOG_CHECKS[section].map((c) => (
+                    <button key={c.key} onClick={() => onUpdate({ [c.key]: !post[c.key] })} className="flex items-center gap-2 text-sm hover:text-foreground text-muted-foreground transition-colors w-full text-left">
+                      {post[c.key] ? <CheckSquare className="h-4 w-4 text-green-500 shrink-0" /> : <Square className="h-4 w-4 shrink-0" />}
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
+
           {post.word_count != null && (
-            <div className="mt-2 text-xs text-muted-foreground">{post.word_count} / {post.target_wc} words</div>
+            <div className="text-xs text-muted-foreground">{post.word_count} / {post.target_wc} words</div>
+          )}
+
+          {post.content && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">Generated Draft</p>
+                <button onClick={handleCopy} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans bg-background border border-border rounded-lg p-3 max-h-80 overflow-y-auto">{post.content}</pre>
+            </div>
           )}
         </div>
       )}
@@ -492,7 +623,6 @@ function ReviewsTab({ brandId }: { brandId: string }) {
   const [form, setForm] = useState({ platform: 'google', count: '', target: '' })
   const [adding, setAdding] = useState(false)
 
-  // Latest snapshot per platform
   const latestByPlatform = snapshots.reduce<Record<string, typeof snapshots[number]>>((acc, s) => {
     if (!acc[s.platform] || s.recorded_at > acc[s.platform].recorded_at) acc[s.platform] = s
     return acc
@@ -668,7 +798,7 @@ export function SeoPage() {
       </div>
 
       {tab === 'keywords' && <KeywordsTab brandId={activeBrand.id} />}
-      {tab === 'blog'     && <BlogTab brandId={activeBrand.id} />}
+      {tab === 'blog'     && <BlogTab brand={activeBrand} />}
       {tab === 'audit'    && <AuditTab brandId={activeBrand.id} />}
       {tab === 'reviews'  && <ReviewsTab brandId={activeBrand.id} />}
     </div>
