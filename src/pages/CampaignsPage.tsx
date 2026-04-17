@@ -28,8 +28,7 @@ function CampaignEntryCount({ campaignId }: { campaignId: string }) {
   const { data: count } = useQuery({
     queryKey: ['campaign-entry-count', campaignId],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count: c, error } = await (supabase as any)
+      const { count: c, error } = await supabase
         .from('calendar_entries')
         .select('id', { count: 'exact', head: true })
         .eq('campaign_id', campaignId)
