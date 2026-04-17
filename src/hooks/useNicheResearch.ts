@@ -11,7 +11,7 @@ export function useNicheResearch(brandId: string | null, niche: string | null, l
     queryKey: ['niche-research', brandId],
     queryFn: async () => {
       if (!brandId || !cacheKey) return null
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('niche_research_cache')
         .select('*')
         .eq('brand_id', brandId)
@@ -26,7 +26,7 @@ export function useNicheResearch(brandId: string | null, niche: string | null, l
   const refresh = useMutation({
     mutationFn: async () => {
       if (!brandId || !niche) throw new Error('No brand selected')
-      const { data, error } = await (supabase as any).functions.invoke('niche-research', {
+      const { data, error } = await supabase.functions.invoke('niche-research', {
         body: { brand_id: brandId, niche, location: loc },
       })
       if (error) {

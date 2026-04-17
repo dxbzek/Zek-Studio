@@ -9,8 +9,7 @@ export function useCampaigns(brandId: string | null) {
     queryKey: ['campaigns', brandId],
     queryFn: async () => {
       if (!brandId) return []
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('campaigns')
         .select('*')
         .eq('brand_id', brandId)
@@ -23,8 +22,7 @@ export function useCampaigns(brandId: string | null) {
 
   const createCampaign = useMutation({
     mutationFn: async (payload: CampaignInsert) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('campaigns')
         .insert(payload)
         .select()
@@ -37,8 +35,7 @@ export function useCampaigns(brandId: string | null) {
 
   const updateCampaign = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: CampaignUpdate }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('campaigns')
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -52,8 +49,7 @@ export function useCampaigns(brandId: string | null) {
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from('campaigns').delete().eq('id', id)
+      const { error } = await supabase.from('campaigns').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns', brandId] }),

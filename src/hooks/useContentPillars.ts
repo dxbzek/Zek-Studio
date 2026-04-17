@@ -9,8 +9,7 @@ export function useContentPillars(brandId: string | null) {
     queryKey: ['content-pillars', brandId],
     queryFn: async () => {
       if (!brandId) return []
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('content_pillars')
         .select('*')
         .eq('brand_id', brandId)
@@ -23,8 +22,7 @@ export function useContentPillars(brandId: string | null) {
 
   const createPillar = useMutation({
     mutationFn: async (payload: ContentPillarInsert) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('content_pillars')
         .insert(payload)
         .select()
@@ -37,8 +35,7 @@ export function useContentPillars(brandId: string | null) {
 
   const deletePillar = useMutation({
     mutationFn: async (id: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from('content_pillars').delete().eq('id', id)
+      const { error } = await supabase.from('content_pillars').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['content-pillars', brandId] }),

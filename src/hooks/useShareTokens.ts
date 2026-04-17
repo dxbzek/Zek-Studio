@@ -9,8 +9,7 @@ export function useShareTokens(brandId: string | null) {
     queryKey: ['share-tokens', brandId],
     queryFn: async () => {
       if (!brandId) return []
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('share_tokens')
         .select('*')
         .eq('brand_id', brandId)
@@ -28,8 +27,8 @@ export function useShareTokens(brandId: string | null) {
       type: ShareTokenType
       settings?: Record<string, unknown>
     }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      if (!brandId) throw new Error('No brand selected')
+      const { data, error } = await supabase
         .from('share_tokens')
         .insert({ brand_id: brandId, type, settings: settings ?? {} })
         .select()
@@ -42,8 +41,7 @@ export function useShareTokens(brandId: string | null) {
 
   const deleteToken = useMutation({
     mutationFn: async (id: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any).from('share_tokens').delete().eq('id', id)
+      const { error } = await supabase.from('share_tokens').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['share-tokens', brandId] }),

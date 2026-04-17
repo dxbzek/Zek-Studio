@@ -10,7 +10,7 @@ export function usePostMetrics(brandId: string | null) {
     queryKey,
     queryFn: async () => {
       if (!brandId) return []
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('post_metrics')
         .select('*')
         .eq('brand_id', brandId)
@@ -23,7 +23,7 @@ export function usePostMetrics(brandId: string | null) {
 
   const logMetric = useMutation({
     mutationFn: async (payload: PostMetricInsert) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('post_metrics')
         .insert(payload)
         .select()
@@ -36,7 +36,7 @@ export function usePostMetrics(brandId: string | null) {
 
   const updateMetric = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: PostMetricUpdate }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('post_metrics')
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -50,7 +50,7 @@ export function usePostMetrics(brandId: string | null) {
 
   const deleteMetric = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('post_metrics')
         .delete()
         .eq('id', id)

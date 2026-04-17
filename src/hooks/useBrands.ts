@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { useActiveBrand } from '@/stores/activeBrand'
 import type { BrandProfile } from '@/types'
 
 export interface BrandUpsert {
@@ -37,8 +38,7 @@ export function useBrands() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('brand_profiles')
         .insert({ ...values, user_id: user.id })
         .select()
@@ -53,8 +53,7 @@ export function useBrands() {
 
   const updateBrand = useMutation({
     mutationFn: async ({ id, values }: { id: string; values: Partial<BrandUpsert> }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('brand_profiles')
         .update(values)
         .eq('id', id)
@@ -70,15 +69,17 @@ export function useBrands() {
 
   const deleteBrand = useMutation({
     mutationFn: async (id: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('brand_profiles')
         .delete()
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ['brands'] })
+      if (useActiveBrand.getState().activeBrand?.id === deletedId) {
+        useActiveBrand.getState().setActiveBrand(null)
+      }
     },
   })
 

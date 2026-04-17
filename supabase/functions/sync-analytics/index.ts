@@ -71,11 +71,28 @@ Deno.serve(async (req) => {
     }
 
     // Refresh token if expired (or expiring within 5 minutes)
+    // Uses an optimistic lock on token_expires_at to prevent concurrent refreshes
     let accessToken: string = conn.access_token
     if (conn.token_expires_at) {
       const expiresAt = new Date(conn.token_expires_at).getTime()
       if (expiresAt < Date.now() + 5 * 60 * 1000) {
-        accessToken = await refreshToken(supabase, conn, platform, brand_id)
+        const { count } = await supabase
+          .from('platform_connections')
+          .update({ token_expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() })
+          .eq('id', conn.id)
+          .eq('token_expires_at', conn.token_expires_at)
+          .select('id', { count: 'exact', head: true })
+
+        if (count && count > 0) {
+          accessToken = await refreshToken(supabase, conn, platform, brand_id)
+        } else {
+          const { data: fresh } = await supabase
+            .from('platform_connections')
+            .select('access_token')
+            .eq('id', conn.id)
+            .single()
+          if (fresh?.access_token) accessToken = fresh.access_token
+        }
       }
     }
 
