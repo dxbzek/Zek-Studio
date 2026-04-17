@@ -2,16 +2,32 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-const GEMINI_MODEL = 'gemini-2.0-flash'
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+async function groq(prompt: string): Promise<string> {
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.85,
+      max_tokens: 1024,
+    }),
+  })
+  if (!res.ok) throw new Error(`Groq error (${res.status}): ${await res.text()}`)
+  const data = await res.json()
+  return data.choices?.[0]?.message?.content ?? ''
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -152,10 +168,10 @@ serve(async (req) => {
   }
 
   try {
-    if (!GOOGLE_AI_API_KEY) {
+    if (!GROQ_API_KEY) {
       return new Response(
         JSON.stringify({
-          error: 'GOOGLE_AI_API_KEY secret is not set. Go to Supabase Dashboard → Edge Functions → Manage secrets.',
+          error: 'GROQ_API_KEY secret is not set. Go to Supabase Dashboard → Edge Functions → Manage secrets.',
         }),
         { status: 503, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
       )
@@ -202,25 +218,8 @@ serve(async (req) => {
     const topPosts = postsRes.data ?? []
 
     const prompt = buildPrompt(brand, type, platform, tone, source, savedHooks, topPosts)
-
-    // Call Gemini
-    const aiRes = await fetch(`${GEMINI_URL}?key=${GOOGLE_AI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.85, maxOutputTokens: 1024, topP: 0.95 },
-      }),
-    })
-
-    if (!aiRes.ok) {
-      const errText = await aiRes.text()
-      throw new Error(`Gemini error (${aiRes.status}): ${errText}`)
-    }
-
-    const aiData = await aiRes.json()
-    const rawText: string = aiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-    if (!rawText) throw new Error('Gemini returned an empty response')
+    const rawText = await groq(prompt)
+    if (!rawText) throw new Error('Groq returned an empty response')
 
     const output = parseVariants(rawText)
 
