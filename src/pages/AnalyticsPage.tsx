@@ -155,13 +155,18 @@ export default function AnalyticsPage() {
 
   const allMetrics = metrics.data ?? []
 
+  const filteredMetrics = useMemo(
+    () => filterPlatform === 'all' ? allMetrics : allMetrics.filter((m) => m.platform === filterPlatform),
+    [allMetrics, filterPlatform],
+  )
+
   // ── Summary stats ─────────────────────────────────────────────────────────
 
   const summary = useMemo(() => {
-    if (allMetrics.length === 0) return null
-    const totalViews = allMetrics.reduce((s, m) => s + (m.views ?? 0), 0)
-    const totalLikes = allMetrics.reduce((s, m) => s + (m.likes ?? 0), 0)
-    const avgEng = allMetrics
+    if (filteredMetrics.length === 0) return null
+    const totalViews = filteredMetrics.reduce((s, m) => s + (m.views ?? 0), 0)
+    const totalLikes = filteredMetrics.reduce((s, m) => s + (m.likes ?? 0), 0)
+    const avgEng = filteredMetrics
       .map((m) => {
         const eng = (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.saves ?? 0)
         const base = m.reach ?? m.impressions ?? m.views
@@ -172,7 +177,7 @@ export default function AnalyticsPage() {
 
     // Top platform by total views
     const byPlatform: Record<string, number> = {}
-    allMetrics.forEach((m) => {
+    filteredMetrics.forEach((m) => {
       byPlatform[m.platform] = (byPlatform[m.platform] ?? 0) + (m.views ?? 0)
     })
     const topPlatform = Object.entries(byPlatform).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—'
@@ -182,22 +187,19 @@ export default function AnalyticsPage() {
       totalLikes,
       avgEngRate,
       topPlatform,
-      count: allMetrics.length,
+      count: filteredMetrics.length,
     }
-  }, [allMetrics])
+  }, [filteredMetrics])
 
   // ── Filtered + sorted list ────────────────────────────────────────────────
 
   const displayed = useMemo(() => {
-    let list = [...allMetrics]
-    if (filterPlatform !== 'all') list = list.filter((m) => m.platform === filterPlatform)
-    list.sort((a, b) => {
+    return [...filteredMetrics].sort((a, b) => {
       if (sortBy === 'views') return (b.views ?? -1) - (a.views ?? -1)
       if (sortBy === 'likes') return (b.likes ?? -1) - (a.likes ?? -1)
       return (b.posted_at ?? '').localeCompare(a.posted_at ?? '')
     })
-    return list
-  }, [allMetrics, filterPlatform, sortBy])
+  }, [filteredMetrics, sortBy])
 
   // ── Best posting times ────────────────────────────────────────────────────
 
@@ -205,7 +207,7 @@ export default function AnalyticsPage() {
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     const buckets: Record<number, { total: number; count: number }> = {}
     for (let i = 0; i < 7; i++) buckets[i] = { total: 0, count: 0 }
-    for (const m of allMetrics) {
+    for (const m of filteredMetrics) {
       if (!m.posted_at) continue
       const day = new Date(m.posted_at + 'T00:00:00').getDay()
       buckets[day].total += m.views ?? 0
@@ -216,14 +218,14 @@ export default function AnalyticsPage() {
       avg: buckets[i].count > 0 ? Math.round(buckets[i].total / buckets[i].count) : 0,
       posts: buckets[i].count,
     }))
-  }, [allMetrics])
+  }, [filteredMetrics])
 
   // ── Best posting hours ────────────────────────────────────────────────────
 
   const bestHoursData = useMemo(() => {
     const buckets: Record<number, { total: number; count: number }> = {}
     for (let h = 0; h < 24; h++) buckets[h] = { total: 0, count: 0 }
-    for (const m of allMetrics) {
+    for (const m of filteredMetrics) {
       if (!m.posted_time) continue
       const hour = parseInt(m.posted_time.slice(0, 2))
       if (isNaN(hour)) continue
@@ -235,7 +237,7 @@ export default function AnalyticsPage() {
       avg: buckets[h].count > 0 ? Math.round(buckets[h].total / buckets[h].count) : 0,
       posts: buckets[h].count,
     }))
-  }, [allMetrics])
+  }, [filteredMetrics])
 
   const hasHourData = bestHoursData.some((d) => d.posts > 0)
 

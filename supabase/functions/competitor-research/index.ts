@@ -15,7 +15,7 @@ const ACTORS: Record<string, string> = {
   instagram: 'apify/instagram-scraper',
   tiktok: 'clockworks/tiktok-scraper',
   facebook: 'apify/facebook-pages-scraper',
-  youtube: 'bernardo/youtube-scraper',
+  youtube: 'apify/youtube-scraper',
 }
 
 /** Extract bare username from a handle or profile URL */

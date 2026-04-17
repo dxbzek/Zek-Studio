@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatDistanceToNow, parseISO } from 'date-fns'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -257,6 +258,7 @@ export function CompetitorResearchPage() {
                         ? 'border-primary bg-primary text-primary-foreground'
                         : 'border-border bg-background hover:bg-muted',
                     )}
+                    title={c.last_scraped_at ? `Scraped ${formatDistanceToNow(parseISO(c.last_scraped_at), { addSuffix: true })}` : 'Never scraped'}
                   >
                     @{c.handle}
                     <span className="opacity-60 text-xs capitalize ml-1.5">{c.platform}</span>
