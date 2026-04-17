@@ -270,6 +270,13 @@ async function syncFacebook(
   pageId: string,
   accessToken: string,
 ): Promise<number> {
+  // Fetch page fan_count to use as engagement denominator
+  const pageRes = await fetch(
+    `https://graph.facebook.com/v21.0/${pageId}?fields=fan_count&access_token=${accessToken}`,
+  )
+  const pageData = await pageRes.json()
+  const fanCount: number | null = pageData.fan_count ?? null
+
   const postsRes = await fetch(
     `https://graph.facebook.com/v21.0/${pageId}/posts?` +
     `fields=id,created_time,story,permalink_url,likes.summary(true),comments.summary(true),shares&limit=30` +
@@ -289,6 +296,8 @@ async function syncFacebook(
         likes: post.likes?.summary?.total_count ?? null,
         comments: post.comments?.summary?.total_count ?? null,
         shares: post.shares?.count ?? null,
+        // Store fan count as reach so engagement rate = (likes+comments+shares) / followers
+        reach: fanCount,
       },
       { onConflict: 'brand_id,platform,post_url', ignoreDuplicates: false },
     )
