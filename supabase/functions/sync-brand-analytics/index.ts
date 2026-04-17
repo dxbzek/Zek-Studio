@@ -29,17 +29,23 @@ function extractUsername(input: string): string {
   return trimmed.replace(/^@/, '')
 }
 
-function buildApifyInput(platform: string, handle: string): unknown {
+function buildApifyInput(platform: string, handle: string, since?: string, until?: string): unknown {
   const clean = extractUsername(handle)
   switch (platform) {
     case 'instagram':
-      return { directUrls: [`https://www.instagram.com/${clean}/`], resultsType: 'posts', resultsLimit: 20 }
+      return {
+        directUrls: [`https://www.instagram.com/${clean}/`],
+        resultsType: 'posts',
+        resultsLimit: 50,
+        ...(since ? { onlyPostsNewerThan: since } : {}),
+        ...(until ? { onlyPostsOlderThan: until } : {}),
+      }
     case 'tiktok':
-      return { profiles: [`@${clean}`], resultsPerPage: 20 }
+      return { profiles: [`@${clean}`], resultsPerPage: 50 }
     case 'facebook':
       return { startUrls: [{ url: `https://www.facebook.com/${clean}` }] }
     case 'youtube':
-      return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResultsShorts: 0, maxResults: 20 }
+      return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResultsShorts: 0, maxResults: 50 }
     default:
       throw new Error(`Unsupported platform: ${platform}`)
   }
@@ -170,7 +176,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { brand_id, platform } = await req.json() as { brand_id: string; platform: string }
+    const { brand_id, platform, since, until } = await req.json() as {
+      brand_id: string
+      platform: string
+      since?: string  // ISO date e.g. "2024-01-01"
+      until?: string  // ISO date e.g. "2024-03-31"
+    }
     if (!brand_id || !platform) {
       return new Response(JSON.stringify({ error: 'brand_id and platform are required' }), {
         status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
@@ -208,7 +219,7 @@ Deno.serve(async (req) => {
     }
 
     // Run Apify actor
-    const input = buildApifyInput(platform, handle)
+    const input = buildApifyInput(platform, handle, since, until)
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/${encodeURIComponent(ACTORS[platform])}/runs?waitForFinish=90&token=${APIFY_TOKEN}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) },
@@ -244,6 +255,12 @@ Deno.serve(async (req) => {
     for (const raw of rawPosts) {
       const metric = normalizeToMetric(platform, raw, brand_id)
       if (!metric) continue
+
+      // Apply date range filter (for platforms without native Apify date support)
+      if (metric.posted_at) {
+        if (since && metric.posted_at < since) continue
+        if (until && metric.posted_at > until) continue
+      }
 
       const { error } = await supabase
         .from('post_metrics')
