@@ -23,6 +23,16 @@ export const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'youtube', label: 'YouTube' },
 ]
 
+// Generator-specific platform list — merges Instagram + Facebook into Meta
+export type GeneratorPlatform = 'meta' | 'tiktok' | 'linkedin' | 'youtube'
+
+export const GENERATOR_PLATFORMS: { value: GeneratorPlatform; label: string }[] = [
+  { value: 'meta', label: 'Meta (IG + FB)' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'youtube', label: 'YouTube' },
+]
+
 // ─── Brand Profiles ──────────────────────────────────────────────────────────
 
 export interface BrandProfile {
@@ -129,8 +139,8 @@ export interface TopCreator {
 
 // ─── Generated Content ───────────────────────────────────────────────────────
 
-export type ContentType = 'hook' | 'caption' | 'idea'
-export type ContentTone = 'professional' | 'casual' | 'humorous' | 'inspirational' | 'educational'
+export type ContentType = 'hook' | 'caption' | 'idea' | 'script' | 'listing' | 'market' | 'story' | 'cta'
+export type ContentTone = 'professional' | 'casual' | 'humorous' | 'inspirational' | 'educational' | 'authoritative' | 'luxurious' | 'urgent'
 
 export type GenerateSource =
   | { type: 'trending_topic'; title: string; summary: string }
@@ -342,6 +352,9 @@ export interface BlogPost {
   has_citations: boolean
   has_eeat: boolean
   has_author_bio: boolean
+  slug: string | null
+  meta_title: string | null
+  meta_description: string | null
   created_at: string
   updated_at: string
 }

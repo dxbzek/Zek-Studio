@@ -53,6 +53,7 @@ function parseVariants(text: string): string[] {
 
 function platformLabel(platform: string): string {
   const map: Record<string, string> = {
+    meta: 'Instagram and Facebook (Meta)',
     instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube',
     facebook: 'Facebook', linkedin: 'LinkedIn',
   }
@@ -64,8 +65,27 @@ function typeLabel(type: string): string {
     hook: 'attention-grabbing opening hook',
     caption: 'engaging post caption',
     idea: 'content idea',
+    script: 'short-form video script (Reel/TikTok)',
+    listing: 'property spotlight post',
+    market: 'market update post',
+    story: 'personal story post',
+    cta: 'call-to-action post',
   }
   return map[type] ?? type
+}
+
+function typeInstructions(type: string): string {
+  const map: Record<string, string> = {
+    hook: 'Make the first line irresistible — curiosity, a bold claim, or a surprising fact. No intro.',
+    caption: 'Include a clear call-to-action at the end. Use line breaks for readability.',
+    idea: 'Be specific and actionable — describe the exact format, topic, and angle.',
+    script: 'Open with a hook (first 2 seconds), then deliver value, end with CTA. Use natural spoken language. Format as: HOOK: / BODY: / CTA:',
+    listing: 'Lead with the most compelling property detail. Include location, key features, price range hint if relevant, end with CTA (DM/link in bio).',
+    market: 'Lead with a specific data point or trend. Explain what it means for buyers/investors. Keep it authoritative but accessible.',
+    story: 'Start in the middle of the action. Make it relatable. End with a lesson or CTA. First person perspective.',
+    cta: 'One clear ask. Create urgency or curiosity. Short and punchy. No more than 3 sentences.',
+  }
+  return map[type] ?? 'Make it compelling and platform-native.'
 }
 
 function fmtEngagement(source: { views: number | null; likes: number | null }): string {
@@ -92,26 +112,30 @@ function buildPrompt(
   source: GenerateSource,
   savedHooks: { text: string }[],
   topPosts: { hook: string | null; caption: string | null }[],
+  seoKeywords: { keyword: string; intent: string | null }[],
 ): string {
   const loc = brand.target_location ? ` based in ${brand.target_location}` : ''
   const plat = platformLabel(platform)
   const typeLbl = typeLabel(type)
+  const typeInstr = typeInstructions(type)
 
   const voiceSection = savedHooks.length > 0
-    ? `BRAND VOICE — match this style in your output:\n${savedHooks.map((h, i) => `${i + 1}. "${h.text}"`).join('\n')}\n\n`
+    ? `BRAND VOICE — match this style:\n${savedHooks.map((h, i) => `${i + 1}. "${h.text}"`).join('\n')}\n\n`
     : ''
 
   const marketSection = topPosts.length > 0
-    ? `WHAT'S WORKING FOR COMPETITORS — draw inspiration, do not copy:\n${topPosts.map((p, i) => `${i + 1}. ${p.hook ?? (p.caption ?? '').slice(0, 150)}`).join('\n')}\n\n`
+    ? `TOP COMPETITOR CONTENT — draw inspiration, do not copy:\n${topPosts.map((p, i) => `${i + 1}. ${p.hook ?? (p.caption ?? '').slice(0, 150)}`).join('\n')}\n\n`
+    : ''
+
+  const kwSection = seoKeywords.length > 0
+    ? `TARGET KEYWORDS — weave naturally where relevant:\n${seoKeywords.map((k) => `• ${k.keyword}${k.intent ? ` (${k.intent})` : ''}`).join('\n')}\n\n`
     : ''
 
   const rulesSection = `Rules:
 - Each variant must be unique and take a completely different angle
 - Match the ${tone} tone throughout
 - Optimize specifically for ${plat} (style, length, audience expectations)
-- For hooks: make the first line irresistible — curiosity, controversy, or a bold claim
-- For captions: include a clear call-to-action at the end
-- For ideas: be specific and actionable, describe the exact format and topic
+- ${typeInstr}
 - Output ONLY the numbered list. No introductions, headings, or extra text.`
 
   if (source.type === 'trending_topic') {
@@ -122,7 +146,7 @@ Context: ${source.summary}
 
 Generate exactly 3 distinct ${typeLbl}s for ${plat} in a ${tone} tone, all about this trending topic.
 
-${voiceSection}${marketSection}${rulesSection}
+${voiceSection}${marketSection}${kwSection}${rulesSection}
 
 1.
 2.
@@ -139,7 +163,7 @@ HIGH-PERFORMING COMPETITOR POST (${fmtEngagement(source)}):
 Generate exactly 3 distinct ${typeLbl}s for ${plat} in a ${tone} tone.
 Reimagine the concept in your brand's unique voice — same core angle, completely different execution.
 
-${voiceSection}${rulesSection}
+${voiceSection}${kwSection}${rulesSection}
 - DO NOT reproduce the competitor's words. Rewrite entirely in your brand voice.
 
 1.
@@ -153,7 +177,7 @@ ${voiceSection}${rulesSection}
 Generate exactly 3 distinct ${typeLbl}s for ${plat} in a ${tone} tone.
 Brief: ${source.brief}
 
-${voiceSection}${rulesSection}
+${voiceSection}${kwSection}${rulesSection}
 
 1.
 2.
@@ -194,8 +218,8 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-    // Fetch brand, saved hooks, and top competitor posts in parallel
-    const [brandRes, hooksRes, postsRes] = await Promise.all([
+    // Fetch brand, saved hooks, top competitor posts, and SEO keywords in parallel
+    const [brandRes, hooksRes, postsRes, kwRes] = await Promise.all([
       supabase.from('brand_profiles').select('name, niche, target_location').eq('id', brand_id).single(),
       supabase.from('saved_hooks').select('text').eq('brand_id', brand_id)
         .order('created_at', { ascending: false }).limit(5),
@@ -204,6 +228,10 @@ serve(async (req) => {
         .not('views', 'is', null)
         .order('views', { ascending: false })
         .limit(3),
+      supabase.from('seo_keywords').select('keyword, intent')
+        .eq('brand_id', brand_id)
+        .neq('status', 'targeting')
+        .limit(8),
     ])
 
     if (brandRes.error || !brandRes.data) {
@@ -216,14 +244,14 @@ serve(async (req) => {
     const brand = brandRes.data
     const savedHooks = hooksRes.data ?? []
     const topPosts = postsRes.data ?? []
+    const seoKeywords = kwRes.data ?? []
 
-    const prompt = buildPrompt(brand, type, platform, tone, source, savedHooks, topPosts)
+    const prompt = buildPrompt(brand, type, platform, tone, source, savedHooks, topPosts, seoKeywords)
     const rawText = await groq(prompt)
     if (!rawText) throw new Error('Groq returned an empty response')
 
     const output = parseVariants(rawText)
 
-    // Brief for DB (human-readable summary of what was used)
     const brief =
       source.type === 'trending_topic'
         ? source.title
@@ -231,9 +259,12 @@ serve(async (req) => {
         ? `Remix: ${(source.caption ?? source.hook ?? '').slice(0, 100)}`
         : source.brief
 
+    // Map meta platform back to instagram for storage
+    const storedPlatform = platform === 'meta' ? 'instagram' : platform
+
     const { data: record, error: insertError } = await supabase
       .from('generated_content')
-      .insert({ brand_id, type, platform, brief, output, tone })
+      .insert({ brand_id, type, platform: storedPlatform, brief, output, tone })
       .select()
       .single()
 

@@ -11,29 +11,36 @@ import { useCompetitorPosts, useSavedHooks } from '@/hooks/useCompetitors'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
-import { PLATFORMS } from '@/types'
+import { PLATFORMS, GENERATOR_PLATFORMS } from '@/types'
 import type {
-  ContentType, ContentTone, Platform, GenerateSource,
+  ContentType, ContentTone, Platform, GeneratorPlatform, GenerateSource,
   GeneratedContent, TrendingTopic, CompetitorPost,
 } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CONTENT_TYPES: { value: ContentType; label: string }[] = [
-  { value: 'hook', label: 'Hook' },
-  { value: 'caption', label: 'Caption' },
-  { value: 'idea', label: 'Idea' },
+const CONTENT_TYPES: { value: ContentType; label: string; desc: string }[] = [
+  { value: 'hook',    label: 'Hook',              desc: 'Stop-the-scroll opener' },
+  { value: 'caption', label: 'Caption',           desc: 'Full post with CTA' },
+  { value: 'script',  label: 'Video Script',      desc: 'Reel / TikTok script' },
+  { value: 'listing', label: 'Property Spotlight',desc: 'Showcase a listing' },
+  { value: 'market',  label: 'Market Update',     desc: 'Data-driven insight' },
+  { value: 'story',   label: 'Personal Story',    desc: 'Agent / client story' },
+  { value: 'cta',     label: 'Call to Action',    desc: 'Single clear ask' },
 ]
 
 const TONES: { value: ContentTone; label: string }[] = [
-  { value: 'casual', label: 'Casual' },
-  { value: 'professional', label: 'Professional' },
-  { value: 'humorous', label: 'Humorous' },
+  { value: 'professional',  label: 'Professional' },
+  { value: 'casual',        label: 'Conversational' },
+  { value: 'authoritative', label: 'Authoritative' },
+  { value: 'luxurious',     label: 'Luxurious' },
+  { value: 'educational',   label: 'Educational' },
   { value: 'inspirational', label: 'Inspirational' },
-  { value: 'educational', label: 'Educational' },
+  { value: 'urgent',        label: 'Urgency / FOMO' },
 ]
 
 const PLATFORM_COLORS: Record<string, string> = {
+  meta: 'bg-gradient-to-r from-pink-500/10 to-blue-500/10 text-pink-600 dark:text-pink-400',
   instagram: 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
   tiktok: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
   youtube: 'bg-red-500/10 text-red-600 dark:text-red-400',
@@ -42,17 +49,25 @@ const PLATFORM_COLORS: Record<string, string> = {
 }
 
 const TONE_COLORS: Record<string, string> = {
-  casual: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  professional: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
-  humorous: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  professional:  'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
+  casual:        'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  authoritative: 'bg-slate-500/10 text-slate-600 dark:text-slate-300',
+  luxurious:     'bg-amber-500/10 text-amber-600 dark:text-amber-300',
+  educational:   'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
   inspirational: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-  educational: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+  urgent:        'bg-red-500/10 text-red-600 dark:text-red-400',
+  humorous:      'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  hook: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+  hook:    'bg-orange-500/10 text-orange-600 dark:text-orange-400',
   caption: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
-  idea: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400',
+  idea:    'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400',
+  script:  'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+  listing: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  market:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  story:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+  cta:     'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -117,7 +132,7 @@ function HistoryItem({ item }: { item: GeneratedContent }) {
               {item.type}
             </Badge>
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[item.platform] ?? ''}`}>
-              {PLATFORMS.find((p) => p.value === item.platform)?.label ?? item.platform}
+              {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === item.platform)?.label ?? item.platform}
             </Badge>
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TONE_COLORS[item.tone] ?? ''}`}>
               {item.tone}
@@ -182,8 +197,8 @@ export function ContentGeneratorPage() {
   const [selectedPost, setSelectedPost] = useState<CompetitorPost | null>(null)
   const [manualBrief, setManualBrief] = useState('')
   const [type, setType] = useState<ContentType>('hook')
-  const [platform, setPlatform] = useState<Platform>('instagram')
-  const [tone, setTone] = useState<ContentTone>('casual')
+  const [platform, setPlatform] = useState<GeneratorPlatform>('meta')
+  const [tone, setTone] = useState<ContentTone>('professional')
   const [latestResult, setLatestResult] = useState<GeneratedContent | null>(null)
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
   const [savingHookIndex, setSavingHookIndex] = useState<number | null>(null)
@@ -249,7 +264,7 @@ export function ContentGeneratorPage() {
         body: {
           brand_id: activeBrand?.id,
           original_content: content,
-          original_platform: platform,
+          original_platform: platform === 'meta' ? 'instagram' : platform,
           content_type: type,
         },
       })
@@ -406,7 +421,7 @@ export function ContentGeneratorPage() {
                         variant="secondary"
                         className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[post.platform] ?? ''}`}
                       >
-                        {PLATFORMS.find((p) => p.value === post.platform)?.label ?? post.platform}
+                        {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === post.platform)?.label ?? post.platform}
                       </Badge>
                       {fmtNum(post.views) && (
                         <span className="text-xs text-muted-foreground">{fmtNum(post.views)} views</span>
@@ -438,7 +453,28 @@ export function ContentGeneratorPage() {
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Content type</label>
-          <SegmentedControl options={CONTENT_TYPES} value={type} onChange={setType} />
+          <div className="flex gap-1.5 flex-wrap">
+            {CONTENT_TYPES.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setType(opt.value)}
+                title={opt.desc}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  type === opt.value
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {CONTENT_TYPES.find((t) => t.value === type) && (
+            <p className="text-xs text-muted-foreground">
+              {CONTENT_TYPES.find((t) => t.value === type)!.desc}
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Tone</label>
@@ -446,7 +482,7 @@ export function ContentGeneratorPage() {
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Platform</label>
-          <SegmentedControl options={PLATFORMS} value={platform} onChange={setPlatform} />
+          <SegmentedControl options={GENERATOR_PLATFORMS} value={platform} onChange={setPlatform} />
         </div>
         <Button
           onClick={handleGenerate}
@@ -466,7 +502,7 @@ export function ContentGeneratorPage() {
               {latestResult.type}
             </Badge>
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[latestResult.platform] ?? ''}`}>
-              {PLATFORMS.find((p) => p.value === latestResult.platform)?.label ?? latestResult.platform}
+              {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === latestResult.platform)?.label ?? latestResult.platform}
             </Badge>
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TONE_COLORS[latestResult.tone] ?? ''}`}>
               {latestResult.tone}

@@ -308,6 +308,7 @@ function BlogTab({ brand }: { brand: BrandProfile }) {
         publish_date: null,
         url: null,
         content: null,
+        slug: null, meta_title: null, meta_description: null,
         has_h1h2: false, has_internal_links: false, has_meta_description: false, keyword_in_title: false,
         has_faq: false, has_schema: false, has_citations: false, has_eeat: false, has_author_bio: false,
       })
@@ -331,6 +332,7 @@ function BlogTab({ brand }: { brand: BrandProfile }) {
         publish_date: form.publish_date || null,
         url: form.url.trim() || null,
         content: null,
+        slug: null, meta_title: null, meta_description: null,
         has_h1h2: false, has_internal_links: false, has_meta_description: false, keyword_in_title: false,
         has_faq: false, has_schema: false, has_citations: false, has_eeat: false, has_author_bio: false,
       })
@@ -450,7 +452,13 @@ function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: { post: Blog
     setLoadingDraft(true)
     try {
       const { data, error } = await (supabase as any).functions.invoke('generate-blog', {
-        body: { mode: 'draft', brandName: brand.name, niche: brand.niche, title: post.title },
+        body: {
+          mode: 'draft',
+          brandName: brand.name,
+          niche: brand.niche,
+          title: post.title,
+          targetKeyword: keyword?.keyword ?? null,
+        },
       })
       if (error) {
         let detail: string = error.message ?? 'Function call failed'
@@ -461,8 +469,14 @@ function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: { post: Blog
         } catch { /* ignore */ }
         throw new Error(detail)
       }
-      if (!data?.content) throw new Error('No content returned — check that generate-blog is deployed and GOOGLE_AI_API_KEY is set')
-      onUpdate({ content: data.content, status: post.status === 'idea' ? 'draft' : post.status })
+      if (!data?.content) throw new Error('No content returned — check that generate-blog is deployed and GROQ_API_KEY is set')
+      onUpdate({
+        content: data.content,
+        status: post.status === 'idea' ? 'draft' : post.status,
+        ...(data.slug && !post.slug ? { slug: data.slug } : {}),
+        ...(data.meta_title && !post.meta_title ? { meta_title: data.meta_title } : {}),
+        ...(data.meta_description && !post.meta_description ? { meta_description: data.meta_description } : {}),
+      })
       setExpanded(true)
       toast.success('Draft generated')
     } catch (err) {
@@ -530,6 +544,39 @@ function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: { post: Blog
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Meta / SEO fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Slug</label>
+              <input
+                className="w-full h-7 text-xs border border-border rounded px-2 bg-background text-foreground"
+                placeholder="url-friendly-slug"
+                value={post.slug ?? ''}
+                onChange={(e) => onUpdate({ slug: e.target.value || null })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Meta Title <span className="text-muted-foreground/60">(≤60 chars)</span></label>
+              <input
+                className="w-full h-7 text-xs border border-border rounded px-2 bg-background text-foreground"
+                placeholder="SEO page title"
+                maxLength={60}
+                value={post.meta_title ?? ''}
+                onChange={(e) => onUpdate({ meta_title: e.target.value || null })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Meta Description <span className="text-muted-foreground/60">(≤160 chars)</span></label>
+              <input
+                className="w-full h-7 text-xs border border-border rounded px-2 bg-background text-foreground"
+                placeholder="Compelling meta description"
+                maxLength={160}
+                value={post.meta_description ?? ''}
+                onChange={(e) => onUpdate({ meta_description: e.target.value || null })}
+              />
+            </div>
           </div>
 
           {post.word_count != null && (
