@@ -14,8 +14,7 @@ const ACTORS: Record<string, string> = {
   instagram: 'apify/instagram-scraper',
   tiktok: 'clockworks/tiktok-scraper',
   facebook: 'apify/facebook-pages-scraper',
-  youtube: 'apify/youtube-scraper',
-  linkedin: 'curious_coder/linkedin-company-posts-scraper',
+  youtube: 'streamers/youtube-scraper',
 }
 
 function extractUsername(input: string): string {
@@ -41,8 +40,6 @@ function buildApifyInput(platform: string, handle: string): unknown {
       return { startUrls: [{ url: `https://www.facebook.com/${clean}` }] }
     case 'youtube':
       return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResultsShorts: 0, maxResults: 20 }
-    case 'linkedin':
-      return { startUrls: [{ url: `https://www.linkedin.com/company/${clean}/posts/` }], maxItems: 20 }
     default:
       throw new Error(`Unsupported platform: ${platform}`)
   }
@@ -119,21 +116,6 @@ function normalizeToMetric(
       likes    = nonNeg(raw.likes       ? parseInt(raw.likes)       : raw.likeCount ? parseInt(raw.likeCount) : null)
       comments = nonNeg(raw.commentsCount ? parseInt(raw.commentsCount) : raw.commentCount ? parseInt(raw.commentCount) : null)
       break
-    case 'linkedin':
-      post_url  = raw.postUrl ?? raw.url ?? null
-      {
-        const raw_date = raw.date ?? raw.postedAt ?? null
-        if (raw_date) {
-          const ds = String(raw_date)
-          posted_at  = ds.slice(0, 10)
-          posted_time = ds.length > 10 ? ds.slice(11, 16) || null : null
-        }
-      }
-      views    = nonNeg(raw.impressionCount ?? raw.viewCount ?? raw.views ?? null)
-      likes    = nonNeg(raw.likeCount ?? raw.likesCount ?? raw.likes ?? null)
-      comments = nonNeg(raw.commentCount ?? raw.commentsCount ?? raw.comments ?? null)
-      shares   = nonNeg(raw.shareCount ?? raw.sharesCount ?? raw.shares ?? null)
-      break
     default:
       return null
   }
@@ -205,7 +187,7 @@ Deno.serve(async (req) => {
     // Verify ownership and get handle
     const { data: brand, error: brandError } = await supabase
       .from('brand_profiles')
-      .select('id, instagram_handle, tiktok_handle, facebook_handle, youtube_handle, linkedin_handle')
+      .select('id, instagram_handle, tiktok_handle, facebook_handle, youtube_handle')
       .eq('id', brand_id)
       .eq('user_id', user.id)
       .single()

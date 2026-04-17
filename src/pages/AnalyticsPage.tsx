@@ -82,12 +82,11 @@ function blankForm() {
 
 // ─── Sync-capable platforms (Apify supports these) ───────────────────────────
 
-const SYNC_PLATFORMS: { value: 'instagram' | 'tiktok' | 'facebook' | 'youtube' | 'linkedin'; label: string }[] = [
+const SYNC_PLATFORMS: { value: 'instagram' | 'tiktok' | 'facebook' | 'youtube'; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
   { value: 'facebook',  label: 'Facebook'  },
   { value: 'tiktok',    label: 'TikTok'    },
   { value: 'youtube',   label: 'YouTube'   },
-  { value: 'linkedin',  label: 'LinkedIn'  },
 ]
 
 // ─── Main page ────────────────────────────────────────────────────────────────
