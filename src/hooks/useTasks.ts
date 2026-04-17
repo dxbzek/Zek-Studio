@@ -53,8 +53,9 @@ export function useTasks(brandId: string | null) {
         (old) => old?.map((t) => t.id === id ? { ...t, ...patch } : t) ?? [])
       return { previous }
     },
-    onError: (_err: unknown, _vars: unknown, ctx: { previous: Task[] | undefined } | undefined) => {
-      if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous)
+    onError: (_err: unknown, _vars: unknown, ctx: unknown) => {
+      const c = ctx as { previous: Task[] | undefined } | undefined
+      if (c?.previous) queryClient.setQueryData(queryKey, c.previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   })
@@ -111,8 +112,9 @@ export function useMyTasks() {
         (old) => old?.map((t) => t.id === id ? { ...t, ...patch } : t) ?? [])
       return { previous }
     },
-    onError: (_err: unknown, _vars: unknown, ctx: { previous: Task[] | undefined } | undefined) => {
-      if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous)
+    onError: (_err: unknown, _vars: unknown, ctx: unknown) => {
+      const c = ctx as { previous: Task[] | undefined } | undefined
+      if (c?.previous) queryClient.setQueryData(queryKey, c.previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   })
