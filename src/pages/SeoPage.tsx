@@ -365,8 +365,9 @@ function BlogPostRow({ post, keywords, onUpdate, onDelete }: { post: BlogPost; k
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Select value={post.status} onValueChange={(v) => { onUpdate({ status: v as BlogPostStatus }); }} onClick={(e) => e.stopPropagation()}>
-            <SelectTrigger className="h-7 w-[110px] text-xs" onClick={(e) => e.stopPropagation()}>
+          <div onClick={(e) => e.stopPropagation()}>
+          <Select value={post.status} onValueChange={(v) => { onUpdate({ status: v as BlogPostStatus }); }}>
+            <SelectTrigger className="h-7 w-[110px] text-xs">
               <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium capitalize', BLOG_STATUS_STYLES[post.status])}>{post.status}</span>
             </SelectTrigger>
             <SelectContent>
@@ -375,6 +376,7 @@ function BlogPostRow({ post, keywords, onUpdate, onDelete }: { post: BlogPost; k
               <SelectItem value="published">Published</SelectItem>
             </SelectContent>
           </Select>
+          </div>
           {post.url && <a href={post.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-primary"><ExternalLink className="h-3.5 w-3.5" /></a>}
           <button onClick={(e) => { e.stopPropagation(); onDelete() }} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
