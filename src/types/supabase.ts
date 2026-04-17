@@ -53,6 +53,7 @@ export type Database = {
           linkedin_handle?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       competitors: {
         Row: {
@@ -76,6 +77,7 @@ export type Database = {
           platform?: string
           last_scraped_at?: string | null
         }
+        Relationships: []
       }
       competitor_posts: {
         Row: {
@@ -127,6 +129,7 @@ export type Database = {
           video_url?: string | null
           transcript?: string | null
         }
+        Relationships: []
       }
       saved_hooks: {
         Row: {
@@ -152,6 +155,7 @@ export type Database = {
           platform?: string | null
           tags?: string[]
         }
+        Relationships: []
       }
       niche_research_cache: {
         Row: {
@@ -172,6 +176,7 @@ export type Database = {
           results?: unknown
           fetched_at?: string
         }
+        Relationships: []
       }
       generated_content: {
         Row: {
@@ -197,6 +202,7 @@ export type Database = {
         Update: {
           output?: string[]
         }
+        Relationships: []
       }
       calendar_entries: {
         Row: {
@@ -234,6 +240,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string
           platform?: string
           content_type?: string
           title?: string
@@ -247,6 +254,7 @@ export type Database = {
           approval_note?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       team_members: {
         Row: {
@@ -272,6 +280,7 @@ export type Database = {
           role?: string
           accepted_at?: string | null
         }
+        Relationships: []
       }
       tasks: {
         Row: {
@@ -307,6 +316,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string
           title?: string
           description?: string | null
           type?: string
@@ -316,8 +326,10 @@ export type Database = {
           assignee_email?: string | null
           calendar_entry_id?: string | null
           due_date?: string | null
+          created_by?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       post_metrics: {
         Row: {
@@ -361,6 +373,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string
+          calendar_entry_id?: string | null
           platform?: string
           post_url?: string | null
           posted_at?: string | null
@@ -373,8 +387,10 @@ export type Database = {
           reach?: number | null
           impressions?: number | null
           notes?: string | null
+          logged_by?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       oauth_states: {
         Row: {
@@ -393,6 +409,7 @@ export type Database = {
           brand_id?: string
           platform?: string
         }
+        Relationships: []
       }
       platform_connections: {
         Row: {
@@ -430,6 +447,7 @@ export type Database = {
           scopes?: string[] | null
           last_synced_at?: string | null
         }
+        Relationships: []
       }
       campaigns: {
         Row: {
@@ -457,6 +475,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_id?: string
           name?: string
           description?: string | null
           color?: string
@@ -465,6 +484,7 @@ export type Database = {
           goal?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       content_pillars: {
         Row: {
@@ -488,6 +508,7 @@ export type Database = {
           target_pct?: number
           color?: string
         }
+        Relationships: []
       }
       reply_templates: {
         Row: {
@@ -514,6 +535,7 @@ export type Database = {
           platform?: string | null
           tags?: string[]
         }
+        Relationships: []
       }
       share_tokens: {
         Row: {
@@ -539,10 +561,12 @@ export type Database = {
           settings?: unknown
           expires_at?: string | null
         }
+        Relationships: []
       }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
     Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }

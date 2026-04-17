@@ -27,6 +27,7 @@ export function useShareTokens(brandId: string | null) {
       type: ShareTokenType
       settings?: Record<string, unknown>
     }) => {
+      if (!brandId) throw new Error('No brand selected')
       const { data, error } = await supabase
         .from('share_tokens')
         .insert({ brand_id: brandId, type, settings: settings ?? {} })

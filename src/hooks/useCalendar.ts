@@ -60,8 +60,9 @@ export function useCalendar(brandId: string | null, year: number, month: number)
         (old) => old?.map((e) => e.id === id ? { ...e, ...patch } : e) ?? [])
       return { previous }
     },
-    onError: (_err: unknown, _vars: unknown, ctx: { previous: CalendarEntry[] | undefined } | undefined) => {
-      if (ctx?.previous) queryClient.setQueryData(queryKey, ctx.previous)
+    onError: (_err: unknown, _vars: unknown, ctx: unknown) => {
+      const c = ctx as { previous: CalendarEntry[] | undefined } | undefined
+      if (c?.previous) queryClient.setQueryData(queryKey, c.previous)
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: ['calendar-entries', brandId] }),
@@ -89,7 +90,7 @@ export function useGeneratedContent(id: string | null) {
       const { data, error } = await supabase
         .from('generated_content')
         .select('id, brief, type, platform, tone, created_at')
-        .eq('id', id)
+        .eq('id', id!)
         .single()
       if (error) throw error
       return data as { id: string; brief: string; type: string; platform: string; tone: string; created_at: string }
