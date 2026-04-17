@@ -300,6 +300,76 @@ export interface ReplyTemplate {
 }
 export type ReplyTemplateInsert = Omit<ReplyTemplate, 'id' | 'created_at'>
 
+// ─── SEO Module ───────────────────────────────────────────────────────────────
+
+export type SeoKeywordDifficulty = 'easy' | 'medium' | 'hard'
+export type SeoKeywordIntent     = 'buy' | 'info' | 'invest' | 'local'
+export type SeoKeywordStatus     = 'targeting' | 'in_progress' | 'page_1_2' | 'page_3_plus'
+
+export interface SeoKeyword {
+  id: string
+  brand_id: string
+  keyword: string
+  volume: number | null
+  difficulty: SeoKeywordDifficulty | null
+  intent: SeoKeywordIntent | null
+  target_url: string | null
+  status: SeoKeywordStatus
+  created_at: string
+}
+export type SeoKeywordInsert = Omit<SeoKeyword, 'id' | 'created_at'>
+export type SeoKeywordUpdate = Partial<SeoKeywordInsert>
+
+export type BlogPostStatus = 'idea' | 'draft' | 'published'
+
+export interface BlogPost {
+  id: string
+  brand_id: string
+  keyword_id: string | null
+  title: string
+  status: BlogPostStatus
+  word_count: number | null
+  target_wc: number
+  publish_date: string | null
+  url: string | null
+  has_h1h2: boolean
+  has_internal_links: boolean
+  has_meta_description: boolean
+  keyword_in_title: boolean
+  created_at: string
+  updated_at: string
+}
+export type BlogPostInsert = Omit<BlogPost, 'id' | 'created_at' | 'updated_at'>
+export type BlogPostUpdate = Partial<BlogPostInsert>
+
+export type SeoAuditCategory = 'technical' | 'on_page' | 'off_page' | 'local'
+export type SeoAuditStatus   = 'not_done' | 'in_progress' | 'done'
+export type SeoAuditPriority = 'p0' | 'p1' | 'ok'
+
+export interface SeoAuditItem {
+  id: string
+  brand_id: string
+  category: SeoAuditCategory
+  issue: string
+  status: SeoAuditStatus
+  priority: SeoAuditPriority
+  sort_order: number
+  created_at: string
+}
+export type SeoAuditItemInsert = Omit<SeoAuditItem, 'id' | 'created_at'>
+export type SeoAuditItemUpdate = Partial<SeoAuditItemInsert>
+
+export interface ReviewSnapshot {
+  id: string
+  brand_id: string
+  platform: string
+  count: number
+  target: number | null
+  recorded_at: string
+  created_at: string
+}
+export type ReviewSnapshotInsert = Omit<ReviewSnapshot, 'id' | 'created_at'>
+
 // ─── Share Tokens ─────────────────────────────────────────────────────────────
 
 export type ShareTokenType = 'report' | 'approval'

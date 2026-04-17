@@ -15,6 +15,7 @@ import TaskBoardPage from '@/pages/TaskBoardPage'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import CampaignsPage from '@/pages/CampaignsPage'
 import ReplyTemplatesPage from '@/pages/ReplyTemplatesPage'
+import { SeoPage } from '@/pages/SeoPage'
 import { ResearchShell }  from '@/pages/shells/ResearchShell'
 import { ContentShell }   from '@/pages/shells/ContentShell'
 import { WorkspaceShell } from '@/pages/shells/WorkspaceShell'
@@ -47,6 +48,7 @@ export default function App() {
                 <Route index element={<Navigate to="niche" replace />} />
                 <Route path="niche"       element={<NicheResearchPage />} />
                 <Route path="competitors" element={<CompetitorResearchPage />} />
+                <Route path="seo"         element={<SeoPage />} />
               </Route>
 
               {/* Content */}
