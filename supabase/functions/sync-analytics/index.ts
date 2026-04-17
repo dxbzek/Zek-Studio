@@ -34,7 +34,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { brand_id, platform } = await req.json() as { brand_id: string; platform: string }
+    const { brand_id, platform, since, until } = await req.json() as {
+      brand_id: string
+      platform: string
+      since?: string  // ISO date string e.g. "2024-01-01"
+      until?: string  // ISO date string e.g. "2024-03-31"
+    }
     if (!brand_id || !platform) {
       return new Response(JSON.stringify({ error: 'brand_id and platform are required' }), {
         status: 400,
@@ -99,13 +104,13 @@ Deno.serve(async (req) => {
     let synced = 0
 
     if (platform === 'instagram') {
-      synced = await syncInstagram(supabase, brand_id, conn.platform_account_id, accessToken)
+      synced = await syncInstagram(supabase, brand_id, conn.platform_account_id, accessToken, since, until)
     } else if (platform === 'facebook') {
-      synced = await syncFacebook(supabase, brand_id, conn.platform_account_id, accessToken)
+      synced = await syncFacebook(supabase, brand_id, conn.platform_account_id, accessToken, since, until)
     } else if (platform === 'tiktok') {
-      synced = await syncTikTok(supabase, brand_id, accessToken)
+      synced = await syncTikTok(supabase, brand_id, accessToken, since, until)
     } else if (platform === 'youtube') {
-      synced = await syncYouTube(supabase, brand_id, conn.platform_account_id, accessToken)
+      synced = await syncYouTube(supabase, brand_id, conn.platform_account_id, accessToken, since, until)
     } else {
       return new Response(JSON.stringify({ error: `Unsupported platform: ${platform}` }), {
         status: 400,
@@ -218,12 +223,16 @@ async function syncInstagram(
   brandId: string,
   igAccountId: string,
   accessToken: string,
+  since?: string,
+  until?: string,
 ): Promise<number> {
+  const sinceParam = since ? `&since=${Math.floor(new Date(since).getTime() / 1000)}` : ''
+  const untilParam = until ? `&until=${Math.floor(new Date(until + 'T23:59:59').getTime() / 1000)}` : ''
   // Fetch recent media
   const mediaRes = await fetch(
     `https://graph.facebook.com/v21.0/${igAccountId}/media?` +
-    `fields=id,timestamp,like_count,comments_count,media_url,permalink&limit=30` +
-    `&access_token=${accessToken}`,
+    `fields=id,timestamp,like_count,comments_count,media_url,permalink&limit=50` +
+    `${sinceParam}${untilParam}&access_token=${accessToken}`,
   )
   const mediaData = await mediaRes.json()
   if (!mediaData.data) throw new Error(`Instagram media error: ${JSON.stringify(mediaData)}`)
@@ -269,6 +278,8 @@ async function syncFacebook(
   brandId: string,
   pageId: string,
   accessToken: string,
+  since?: string,
+  until?: string,
 ): Promise<number> {
   // Fetch page fan_count to use as engagement denominator
   const pageRes = await fetch(
@@ -277,10 +288,12 @@ async function syncFacebook(
   const pageData = await pageRes.json()
   const fanCount: number | null = pageData.fan_count ?? null
 
+  const sinceParam = since ? `&since=${Math.floor(new Date(since).getTime() / 1000)}` : ''
+  const untilParam = until ? `&until=${Math.floor(new Date(until + 'T23:59:59').getTime() / 1000)}` : ''
   const postsRes = await fetch(
     `https://graph.facebook.com/v21.0/${pageId}/posts?` +
-    `fields=id,created_time,story,permalink_url,likes.summary(true),comments.summary(true),shares&limit=30` +
-    `&access_token=${accessToken}`,
+    `fields=id,created_time,story,permalink_url,likes.summary(true),comments.summary(true),shares&limit=50` +
+    `${sinceParam}${untilParam}&access_token=${accessToken}`,
   )
   const postsData = await postsRes.json()
   if (!postsData.data) throw new Error(`Facebook posts error: ${JSON.stringify(postsData)}`)
@@ -311,6 +324,8 @@ async function syncTikTok(
   supabase: ReturnType<typeof createClient>,
   brandId: string,
   accessToken: string,
+  since?: string,
+  until?: string,
 ): Promise<number> {
   const res = await fetch(
     'https://open.tiktokapis.com/v2/video/list/?fields=id,title,like_count,comment_count,share_count,view_count,create_time,share_url',
@@ -320,14 +335,20 @@ async function syncTikTok(
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ max_count: 30 }),
+      body: JSON.stringify({ max_count: 50 }),
     },
   )
   const data = await res.json()
   if (!data.data?.videos) throw new Error(`TikTok video list error: ${JSON.stringify(data)}`)
 
+  const sinceMs = since ? new Date(since).getTime() : null
+  const untilMs = until ? new Date(until + 'T23:59:59').getTime() : null
+
   let synced = 0
   for (const video of data.data.videos) {
+    const postedMs = video.create_time ? video.create_time * 1000 : null
+    if (postedMs && sinceMs && postedMs < sinceMs) continue
+    if (postedMs && untilMs && postedMs > untilMs) continue
     const { error } = await supabase.from('post_metrics').upsert(
       {
         brand_id: brandId,
@@ -354,6 +375,8 @@ async function syncYouTube(
   brandId: string,
   _channelId: string,
   accessToken: string,
+  since?: string,
+  until?: string,
 ): Promise<number> {
   // Fetch recent uploads from the uploads playlist
   const channelRes = await fetch(
@@ -366,7 +389,7 @@ async function syncYouTube(
 
   const playlistRes = await fetch(
     `https://www.googleapis.com/youtube/v3/playlistItems?` +
-    `part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=30`,
+    `part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=50`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   )
   const playlistData = await playlistRes.json()
@@ -388,9 +411,17 @@ async function syncYouTube(
   const statsData = await statsRes.json()
   if (!statsData.items) throw new Error(`YouTube stats error: ${JSON.stringify(statsData)}`)
 
+  const sinceMs = since ? new Date(since).getTime() : null
+  const untilMs = until ? new Date(until + 'T23:59:59').getTime() : null
+
   let synced = 0
   for (const video of statsData.items) {
     const publishedAt: string = video.snippet?.publishedAt ?? null
+    if (publishedAt) {
+      const publishedMs = new Date(publishedAt).getTime()
+      if (sinceMs && publishedMs < sinceMs) continue
+      if (untilMs && publishedMs > untilMs) continue
+    }
     const { error } = await supabase.from('post_metrics').upsert(
       {
         brand_id: brandId,

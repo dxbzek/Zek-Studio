@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, subDays } from 'date-fns'
 import { TrendingUp, Eye, ThumbsUp, BarChart3, RefreshCw, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -103,11 +103,13 @@ export default function AnalyticsPage() {
   const [syncingAll, setSyncingAll] = useState(false)
   const [auditInsights, setAuditInsights] = useState<string[] | null>(null)
   const [auditLoading, setAuditLoading] = useState(false)
+  const [syncFrom, setSyncFrom] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
+  const [syncTo, setSyncTo] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
 
   async function handleSync(platform: string) {
     setSyncingPlatform(platform)
     try {
-      const result = await sync.mutateAsync(platform)
+      const result = await sync.mutateAsync({ platform, since: syncFrom, until: syncTo })
       const label = SYNC_PLATFORMS.find((p) => p.value === platform)?.label ?? platform
       toast.success(`Synced ${result.synced} posts from ${label}`)
     } catch (err) {
@@ -129,7 +131,7 @@ export default function AnalyticsPage() {
     for (const p of toSync) {
       setSyncingPlatform(p.value)
       try {
-        const result = await sync.mutateAsync(p.value)
+        const result = await sync.mutateAsync({ platform: p.value, since: syncFrom, until: syncTo })
         totalSynced += result.synced
       } catch (err) {
         errorList.push(`${p.label}: ${(err as Error).message}`)
@@ -384,10 +386,26 @@ export default function AnalyticsPage() {
       <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
         {/* Brand Accounts */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2 justify-between">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand Accounts</p>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Synced via Apify</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] text-muted-foreground">Date range:</span>
+              <input
+                type="date"
+                value={syncFrom}
+                max={syncTo}
+                onChange={(e) => setSyncFrom(e.target.value)}
+                className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+              />
+              <span className="text-[11px] text-muted-foreground">to</span>
+              <input
+                type="date"
+                value={syncTo}
+                min={syncFrom}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                onChange={(e) => setSyncTo(e.target.value)}
+                className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+              />
               <Button
                 variant="outline"
                 size="sm"

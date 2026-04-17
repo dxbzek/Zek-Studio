@@ -5,7 +5,7 @@ export function useBrandSync(brandId: string | null) {
   const queryClient = useQueryClient()
 
   const sync = useMutation({
-    mutationFn: async (platform: string) => {
+    mutationFn: async ({ platform, since, until }: { platform: string; since?: string; until?: string }) => {
       // getUser() makes a live network call and returns a fresh token
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) throw new Error('Not authenticated')
@@ -21,7 +21,7 @@ export function useBrandSync(brandId: string | null) {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ brand_id: brandId, platform }),
+        body: JSON.stringify({ brand_id: brandId, platform, since, until }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`)
