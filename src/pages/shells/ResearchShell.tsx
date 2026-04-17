@@ -14,6 +14,9 @@ export function ResearchShell() {
         <NavLink to="/research/competitors" className={({ isActive }) => `${TAB} ${isActive ? ACTIVE : INACTIVE}`}>
           Competitors
         </NavLink>
+        <NavLink to="/research/seo" className={({ isActive }) => `${TAB} ${isActive ? ACTIVE : INACTIVE}`}>
+          SEO
+        </NavLink>
       </div>
       <div className="flex-1 overflow-hidden">
         <Outlet />
