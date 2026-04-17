@@ -82,6 +82,8 @@ function blankForm() {
 
 // ─── Sync-capable platforms (Apify supports these) ───────────────────────────
 
+const ANALYTICS_PLATFORMS = PLATFORMS.filter((p) => p.value !== 'linkedin')
+
 const SYNC_PLATFORMS: { value: 'instagram' | 'tiktok' | 'facebook' | 'youtube'; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
   { value: 'facebook',  label: 'Facebook'  },
@@ -549,7 +551,7 @@ export default function AnalyticsPage() {
             >
               All platforms
             </button>
-            {PLATFORMS.map((p) => (
+            {ANALYTICS_PLATFORMS.map((p) => (
               <button
                 key={p.value}
                 type="button"
@@ -835,7 +837,7 @@ export default function AnalyticsPage() {
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Platform</label>
               <div className="flex flex-wrap gap-1.5">
-                {PLATFORMS.map((p) => (
+                {ANALYTICS_PLATFORMS.map((p) => (
                   <button
                     key={p.value}
                     type="button"

@@ -10,7 +10,7 @@ export function useTeam(brandId: string | null) {
     queryKey,
     queryFn: async () => {
       if (!brandId) return []
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('team_members')
         .select('*')
         .eq('brand_id', brandId)
@@ -24,7 +24,7 @@ export function useTeam(brandId: string | null) {
   const invite = useMutation({
     mutationFn: async (email: string) => {
       if (!brandId) throw new Error('No brand selected')
-      const { data, error } = await (supabase as any).functions.invoke('invite-member', {
+      const { data, error } = await supabase.functions.invoke('invite-member', {
         body: { email, brand_id: brandId },
       })
       if (error) {
@@ -42,7 +42,7 @@ export function useTeam(brandId: string | null) {
 
   const removeMember = useMutation({
     mutationFn: async (memberId: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('team_members')
         .delete()
         .eq('id', memberId)
@@ -59,9 +59,9 @@ export function useIsSpecialist() {
   return useQuery({
     queryKey: ['is-specialist'],
     queryFn: async () => {
-      const { data: { user } } = await (supabase as any).auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return false
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('team_members')
         .select('id')
         .eq('user_id', user.id)

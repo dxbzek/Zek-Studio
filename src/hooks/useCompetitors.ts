@@ -11,7 +11,7 @@ export function useCompetitors(brandId: string | null) {
     queryKey: ['competitors', brandId],
     queryFn: async () => {
       if (!brandId) return []
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('competitors')
         .select('*')
         .eq('brand_id', brandId)
@@ -26,7 +26,7 @@ export function useCompetitors(brandId: string | null) {
     mutationFn: async ({ handle, platform }: { handle: string; platform: Platform }) => {
       if (!brandId) throw new Error('No brand selected')
 
-      const { data, error } = await (supabase as any).functions.invoke('competitor-research', {
+      const { data, error } = await supabase.functions.invoke('competitor-research', {
         body: { brand_id: brandId, handle, platform },
       })
       if (error) {
@@ -48,7 +48,7 @@ export function useCompetitors(brandId: string | null) {
 
   const deleteCompetitor = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('competitors')
         .delete()
         .eq('id', id)
@@ -62,7 +62,7 @@ export function useCompetitors(brandId: string | null) {
 
   const transcribePost = useMutation({
     mutationFn: async ({ postId, videoUrl }: { postId: string; videoUrl: string }) => {
-      const { data, error } = await (supabase as any).functions.invoke('transcribe-video', {
+      const { data, error } = await supabase.functions.invoke('transcribe-video', {
         body: { post_id: postId, video_url: videoUrl },
       })
       if (error) {
@@ -90,7 +90,7 @@ export function useCompetitorPosts(brandId: string | null, competitorId?: string
     queryKey: ['competitor-posts', brandId, competitorId],
     queryFn: async () => {
       if (!brandId) return []
-      let query = (supabase as any)
+      let query = supabase
         .from('competitor_posts')
         .select('*')
         .eq('brand_id', brandId)
@@ -117,7 +117,7 @@ export function useSavedHooks(brandId: string | null) {
     queryKey: ['saved-hooks', brandId],
     queryFn: async () => {
       if (!brandId) return []
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('saved_hooks')
         .select('*')
         .eq('brand_id', brandId)
@@ -139,7 +139,7 @@ export function useSavedHooks(brandId: string | null) {
       platform?: Platform
     }) => {
       if (!brandId) throw new Error('No brand selected')
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('saved_hooks')
         .insert({
           brand_id: brandId,
@@ -160,7 +160,7 @@ export function useSavedHooks(brandId: string | null) {
 
   const deleteHook = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('saved_hooks')
         .delete()
         .eq('id', id)

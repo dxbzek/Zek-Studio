@@ -25,10 +25,13 @@ type GenerateSource =
 
 function parseVariants(text: string): string[] {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
-  const variants = lines
+  const numbered = lines
     .filter((l) => /^\d+[\.\)]/.test(l))
     .map((l) => l.replace(/^\d+[\.\)]\s*/, '').trim())
-  if (variants.length >= 1) return variants.slice(0, 3)
+    .filter(Boolean)
+  if (numbered.length >= 1) return numbered.slice(0, 3)
+  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+  if (paragraphs.length >= 2) return paragraphs.slice(0, 3)
   return [text.trim()]
 }
 

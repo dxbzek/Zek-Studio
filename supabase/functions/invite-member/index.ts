@@ -96,9 +96,17 @@ serve(async (req) => {
     // Look up the invited user's id if they already exist
     let invitedUserId: string | null = inviteData?.user?.id ?? null
     if (!invitedUserId) {
-      const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
-      const found = existingUser?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
-      invitedUserId = found?.id ?? null
+      const lookupRes = await fetch(
+        `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email.toLowerCase())}`,
+        {
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          },
+        },
+      )
+      const lookupData = await lookupRes.json() as { users?: Array<{ id: string }> }
+      invitedUserId = lookupData.users?.[0]?.id ?? null
     }
 
     // Insert team_members row

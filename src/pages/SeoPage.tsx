@@ -274,10 +274,23 @@ function BlogTab({ brand }: { brand: BrandProfile }) {
       const { data, error } = await (supabase as any).functions.invoke('generate-blog', {
         body: { mode: 'ideas', brandName: brand.name, niche: brand.niche },
       })
-      if (error) throw new Error(error.message)
-      setIdeas(data.titles ?? [])
+      if (error) {
+        let detail: string = error.message ?? 'Function call failed'
+        try {
+          const body = await error.context?.json?.()
+          if (body?.error) detail = body.error
+          else if (body?.message) detail = body.message
+        } catch { /* ignore */ }
+        throw new Error(detail)
+      }
+      const titles: string[] = data?.titles ?? []
+      if (!titles.length) {
+        toast.warning('No ideas returned — make sure the generate-blog function is deployed and GOOGLE_AI_API_KEY is set')
+        return
+      }
+      setIdeas(titles)
     } catch (err) {
-      toast.error((err as Error).message)
+      toast.error('Could not generate ideas', { description: (err as Error).message })
     } finally {
       setLoadingIdeas(false)
     }
@@ -439,12 +452,21 @@ function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: { post: Blog
       const { data, error } = await (supabase as any).functions.invoke('generate-blog', {
         body: { mode: 'draft', brandName: brand.name, niche: brand.niche, title: post.title },
       })
-      if (error) throw new Error(error.message)
+      if (error) {
+        let detail: string = error.message ?? 'Function call failed'
+        try {
+          const body = await error.context?.json?.()
+          if (body?.error) detail = body.error
+          else if (body?.message) detail = body.message
+        } catch { /* ignore */ }
+        throw new Error(detail)
+      }
+      if (!data?.content) throw new Error('No content returned — check that generate-blog is deployed and GOOGLE_AI_API_KEY is set')
       onUpdate({ content: data.content, status: post.status === 'idea' ? 'draft' : post.status })
       setExpanded(true)
       toast.success('Draft generated')
     } catch (err) {
-      toast.error((err as Error).message)
+      toast.error('Could not generate draft', { description: (err as Error).message })
     } finally {
       setLoadingDraft(false)
     }
