@@ -563,6 +563,34 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_kpis: {
+        Row: {
+          id: string
+          brand_id: string
+          platform: string
+          metric: string
+          target_value: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          platform?: string
+          metric: string
+          target_value: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          platform?: string
+          metric?: string
+          target_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

@@ -313,3 +313,19 @@ export interface ShareToken {
   expires_at: string | null
   created_at: string
 }
+
+// ─── Brand KPIs ───────────────────────────────────────────────────────────────
+
+export type KPIMetric = 'avg_views' | 'avg_engagement_rate' | 'avg_reach' | 'posts_per_month'
+
+export interface BrandKPI {
+  id: string
+  brand_id: string
+  platform: string
+  metric: KPIMetric
+  target_value: number
+  created_at: string
+  updated_at: string
+}
+
+export type BrandKPIInsert = Omit<BrandKPI, 'id' | 'created_at' | 'updated_at'>

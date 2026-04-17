@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { format, parseISO } from 'date-fns'
-import { TrendingUp, Eye, ThumbsUp, BarChart3, RefreshCw, Pencil } from 'lucide-react'
+import { format, parseISO, subDays, startOfMonth } from 'date-fns'
+import { TrendingUp, Eye, ThumbsUp, BarChart3, RefreshCw, Pencil, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -17,9 +17,10 @@ import { usePostMetrics } from '@/hooks/usePostMetrics'
 import { useBrandSync } from '@/hooks/usePlatformConnections'
 import { useShareTokens } from '@/hooks/useShareTokens'
 import { useCompetitorPosts } from '@/hooks/useCompetitors'
+import { useBrandKPIs } from '@/hooks/useBrandKPIs'
 import { supabase } from '@/lib/supabase'
 import { PLATFORMS } from '@/types'
-import type { Platform, PostMetric, PostMetricInsert } from '@/types'
+import type { Platform, PostMetric, PostMetricInsert, CompetitorPost, KPIMetric, BrandKPIInsert } from '@/types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,99 @@ function engagementRate(m: PostMetric): string {
   const base = m.reach ?? m.impressions ?? m.views
   if (!base || base === 0) return '—'
   return `${((eng / base) * 100).toFixed(1)}%`
+}
+
+// ─── KPI helpers ─────────────────────────────────────────────────────────────
+
+const KPI_LABELS: Record<KPIMetric, string> = {
+  avg_views:           'Avg views / post',
+  avg_engagement_rate: 'Avg engagement rate',
+  avg_reach:           'Avg reach / post',
+  posts_per_month:     'Posts / month',
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+}
+
+function computeSuggested(
+  allMetrics: PostMetric[],
+  competitorPosts: CompetitorPost[],
+  platform: string,
+  metric: KPIMetric,
+): { suggested: number | null; competitorMedian: number | null } {
+  const cutoff = subDays(new Date(), 90)
+  const posts = allMetrics.filter(
+    (m) =>
+      (platform === 'all' || m.platform === platform) &&
+      m.posted_at != null &&
+      new Date(m.posted_at + 'T00:00:00') >= cutoff,
+  )
+
+  if (metric === 'posts_per_month') {
+    const perMonth = posts.length / 3
+    return { suggested: Math.max(Math.round(perMonth * 1.15), 1), competitorMedian: null }
+  }
+
+  const extract = (p: PostMetric): number | null => {
+    if (metric === 'avg_views') return p.views
+    if (metric === 'avg_reach') return p.reach
+    if (metric === 'avg_engagement_rate') {
+      const denom = p.reach ?? p.impressions ?? p.views
+      if (!denom) return null
+      return (((p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0) + (p.saves ?? 0)) / denom) * 100
+    }
+    return null
+  }
+
+  const values = posts.map(extract).filter((v): v is number => v != null)
+  if (values.length < 3) return { suggested: null, competitorMedian: null }
+
+  const suggested = Math.round(median(values) * 1.15)
+
+  const cExtract = (cp: CompetitorPost): number | null => {
+    if (metric === 'avg_views') return cp.views
+    if (metric === 'avg_engagement_rate') {
+      const denom = cp.views
+      if (!denom) return null
+      return (((cp.likes ?? 0) + (cp.comments ?? 0) + (cp.shares ?? 0)) / denom) * 100
+    }
+    return null
+  }
+  const cValues = competitorPosts
+    .filter((cp) => platform === 'all' || cp.platform === platform)
+    .map(cExtract)
+    .filter((v): v is number => v != null)
+  const competitorMedian = cValues.length >= 2 ? Math.round(median(cValues)) : null
+
+  return { suggested, competitorMedian }
+}
+
+function computeCurrentValue(allMetrics: PostMetric[], platform: string, metric: KPIMetric): number | null {
+  const start = startOfMonth(new Date())
+  const posts = allMetrics.filter(
+    (m) =>
+      (platform === 'all' || m.platform === platform) &&
+      m.posted_at != null &&
+      new Date(m.posted_at + 'T00:00:00') >= start,
+  )
+  if (posts.length === 0) return metric === 'posts_per_month' ? 0 : null
+  if (metric === 'posts_per_month') return posts.length
+  const values = posts
+    .map((p) => {
+      if (metric === 'avg_views') return p.views
+      if (metric === 'avg_reach') return p.reach
+      if (metric === 'avg_engagement_rate') {
+        const denom = p.reach ?? p.impressions ?? p.views
+        if (!denom) return null
+        return (((p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0) + (p.saves ?? 0)) / denom) * 100
+      }
+      return null
+    })
+    .filter((v): v is number => v != null)
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null
 }
 
 // ─── Stat card ───────────────────────────────────────────────────────────────
@@ -98,11 +192,22 @@ export default function AnalyticsPage() {
   const { metrics, logMetric, updateMetric, deleteMetric } = usePostMetrics(activeBrand?.id ?? null)
   const { sync } = useBrandSync(activeBrand?.id ?? null)
   const { tokens, createToken, deleteToken } = useShareTokens(activeBrand?.id ?? null)
+  const { kpis, upsertKPI, deleteKPI } = useBrandKPIs(activeBrand?.id ?? null)
   const competitorPostsQuery = useCompetitorPosts(activeBrand?.id ?? null)
   const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null)
   const [syncingAll, setSyncingAll] = useState(false)
   const [auditInsights, setAuditInsights] = useState<string[] | null>(null)
   const [auditLoading, setAuditLoading] = useState(false)
+
+  type KPIDraft = Record<KPIMetric, { enabled: boolean; target: string }>
+  const [kpiSheetOpen, setKpiSheetOpen] = useState(false)
+  const [kpiPlatform, setKpiPlatform] = useState<string>('all')
+  const [kpiDraft, setKpiDraft] = useState<KPIDraft>({
+    avg_views:           { enabled: false, target: '' },
+    avg_engagement_rate: { enabled: false, target: '' },
+    avg_reach:           { enabled: false, target: '' },
+    posts_per_month:     { enabled: false, target: '' },
+  })
 
   async function handleSync(platform: string) {
     setSyncingPlatform(platform)
@@ -269,6 +374,80 @@ export default function AnalyticsPage() {
       competitors: competitorByWeek[week] ?? 0,
     }))
   }, [allMetrics, competitorPostsQuery.data])
+
+  // ── KPI suggestions ───────────────────────────────────────────────────────
+
+  const kpiSuggestions = useMemo(() => {
+    const METRICS: KPIMetric[] = ['avg_views', 'avg_engagement_rate', 'avg_reach', 'posts_per_month']
+    const platforms = ['all', ...ANALYTICS_PLATFORMS.map((p) => p.value)]
+    const result: Record<string, Record<KPIMetric, { suggested: number | null; competitorMedian: number | null }>> = {}
+    for (const platform of platforms) {
+      result[platform] = {} as Record<KPIMetric, { suggested: number | null; competitorMedian: number | null }>
+      for (const metric of METRICS) {
+        result[platform][metric] = computeSuggested(allMetrics, competitorPostsQuery.data ?? [], platform, metric)
+      }
+    }
+    return result
+  }, [allMetrics, competitorPostsQuery.data])
+
+  function openKpiSheet(platform = kpiPlatform) {
+    const existing = kpis.data ?? []
+    setKpiPlatform(platform)
+    setKpiDraft({
+      avg_views:           { enabled: false, target: '' },
+      avg_engagement_rate: { enabled: false, target: '' },
+      avg_reach:           { enabled: false, target: '' },
+      posts_per_month:     { enabled: false, target: '' },
+      ...Object.fromEntries(
+        existing
+          .filter((k) => k.platform === platform)
+          .map((k) => [k.metric, { enabled: true, target: String(k.target_value) }]),
+      ),
+    })
+    setKpiSheetOpen(true)
+  }
+
+  function handleKpiPlatformChange(platform: string) {
+    setKpiPlatform(platform)
+    const existing = kpis.data ?? []
+    setKpiDraft({
+      avg_views:           { enabled: false, target: '' },
+      avg_engagement_rate: { enabled: false, target: '' },
+      avg_reach:           { enabled: false, target: '' },
+      posts_per_month:     { enabled: false, target: '' },
+      ...Object.fromEntries(
+        existing
+          .filter((k) => k.platform === platform)
+          .map((k) => [k.metric, { enabled: true, target: String(k.target_value) }]),
+      ),
+    })
+  }
+
+  async function handleSaveKPIs() {
+    if (!activeBrand) return
+    const METRICS: KPIMetric[] = ['avg_views', 'avg_engagement_rate', 'avg_reach', 'posts_per_month']
+    try {
+      for (const metric of METRICS) {
+        const draft = kpiDraft[metric]
+        const existing = (kpis.data ?? []).find((k) => k.platform === kpiPlatform && k.metric === metric)
+        if (draft.enabled && draft.target.trim()) {
+          const payload: BrandKPIInsert = {
+            brand_id: activeBrand.id,
+            platform: kpiPlatform,
+            metric,
+            target_value: Number(draft.target),
+          }
+          await upsertKPI.mutateAsync(payload)
+        } else if (!draft.enabled && existing) {
+          await deleteKPI.mutateAsync(existing.id)
+        }
+      }
+      toast.success('KPI targets saved')
+      setKpiSheetOpen(false)
+    } catch (err) {
+      toast.error('Failed to save KPIs', { description: (err as Error).message })
+    }
+  }
 
   // ── Drawer helpers ────────────────────────────────────────────────────────
 
@@ -536,6 +715,68 @@ export default function AnalyticsPage() {
             </div>
           )
         )}
+
+        {/* KPI Targets */}
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">KPI Targets</p>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openKpiSheet()}>
+              Edit targets
+            </Button>
+          </div>
+          {(kpis.data ?? []).length === 0 ? (
+            <div className="p-6 text-center">
+              <Target className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm font-medium text-foreground">No KPI targets set</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                Set realistic targets based on your last 90 days of performance. We'll suggest numbers automatically.
+              </p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => openKpiSheet()}>
+                Set targets
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4">
+              {(kpis.data ?? []).map((kpi) => {
+                const current = computeCurrentValue(allMetrics, kpi.platform, kpi.metric as KPIMetric)
+                const pct = current != null && kpi.target_value > 0 ? Math.min(current / kpi.target_value, 1) : 0
+                const isHit = pct >= 1
+                const label = KPI_LABELS[kpi.metric as KPIMetric] ?? kpi.metric
+                const platformLabel =
+                  kpi.platform === 'all'
+                    ? 'All'
+                    : ANALYTICS_PLATFORMS.find((p) => p.value === kpi.platform)?.label ?? kpi.platform
+                const { competitorMedian } = kpiSuggestions[kpi.platform]?.[kpi.metric as KPIMetric] ?? {}
+                const isRate = kpi.metric === 'avg_engagement_rate'
+                return (
+                  <div key={kpi.id} className="space-y-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-medium text-foreground">{label}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{platformLabel}</span>
+                    </div>
+                    <p className="text-sm text-foreground">
+                      {current != null ? (isRate ? `${current.toFixed(1)}%` : fmt(current)) : '—'}
+                      <span className="text-[11px] text-muted-foreground">
+                        {' '}/ {isRate ? `${kpi.target_value}%` : fmt(kpi.target_value)}
+                      </span>
+                    </p>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${isHit ? 'bg-green-500' : 'bg-primary'}`}
+                        style={{ width: `${pct * 100}%` }}
+                      />
+                    </div>
+                    {competitorMedian != null && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Competitor median: {isRate ? `${competitorMedian}%` : fmt(competitorMedian)}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Filter + sort bar */}
         {allMetrics.length > 0 && (
@@ -945,6 +1186,128 @@ export default function AnalyticsPage() {
               disabled={logMetric.isPending || updateMetric.isPending}
             >
               {logMetric.isPending || updateMetric.isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* KPI Targets Sheet */}
+      <Sheet open={kpiSheetOpen} onOpenChange={setKpiSheetOpen}>
+        <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+            <SheetTitle>Set KPI Targets</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+            {/* Platform selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Platform</label>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleKpiPlatformChange('all')}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    kpiPlatform === 'all'
+                      ? 'bg-foreground text-background border-transparent'
+                      : 'border-border text-muted-foreground'
+                  }`}
+                >
+                  All platforms
+                </button>
+                {ANALYTICS_PLATFORMS.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => handleKpiPlatformChange(p.value)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                      kpiPlatform === p.value
+                        ? `${PLATFORM_CHIP_COLORS[p.value as Platform]} border-transparent`
+                        : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Metric rows */}
+            <div className="space-y-3">
+              {(Object.entries(KPI_LABELS) as [KPIMetric, string][]).map(([metric, label]) => {
+                const { suggested, competitorMedian } = kpiSuggestions[kpiPlatform]?.[metric] ?? {}
+                const draft = kpiDraft[metric]
+                const isRate = metric === 'avg_engagement_rate'
+                return (
+                  <div key={metric} className="rounded-lg border border-border p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={draft.enabled}
+                          onChange={(e) =>
+                            setKpiDraft((prev) => ({
+                              ...prev,
+                              [metric]: { ...prev[metric], enabled: e.target.checked },
+                            }))
+                          }
+                          className="accent-primary"
+                        />
+                        {label}
+                      </label>
+                      {suggested != null && (
+                        <button
+                          type="button"
+                          className="text-[11px] text-primary underline underline-offset-2 shrink-0"
+                          onClick={() =>
+                            setKpiDraft((prev) => ({
+                              ...prev,
+                              [metric]: {
+                                enabled: true,
+                                target: isRate ? suggested.toFixed(1) : String(suggested),
+                              },
+                            }))
+                          }
+                        >
+                          Suggested: {isRate ? `${suggested.toFixed(1)}%` : fmt(suggested)}
+                        </button>
+                      )}
+                    </div>
+                    {draft.enabled && (
+                      <Input
+                        type="number"
+                        min={0}
+                        step={isRate ? 0.1 : 1}
+                        placeholder={isRate ? 'e.g. 5.2' : 'e.g. 10000'}
+                        value={draft.target}
+                        onChange={(e) =>
+                          setKpiDraft((prev) => ({
+                            ...prev,
+                            [metric]: { ...prev[metric], target: e.target.value },
+                          }))
+                        }
+                      />
+                    )}
+                    {competitorMedian != null && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Competitor median: {isRate ? `${competitorMedian}%` : fmt(competitorMedian)}
+                      </p>
+                    )}
+                    {suggested == null && allMetrics.length < 3 && metric !== 'posts_per_month' && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Log at least 3 posts to get a suggestion.
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <SheetFooter className="px-6 py-4 border-t border-border shrink-0">
+            <Button
+              className="w-full"
+              onClick={handleSaveKPIs}
+              disabled={upsertKPI.isPending || deleteKPI.isPending}
+            >
+              {upsertKPI.isPending || deleteKPI.isPending ? 'Saving…' : 'Save targets'}
             </Button>
           </SheetFooter>
         </SheetContent>
