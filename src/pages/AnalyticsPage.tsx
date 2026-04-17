@@ -642,8 +642,9 @@ export default function AnalyticsPage() {
                     <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} />
                     <YAxis type="category" dataKey="hour" tick={{ fontSize: 10 }} width={44} />
                     <Tooltip
-                      formatter={(value: number, _name: string, props: { payload?: { posts: number } }) => [
-                        `${fmt(value)} avg views · ${props.payload?.posts ?? 0} post${(props.payload?.posts ?? 0) !== 1 ? 's' : ''}`,
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={(value: any, _name: any, props: any) => [
+                        `${fmt(Number(value))} avg views · ${props.payload?.posts ?? 0} post${(props.payload?.posts ?? 0) !== 1 ? 's' : ''}`,
                         'Performance',
                       ]}
                     />
