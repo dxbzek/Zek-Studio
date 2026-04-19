@@ -26,15 +26,20 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-    // Verify the caller is authenticated
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token)
-    if (userError || !user) {
+    // Verify the caller is authenticated via REST (avoids local JWT algorithm issues)
+    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': authHeader,
+      },
+    })
+    if (!userRes.ok) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
       )
     }
+    const user = await userRes.json()
 
     const { email, brand_id } = await req.json() as { email: string; brand_id: string }
 
