@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Briefcase,
   TrendingUp,
+  Sparkles,
   CalendarDays,
   LogOut,
   ChevronDown,
