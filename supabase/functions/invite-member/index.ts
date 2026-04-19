@@ -25,12 +25,10 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-      global: { headers: { Authorization: authHeader } },
-    })
 
     // Verify the caller is authenticated
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser()
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token)
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
