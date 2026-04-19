@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+// @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN')!
@@ -29,17 +30,23 @@ function extractUsername(input: string): string {
   return trimmed.replace(/^@/, '')
 }
 
-function buildApifyInput(platform: string, handle: string): unknown {
+function buildApifyInput(platform: string, handle: string, since?: string, until?: string): unknown {
   const clean = extractUsername(handle)
   switch (platform) {
     case 'instagram':
-      return { directUrls: [`https://www.instagram.com/${clean}/`], resultsType: 'posts', resultsLimit: 20 }
+      return {
+        directUrls: [`https://www.instagram.com/${clean}/`],
+        resultsType: 'posts',
+        resultsLimit: 50,
+        ...(since ? { onlyPostsNewerThan: since } : {}),
+        ...(until ? { onlyPostsOlderThan: until } : {}),
+      }
     case 'tiktok':
-      return { profiles: [`@${clean}`], resultsPerPage: 20 }
+      return { profiles: [`@${clean}`], resultsPerPage: 50 }
     case 'facebook':
-      return { startUrls: [{ url: `https://www.facebook.com/${clean}` }] }
+      return { startUrls: [{ url: `https://www.facebook.com/${clean}` }], maxPosts: 50 }
     case 'youtube':
-      return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResultsShorts: 0, maxResults: 20 }
+      return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResultsShorts: 0, maxResults: 50 }
     default:
       throw new Error(`Unsupported platform: ${platform}`)
   }
@@ -47,6 +54,35 @@ function buildApifyInput(platform: string, handle: string): unknown {
 
 function nonNeg(v: number | null): number | null {
   return v !== null && v >= 0 ? v : null
+}
+
+function extractFollowers(platform: string, rawItems: Record<string, any>[]): number | null {
+  if (rawItems.length === 0) return null
+  for (const raw of rawItems.slice(0, 5)) {
+    switch (platform) {
+      case 'instagram':
+        if (raw.followersCount != null) return Number(raw.followersCount)
+        if (raw.owner?.edge_followed_by?.count != null) return Number(raw.owner.edge_followed_by.count)
+        break
+      case 'tiktok':
+        if (raw.authorMeta?.fans != null) return Number(raw.authorMeta.fans)
+        if (raw.author?.followers_count != null) return Number(raw.author.followers_count)
+        break
+      case 'facebook':
+        if (raw.pageInfo?.likes != null) return Number(raw.pageInfo.likes)
+        if (raw.fanCount != null) return Number(raw.fanCount)
+        if (raw.fans != null) return Number(raw.fans)
+        break
+      case 'youtube':
+        if (raw.numberOfSubscribers != null) {
+          const n = parseInt(String(raw.numberOfSubscribers).replace(/[^0-9]/g, ''))
+          if (!isNaN(n) && n > 0) return n
+        }
+        if (raw.channelStats?.subscriberCount != null) return Number(raw.channelStats.subscriberCount)
+        break
+    }
+  }
+  return null
 }
 
 function normalizeToMetric(
@@ -170,7 +206,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { brand_id, platform } = await req.json() as { brand_id: string; platform: string }
+    const { brand_id, platform, since, until } = await req.json() as {
+      brand_id: string
+      platform: string
+      since?: string  // ISO date e.g. "2024-01-01"
+      until?: string  // ISO date e.g. "2024-03-31"
+    }
     if (!brand_id || !platform) {
       return new Response(JSON.stringify({ error: 'brand_id and platform are required' }), {
         status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
@@ -208,7 +249,7 @@ Deno.serve(async (req) => {
     }
 
     // Run Apify actor
-    const input = buildApifyInput(platform, handle)
+    const input = buildApifyInput(platform, handle, since, until)
     const runRes = await fetch(
       `https://api.apify.com/v2/acts/${encodeURIComponent(ACTORS[platform])}/runs?waitForFinish=90&token=${APIFY_TOKEN}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) },
@@ -234,7 +275,7 @@ Deno.serve(async (req) => {
 
     // Fetch dataset items
     const itemsRes = await fetch(
-      `https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=20&clean=true`,
+      `https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=100&clean=true`,
     )
     if (!itemsRes.ok) throw new Error('Failed to fetch Apify results')
     const rawPosts: Record<string, any>[] = await itemsRes.json()
@@ -245,10 +286,26 @@ Deno.serve(async (req) => {
       const metric = normalizeToMetric(platform, raw, brand_id)
       if (!metric) continue
 
+      // Apply date range filter (for platforms without native Apify date support)
+      if (metric.posted_at) {
+        if (since && metric.posted_at < since) continue
+        if (until && metric.posted_at > until) continue
+      }
+
       const { error } = await supabase
         .from('post_metrics')
         .upsert(metric, { onConflict: 'brand_id,platform,post_url', ignoreDuplicates: false })
       if (!error) synced++
+    }
+
+    // Capture follower snapshot for today
+    const followerCount = extractFollowers(platform, rawPosts)
+    if (followerCount !== null && followerCount > 0) {
+      const today = new Date().toISOString().slice(0, 10)
+      await supabase.from('growth_snapshots').upsert(
+        { brand_id, platform, followers: followerCount, recorded_at: today },
+        { onConflict: 'brand_id,platform,recorded_at', ignoreDuplicates: true },
+      )
     }
 
     return new Response(JSON.stringify({ synced }), {

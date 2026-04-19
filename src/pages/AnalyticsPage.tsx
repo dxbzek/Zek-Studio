@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
-import { format, parseISO } from 'date-fns'
-import { TrendingUp, Eye, ThumbsUp, BarChart3, RefreshCw, Pencil } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { format, parseISO, subDays, startOfMonth, endOfMonth } from 'date-fns'
+import { TrendingUp, Eye, ThumbsUp, BarChart3, RefreshCw, Pencil, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, Legend,
@@ -12,6 +13,18 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useSearchParams } from 'react-router-dom'
+import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { usePostMetrics } from '@/hooks/usePostMetrics'
 import { useBrandSync } from '@/hooks/usePlatformConnections'
@@ -20,6 +33,18 @@ import { useCompetitorPosts } from '@/hooks/useCompetitors'
 import { supabase } from '@/lib/supabase'
 import { PLATFORMS } from '@/types'
 import type { Platform, PostMetric, PostMetricInsert } from '@/types'
+
+const PLATFORM_LINE_COLORS: Record<string, string> = {
+  instagram: '#a855f7',
+  tiktok:    '#f43f5e',
+  facebook:  '#3b82f6',
+  youtube:   '#ef4444',
+}
+
+function weekOfMonth(date: Date): number {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
+  return Math.ceil((date.getDate() + firstDay.getDay()) / 7)
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -101,17 +126,117 @@ export default function AnalyticsPage() {
   const competitorPostsQuery = useCompetitorPosts(activeBrand?.id ?? null)
   const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null)
   const [syncingAll, setSyncingAll] = useState(false)
+  const [syncErrors, setSyncErrors] = useState<Record<string, string>>({})
   const [auditInsights, setAuditInsights] = useState<string[] | null>(null)
   const [auditLoading, setAuditLoading] = useState(false)
+  const [syncFrom, setSyncFrom] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
+  const [syncTo, setSyncTo] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
+
+  // ── Content Velocity ──────────────────────────────────────────────────────
+
+  const velocityQuery = useQuery({
+    queryKey: ['content-velocity', activeBrand?.id],
+    queryFn: async () => {
+      if (!activeBrand?.id) return []
+      const now = new Date()
+      const { data, error } = await supabase
+        .from('calendar_entries')
+        .select('scheduled_date, status')
+        .eq('brand_id', activeBrand.id)
+        .gte('scheduled_date', format(startOfMonth(now), 'yyyy-MM-dd'))
+        .lte('scheduled_date', format(endOfMonth(now), 'yyyy-MM-dd'))
+      if (error) throw error
+      return (data ?? []) as { scheduled_date: string; status: string }[]
+    },
+    enabled: !!activeBrand?.id,
+    staleTime: 1000 * 60 * 30,
+  })
+
+  const velocityData = useMemo(() => {
+    const entries = velocityQuery.data ?? []
+    const weekMap: Record<string, { label: string; planned: number; published: number }> = {}
+    for (const e of entries) {
+      const d = new Date(e.scheduled_date + 'T00:00:00')
+      const wk = `W${weekOfMonth(d)}`
+      if (!weekMap[wk]) weekMap[wk] = { label: wk, planned: 0, published: 0 }
+      if (e.status === 'published') {
+        weekMap[wk].published++
+      } else {
+        weekMap[wk].planned++
+      }
+    }
+    return Object.values(weekMap).sort((a, b) => a.label.localeCompare(b.label))
+  }, [velocityQuery.data])
+
+  const consistencyScore = useMemo(() => {
+    const total  = velocityData.reduce((s, w) => s + w.planned + w.published, 0)
+    const published = velocityData.reduce((s, w) => s + w.published, 0)
+    return total > 0 ? Math.round((published / total) * 100) : null
+  }, [velocityData])
+
+  // ── Follower Growth ───────────────────────────────────────────────────────
+
+  const growthQuery = useQuery({
+    queryKey: ['growth-snapshots', activeBrand?.id],
+    queryFn: async () => {
+      if (!activeBrand?.id) return []
+      const since = format(subDays(new Date(), 90), 'yyyy-MM-dd')
+      const { data, error } = await supabase
+        .from('growth_snapshots')
+        .select('platform, followers, recorded_at')
+        .eq('brand_id', activeBrand.id)
+        .gte('recorded_at', since)
+        .order('recorded_at', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as { platform: string; followers: number; recorded_at: string }[]
+    },
+    enabled: !!activeBrand?.id,
+    staleTime: 1000 * 60 * 30,
+  })
+
+  const growthChartResult = useMemo(() => {
+    const snapshots = growthQuery.data ?? []
+    if (snapshots.length === 0) return null
+    const byDate: Record<string, Record<string, number>> = {}
+    const platformSet = new Set<string>()
+    for (const s of snapshots) {
+      if (!byDate[s.recorded_at]) byDate[s.recorded_at] = {}
+      byDate[s.recorded_at][s.platform] = s.followers
+      platformSet.add(s.platform)
+    }
+    const chartData = Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, vals]) => ({ date: format(parseISO(date), 'MMM d'), ...vals }))
+    const platforms = [...platformSet]
+    return { chartData, platforms }
+  }, [growthQuery.data])
+
+  const growthNetStats = useMemo(() => {
+    const snapshots = growthQuery.data ?? []
+    if (snapshots.length === 0) return null
+    const byPlatform: Record<string, number[]> = {}
+    for (const s of snapshots) {
+      if (!byPlatform[s.platform]) byPlatform[s.platform] = []
+      byPlatform[s.platform].push(s.followers)
+    }
+    return Object.entries(byPlatform).map(([platform, counts]) => ({
+      platform,
+      latest: counts[counts.length - 1],
+      net: counts[counts.length - 1] - counts[0],
+    }))
+  }, [growthQuery.data])
 
   async function handleSync(platform: string) {
     setSyncingPlatform(platform)
+    setSyncErrors((prev) => ({ ...prev, [platform]: '' }))
     try {
-      const result = await sync.mutateAsync(platform)
+      const result = await sync.mutateAsync({ platform, since: syncFrom, until: syncTo })
       const label = SYNC_PLATFORMS.find((p) => p.value === platform)?.label ?? platform
       toast.success(`Synced ${result.synced} posts from ${label}`)
     } catch (err) {
-      toast.error('Sync failed', { description: (err as Error).message })
+      const msg = (err as Error).message
+      setSyncErrors((prev) => ({ ...prev, [platform]: msg }))
+      toast.error('Sync failed', { description: msg })
     } finally {
       setSyncingPlatform(null)
     }
@@ -129,7 +254,7 @@ export default function AnalyticsPage() {
     for (const p of toSync) {
       setSyncingPlatform(p.value)
       try {
-        const result = await sync.mutateAsync(p.value)
+        const result = await sync.mutateAsync({ platform: p.value, since: syncFrom, until: syncTo })
         totalSynced += result.synced
       } catch (err) {
         errorList.push(`${p.label}: ${(err as Error).message}`)
@@ -150,9 +275,20 @@ export default function AnalyticsPage() {
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create')
   const [editingMetric, setEditingMetric] = useState<PostMetric | null>(null)
   const [form, setForm] = useState(blankForm())
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
-  const [filterPlatform, setFilterPlatform] = useState<Platform | 'all'>('all')
+  const [searchParams] = useSearchParams()
+  const [filterPlatform, setFilterPlatform] = useState<Platform | 'all'>(() => {
+    const p = searchParams.get('platform')
+    return (p && PLATFORMS.some((pl) => pl.value === p) ? p : 'all') as Platform | 'all'
+  })
   const [sortBy, setSortBy] = useState<'posted_at' | 'views' | 'likes'>('posted_at')
+  const [metricsLimit, setMetricsLimit] = useState(50)
+
+  useEffect(() => {
+    const p = searchParams.get('platform')
+    if (p && PLATFORMS.some((pl) => pl.value === p)) setFilterPlatform(p as Platform)
+  }, [searchParams])
 
   const allMetrics = metrics.data ?? []
 
@@ -241,6 +377,15 @@ export default function AnalyticsPage() {
   }, [filteredMetrics])
 
   const hasHourData = bestHoursData.some((d) => d.posts > 0)
+
+  const maxBestTimesAvg = useMemo(
+    () => Math.max(...bestTimesData.map((d) => d.avg), 0),
+    [bestTimesData],
+  )
+  const maxBestHoursAvg = useMemo(
+    () => Math.max(...bestHoursData.map((d) => d.avg), 0),
+    [bestHoursData],
+  )
 
   // ── Competitor benchmark ──────────────────────────────────────────────────
 
@@ -364,9 +509,7 @@ export default function AnalyticsPage() {
     }
   }
 
-  if (!activeBrand) {
-    return <div className="p-6 text-muted-foreground">Select a brand to view analytics.</div>
-  }
+  if (!activeBrand) return <NoBrandSelected />
 
   return (
     <div className="flex flex-col h-full">
@@ -384,10 +527,26 @@ export default function AnalyticsPage() {
       <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
         {/* Brand Accounts */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2 justify-between">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand Accounts</p>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Synced via Apify</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">Date range:</span>
+              <input
+                type="date"
+                value={syncFrom}
+                max={syncTo}
+                onChange={(e) => setSyncFrom(e.target.value)}
+                className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+              />
+              <span className="text-[11px] text-muted-foreground">to</span>
+              <input
+                type="date"
+                value={syncTo}
+                min={syncFrom}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                onChange={(e) => setSyncTo(e.target.value)}
+                className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+              />
               <Button
                 variant="outline"
                 size="sm"
@@ -421,6 +580,11 @@ export default function AnalyticsPage() {
                       {lastSyncedMetric && (
                         <span className="text-[11px] text-muted-foreground shrink-0">
                           Synced {format(parseISO(lastSyncedMetric.created_at), 'MMM d')}
+                        </span>
+                      )}
+                      {syncErrors[p.value] && (
+                        <span className="text-[11px] text-destructive truncate max-w-[180px]" title={syncErrors[p.value]}>
+                          ⚠ {syncErrors[p.value]}
                         </span>
                       )}
                       <div className="ml-auto shrink-0">
@@ -488,7 +652,12 @@ export default function AnalyticsPage() {
                         size="sm"
                         variant="ghost"
                         className="h-7 text-xs text-destructive hover:text-destructive"
-                        onClick={() => deleteToken.mutate(existing!.id)}
+                        onClick={() =>
+                          deleteToken.mutate(existing!.id, {
+                            onSuccess: () => toast.success('Share link revoked'),
+                            onError: (err) => toast.error('Failed to revoke link', { description: (err as Error).message }),
+                          })
+                        }
                       >
                         Revoke
                       </Button>
@@ -498,7 +667,12 @@ export default function AnalyticsPage() {
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs"
-                      onClick={() => createToken.mutate({ type })}
+                      onClick={() =>
+                        createToken.mutate({ type }, {
+                          onSuccess: () => toast.success('Share link created'),
+                          onError: (err) => toast.error('Failed to create link', { description: (err as Error).message }),
+                        })
+                      }
                       disabled={createToken.isPending}
                     >
                       Generate Link
@@ -509,6 +683,70 @@ export default function AnalyticsPage() {
             })}
           </div>
         </div>
+
+        {/* Follower Growth */}
+        {(growthChartResult || growthQuery.isLoading) && (
+          <section>
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <h2 className="text-lg font-semibold">Follower Growth</h2>
+                <p className="text-sm text-muted-foreground">Last 90 days — captured automatically on each sync</p>
+              </div>
+            </div>
+            {growthNetStats && (
+              <div className="flex flex-wrap gap-3 mb-4">
+                {growthNetStats.map(({ platform, latest, net }) => (
+                  <div key={platform} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${PLATFORM_CHIP_COLORS[platform as Platform]}`}>
+                      {platform}
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">{latest >= 1000 ? `${(latest / 1000).toFixed(1)}K` : latest}</span>
+                    {net !== 0 && (
+                      <span className={`text-xs font-medium ${net > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                        {net > 0 ? '+' : ''}{net >= 1000 ? `${(net / 1000).toFixed(1)}K` : net}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {growthChartResult && growthChartResult.chartData.length > 1 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={growthChartResult.chartData} margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={fmt} />
+                  <Tooltip formatter={(v: unknown) => fmt(Number(v))} />
+                  <Legend />
+                  {growthChartResult.platforms.map((p) => (
+                    <Line
+                      key={p}
+                      type="monotone"
+                      dataKey={p}
+                      name={p.charAt(0).toUpperCase() + p.slice(1)}
+                      stroke={PLATFORM_LINE_COLORS[p] ?? 'hsl(var(--primary))'}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              growthChartResult && (
+                <p className="text-sm text-muted-foreground">
+                  More data points will appear after multiple syncs. Current snapshot is shown above.
+                </p>
+              )
+            )}
+          </section>
+        )}
+
+        {/* Metrics loading */}
+        {metrics.isLoading && (
+          <div className="flex items-center gap-2 py-4 text-muted-foreground">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Loading metrics…</span>
+          </div>
+        )}
 
         {/* Summary stat cards */}
         {summary ? (
@@ -542,7 +780,7 @@ export default function AnalyticsPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => setFilterPlatform('all')}
+              onClick={() => { setFilterPlatform('all'); setMetricsLimit(50) }}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 filterPlatform === 'all'
                   ? 'bg-foreground text-background border-transparent'
@@ -555,7 +793,7 @@ export default function AnalyticsPage() {
               <button
                 key={p.value}
                 type="button"
-                onClick={() => setFilterPlatform(p.value)}
+                onClick={() => { setFilterPlatform(p.value); setMetricsLimit(50) }}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                   filterPlatform === p.value
                     ? `${PLATFORM_CHIP_COLORS[p.value]} border-transparent`
@@ -571,7 +809,7 @@ export default function AnalyticsPage() {
                 <button
                   key={s}
                   type="button"
-                  onClick={() => setSortBy(s)}
+                  onClick={() => { setSortBy(s); setMetricsLimit(50) }}
                   className={`px-2 py-0.5 rounded border transition-colors ${
                     sortBy === s ? 'bg-background shadow-sm text-foreground border-border' : 'border-transparent'
                   }`}
@@ -602,31 +840,26 @@ export default function AnalyticsPage() {
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} />
                   <YAxis type="category" dataKey="day" tick={{ fontSize: 11 }} width={80} />
                   <Tooltip
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    formatter={(value: any, _name: any, props: any) => [
-                      `${fmt(Number(value))} avg views · ${props.payload?.posts ?? 0} post${(props.payload?.posts ?? 0) !== 1 ? 's' : ''}`,
-                      'Performance',
-                    ]}
+                    formatter={(value: unknown, _name: unknown, props: unknown) => {
+                      const posts = (props as { payload?: { posts?: number } }).payload?.posts ?? 0
+                      return [`${fmt(Number(value))} avg views · ${posts} post${posts !== 1 ? 's' : ''}`, 'Performance']
+                    }}
                   />
                   <Bar
                     dataKey="avg"
                     radius={[0, 4, 4, 0]}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    label={{ position: 'right', fontSize: 10, formatter: (v: any) => Number(v) > 0 ? fmt(Number(v)) : '' }}
+                    label={{ position: 'right', fontSize: 10, formatter: (v: unknown) => Number(v) > 0 ? fmt(Number(v)) : '' }}
                   >
-                    {bestTimesData.map((entry, i) => {
-                      const maxAvg = Math.max(...bestTimesData.map((d) => d.avg))
-                      return (
-                        <Cell
-                          key={i}
-                          fill={
-                            entry.avg === maxAvg && maxAvg > 0
-                              ? 'hsl(var(--primary))'
-                              : 'hsl(var(--muted-foreground) / 0.25)'
-                          }
-                        />
-                      )
-                    })}
+                    {bestTimesData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          entry.avg === maxBestTimesAvg && maxBestTimesAvg > 0
+                            ? 'hsl(var(--primary))'
+                            : 'hsl(var(--muted-foreground) / 0.25)'
+                        }
+                      />
+                    ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -645,31 +878,26 @@ export default function AnalyticsPage() {
                     <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} />
                     <YAxis type="category" dataKey="hour" tick={{ fontSize: 10 }} width={44} />
                     <Tooltip
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(value: any, _name: any, props: any) => [
-                        `${fmt(Number(value))} avg views · ${props.payload?.posts ?? 0} post${(props.payload?.posts ?? 0) !== 1 ? 's' : ''}`,
-                        'Performance',
-                      ]}
+                      formatter={(value: unknown, _name: unknown, props: unknown) => {
+                        const posts = (props as { payload?: { posts?: number } }).payload?.posts ?? 0
+                        return [`${fmt(Number(value))} avg views · ${posts} post${posts !== 1 ? 's' : ''}`, 'Performance']
+                      }}
                     />
                     <Bar
                       dataKey="avg"
                       radius={[0, 4, 4, 0]}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    label={{ position: 'right', fontSize: 10, formatter: (v: any) => Number(v) > 0 ? fmt(Number(v)) : '' }}
+                      label={{ position: 'right', fontSize: 10, formatter: (v: unknown) => Number(v) > 0 ? fmt(Number(v)) : '' }}
                     >
-                      {bestHoursData.map((entry, i) => {
-                        const maxAvg = Math.max(...bestHoursData.map((d) => d.avg))
-                        return (
-                          <Cell
-                            key={i}
-                            fill={
-                              entry.avg === maxAvg && maxAvg > 0
-                                ? 'hsl(var(--primary))'
-                                : 'hsl(var(--muted-foreground) / 0.25)'
-                            }
-                          />
-                        )
-                      })}
+                      {bestHoursData.map((entry, i) => (
+                        <Cell
+                          key={i}
+                          fill={
+                            entry.avg === maxBestHoursAvg && maxBestHoursAvg > 0
+                              ? 'hsl(var(--primary))'
+                              : 'hsl(var(--muted-foreground) / 0.25)'
+                          }
+                        />
+                      ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -679,6 +907,35 @@ export default function AnalyticsPage() {
                 Time-of-day data will appear here after your next sync — time is captured automatically from each platform.
               </p>
             )}
+          </section>
+        )}
+
+        {/* Content Velocity */}
+        {velocityData.length > 0 && (
+          <section>
+            <div className="flex items-start justify-between mb-1">
+              <div>
+                <h2 className="text-lg font-semibold">Content Velocity</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Planned vs published this month
+                  {consistencyScore !== null && (
+                    <span className={`ml-2 font-semibold ${consistencyScore >= 80 ? 'text-emerald-600 dark:text-emerald-400' : consistencyScore >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
+                      · {consistencyScore}% consistency
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={velocityData} margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="published" name="Published" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="planned" name="Planned / Draft" fill="hsl(var(--muted-foreground) / 0.3)" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </section>
         )}
 
@@ -701,7 +958,7 @@ export default function AnalyticsPage() {
                 >
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => fmt(v)} />
-                  <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                  <Tooltip formatter={(v: unknown) => fmt(Number(v))} />
                   <Legend />
                   <Line
                     type="monotone"
@@ -764,7 +1021,8 @@ export default function AnalyticsPage() {
         {/* Metrics table */}
         {displayed.length > 0 && (
           <div className="rounded-xl border border-border overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Date</th>
@@ -778,7 +1036,7 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {displayed.map((m, i) => (
+                {displayed.slice(0, metricsLimit).map((m, i) => (
                   <tr
                     key={m.id}
                     className={`border-b border-border last:border-0 ${i % 2 === 0 ? '' : 'bg-muted/10'}`}
@@ -822,6 +1080,19 @@ export default function AnalyticsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
+            {displayed.length > metricsLimit && (
+              <div className="px-4 py-3 border-t border-border text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setMetricsLimit((n) => n + 50)}
+                >
+                  Load more ({displayed.length - metricsLimit} remaining)
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -854,7 +1125,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
             {/* Date + time */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Posted date</label>
                 <input
@@ -888,7 +1159,7 @@ export default function AnalyticsPage() {
               />
             </div>
             {/* Metric fields */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {([
                 ['views', 'Views'],
                 ['likes', 'Likes'],
@@ -930,7 +1201,7 @@ export default function AnalyticsPage() {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={handleDelete}
+                onClick={() => setConfirmDeleteOpen(true)}
                 disabled={deleteMetric.isPending}
               >
                 Delete
@@ -949,6 +1220,24 @@ export default function AnalyticsPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this metric log?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => { setConfirmDeleteOpen(false); await handleDelete() }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

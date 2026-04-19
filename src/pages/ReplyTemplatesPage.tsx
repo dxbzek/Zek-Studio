@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from '@/components/ui/sheet'
+import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useReplyTemplates } from '@/hooks/useReplyTemplates'
 import { PLATFORMS } from '@/types'
@@ -104,11 +105,7 @@ export default function ReplyTemplatesPage() {
     return list
   }, [templates.data, search, filterPlatform])
 
-  if (!activeBrand) {
-    return (
-      <div className="p-6 text-muted-foreground">Select a brand to view reply templates.</div>
-    )
-  }
+  if (!activeBrand) return <NoBrandSelected />
 
   return (
     <div className="flex flex-col h-full">
@@ -127,7 +124,7 @@ export default function ReplyTemplatesPage() {
           placeholder="Search templates…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-8 w-52 text-sm"
+          className="h-8 w-full max-w-[200px] text-sm"
         />
         <div className="flex items-center gap-1.5 ml-2">
           <button

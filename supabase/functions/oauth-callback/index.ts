@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const APP_URL = Deno.env.get('APP_URL') ?? 'http://localhost:5173'

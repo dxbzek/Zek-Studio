@@ -1,12 +1,26 @@
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { GeneratedContent, GenerateSource, ContentType, ContentTone, Platform } from '@/types'
+import type { GeneratedContent, GenerateSource, ContentType, ContentTheme, ContentTone, GeneratorPlatform, Platform } from '@/types'
+
+const THEME_TO_CONTENT_TYPE: Record<string, ContentType> = {
+  property_tour:     'listing',
+  market_update:     'market',
+  agent_recruitment: 'story',
+  client_story:      'story',
+  investment_tips:   'caption',
+  behind_scenes:     'story',
+  new_launch:        'listing',
+  area_spotlight:    'caption',
+}
 
 export function useGenerator(brandId: string | null) {
   const queryClient = useQueryClient()
+  const [historyLimit, setHistoryLimit] = useState(20)
+  const loadMore = useCallback(() => setHistoryLimit((n) => n + 20), [])
 
   const history = useQuery({
-    queryKey: ['generated-content', brandId],
+    queryKey: ['generated-content', brandId, historyLimit],
     queryFn: async () => {
       if (!brandId) return []
       const { data, error } = await supabase
@@ -14,7 +28,7 @@ export function useGenerator(brandId: string | null) {
         .select('*')
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(historyLimit)
       if (error) throw error
       return (data ?? []) as GeneratedContent[]
     },
@@ -23,8 +37,8 @@ export function useGenerator(brandId: string | null) {
 
   const generate = useMutation({
     mutationFn: async (params: {
-      type: ContentType
-      platform: Platform
+      theme: ContentTheme
+      platform: GeneratorPlatform
       tone: ContentTone
       source: GenerateSource
     }) => {
@@ -50,24 +64,27 @@ export function useGenerator(brandId: string | null) {
   const saveToCalendar = useMutation({
     mutationFn: async ({
       output,
-      type,
+      theme,
       platform,
       generatedContentId,
       scheduledDate,
+      sectionContentType,
     }: {
       output: string
-      type: ContentType
+      theme: string
       platform: Platform
       generatedContentId: string
       scheduledDate: string
+      sectionContentType?: ContentType
     }) => {
       if (!brandId) throw new Error('No brand selected')
+      const contentType: ContentType = sectionContentType ?? THEME_TO_CONTENT_TYPE[theme] ?? 'caption'
       const { data, error } = await supabase
         .from('calendar_entries')
         .insert({
           brand_id: brandId,
           platform,
-          content_type: type,
+          content_type: contentType,
           title: output.slice(0, 120),
           body: output,
           scheduled_date: scheduledDate,
@@ -81,5 +98,22 @@ export function useGenerator(brandId: string | null) {
     },
   })
 
-  return { history, generate, saveToCalendar }
+  const saveHook = useMutation({
+    mutationFn: async ({ text, platform }: { text: string; platform: GeneratorPlatform }) => {
+      if (!brandId) throw new Error('No brand selected')
+      const storedPlatform = platform === 'meta' ? 'instagram' : platform
+      const { error } = await supabase.from('saved_hooks').insert({
+        brand_id: brandId,
+        text,
+        platform: storedPlatform,
+        tags: [],
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['saved-hooks', brandId] })
+    },
+  })
+
+  return { history, generate, saveToCalendar, saveHook, loadMore, historyLimit }
 }

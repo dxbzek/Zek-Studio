@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
   Briefcase,
@@ -12,9 +13,9 @@ import {
   UsersRound,
   BarChart3,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useBrands } from '@/hooks/useBrands'
+import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,10 +38,16 @@ const NAV_ITEMS = [
   { to: '/analytics', label: 'Analytics',      icon: BarChart3 },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  open: boolean
+  onClose: () => void
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   const navigate = useNavigate()
   const { activeBrand, setActiveBrand } = useActiveBrand()
   const { brands } = useBrands()
+  const { user } = useAuth()
 
   // Keep activeBrand in sync with latest data from the server
   useEffect(() => {
@@ -61,7 +68,16 @@ export function Sidebar() {
     : 'ZS'
 
   return (
-    <aside className="flex h-full w-60 flex-col border-r border-border bg-sidebar">
+    <aside
+      className={cn(
+        'flex w-60 flex-col border-r border-border bg-sidebar',
+        // Mobile: fixed overlay drawer with slide animation
+        'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-200',
+        open ? 'translate-x-0' : '-translate-x-full',
+        // Desktop: static in flex layout
+        'sm:relative sm:translate-x-0',
+      )}
+    >
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
@@ -130,11 +146,12 @@ export function Sidebar() {
             key={to}
             to={to}
             end={to === '/'}
+            onClick={onClose}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  ? 'bg-primary/10 text-primary'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
               )
             }
@@ -146,17 +163,27 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border p-3 flex items-center justify-between">
-        <ThemeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleSignOut}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          title="Sign out"
-        >
-          <LogOut className="h-4 w-4" />
-        </Button>
+      <div className="border-t border-border p-3 space-y-2">
+        {user && (
+          <div className="flex items-center gap-2 px-1 min-w-0">
+            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
+              {user.email?.slice(0, 2).toUpperCase() ?? 'ZS'}
+            </div>
+            <span className="truncate text-xs text-sidebar-foreground/60 flex-1">{user.email}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </aside>
   )

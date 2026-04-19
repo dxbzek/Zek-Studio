@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+// @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -292,7 +293,7 @@ serve(async (req) => {
     // Run in parallel: Tavily topics + Apify IG hashtag + Apify TT hashtag
     // 30s total budget per Apify call — if they don't finish, fall back to Tavily
     const [topicsResults, igPosts, ttPosts] = await Promise.all([
-      tavilySearch(`${niche}${locStr} trending content ideas social media ${year}`, 8),
+      tavilySearch(`${niche}${locStr} market trends news insights ${year}`, 8),
       apifyRun('apify/instagram-hashtag-scraper', { hashtags, resultsLimit: 50 }, 30_000),
       apifyRun('clockworks/tiktok-scraper', { hashtags: hashtags.slice(0, 3), resultsPerPage: 20 }, 30_000),
     ])
@@ -321,11 +322,11 @@ serve(async (req) => {
 
     // Fall back to Tavily creator search if Apify is not configured or returned nothing
     if (top_creators.length === 0) {
-      const locQ = loc ? ` ${loc}` : ''
+      const locLabel = loc || 'Dubai UAE'
       const [igFallback, ttFallback, ytFallback] = await Promise.all([
-        tavilySearch(`top ${niche}${locQ} instagram creators ${year} site:instagram.com`, 10),
-        tavilySearch(`top ${niche}${locQ} tiktok creators ${year} site:tiktok.com`, 8),
-        tavilySearch(`top ${niche}${locQ} youtube channel ${year} site:youtube.com`, 6),
+        tavilySearch(`${niche} creator based in ${locLabel} instagram ${year} site:instagram.com`, 10),
+        tavilySearch(`${niche} creator based in ${locLabel} tiktok ${year} site:tiktok.com`, 8),
+        tavilySearch(`${niche} ${locLabel} youtube channel ${year} site:youtube.com`, 6),
       ])
 
       const fallbackSeen = new Set<string>()

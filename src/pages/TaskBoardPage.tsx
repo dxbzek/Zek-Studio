@@ -17,6 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTasks, useMyTasks } from '@/hooks/useTasks'
 import { useTeam } from '@/hooks/useTeam'
@@ -296,13 +297,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   }
 
   // Specialist has no brand, guard differently
-  if (!isSpecialist && !activeBrand) {
-    return (
-      <div className="p-6 text-muted-foreground">
-        Select a brand to view the task board.
-      </div>
-    )
-  }
+  if (!isSpecialist && !activeBrand) return <NoBrandSelected />
 
   return (
     <div className="flex flex-col h-full">
@@ -328,7 +323,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       {!isSpecialist && (
         <div className="px-6 pb-3 flex items-center gap-2 flex-wrap border-b border-border shrink-0">
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-            <SelectTrigger className="h-7 text-xs w-auto min-w-[130px]">
+            <SelectTrigger className="h-7 text-xs w-auto min-w-[100px] max-w-[160px]">
               <SelectValue placeholder="All assignees" />
             </SelectTrigger>
             <SelectContent>
@@ -339,7 +334,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
             </SelectContent>
           </Select>
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="h-7 text-xs w-auto min-w-[110px]">
+            <SelectTrigger className="h-7 text-xs w-auto min-w-[90px] max-w-[140px]">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
@@ -360,6 +355,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
+          <div className="overflow-x-auto pb-1">
           <div className="grid grid-cols-3 gap-4 min-w-[600px]">
             {COLUMNS.map((col) => (
               <TaskColumn
@@ -371,6 +367,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                 isSpecialist={isSpecialist}
               />
             ))}
+          </div>
           </div>
           <DragOverlay>
             {draggingTask && (
