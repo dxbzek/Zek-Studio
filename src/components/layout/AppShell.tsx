@@ -55,7 +55,7 @@ export function AppShell() {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <span className="font-semibold text-sm tracking-tight">Zek Studio</span>
+          <img src="/logo.png" alt="Zek Studio" className="h-6 w-auto dark:invert" />
         </div>
         <Outlet />
       </main>

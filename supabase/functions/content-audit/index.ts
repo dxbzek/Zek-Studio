@@ -50,10 +50,20 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { brand_id } = await req.json()
+    const { brand_id, date_from, date_to, platform } = await req.json()
+
+    let metricsQuery = sb
+      .from('post_metrics')
+      .select('*')
+      .eq('brand_id', brand_id)
+      .not('posted_at', 'is', null)
+    if (date_from) metricsQuery = metricsQuery.gte('posted_at', date_from)
+    if (date_to)   metricsQuery = metricsQuery.lte('posted_at', date_to + 'T23:59:59')
+    if (platform)  metricsQuery = metricsQuery.eq('platform', platform)
+
     const [{ data: brand }, { data: metrics }] = await Promise.all([
       sb.from('brand_profiles').select('name, niche').eq('id', brand_id).single(),
-      sb.from('post_metrics').select('*').eq('brand_id', brand_id).not('posted_at', 'is', null),
+      metricsQuery,
     ])
 
     if (!metrics || metrics.length < 3) {
@@ -92,30 +102,39 @@ Deno.serve(async (req) => {
       },
     }
 
-    const prompt = `You are analyzing social media performance for ${brand?.name}, a ${brand?.niche} brand.
+    const dateRange = date_from || date_to
+      ? ` (filtered: ${date_from ?? 'start'} to ${date_to ?? 'today'}${platform ? `, ${platform} only` : ''})`
+      : ''
+
+    const prompt = `You are analyzing social media performance for ${brand?.name}, a ${brand?.niche} brand${dateRange}.
 
 PERFORMANCE DATA:
 ${JSON.stringify(summary, null, 2)}
 
-Write exactly 4 specific, data-driven insights. Each insight must:
-1. Reference actual numbers from the data
-2. End with a clear recommendation
+Return exactly 4 specific, data-driven insights as a JSON array. Each object must have:
+- "category": one of "Engagement", "Reach", "Posting Strategy", "Platform Mix"
+- "text": the insight referencing actual numbers + a clear recommendation
 
-Format as a numbered list:
-1. [insight + recommendation]
-2. [insight + recommendation]
-3. [insight + recommendation]
-4. [insight + recommendation]
-
-Only output the 4 numbered insights. No intro or conclusion.`
+Output ONLY valid JSON, no markdown, no explanation:
+[{"category":"...","text":"..."},...]`
 
     const text = await groq(prompt)
 
-    const insights = text
-      .split('\n')
-      .filter((l: string) => /^\d+\./.test(l.trim()))
-      .map((l: string) => l.replace(/^\d+\.\s*/, '').trim())
-      .slice(0, 4)
+    let insights: { category: string; text: string }[] = []
+    try {
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (jsonMatch) insights = JSON.parse(jsonMatch[0])
+    } catch {
+      // fallback: parse numbered lines as plain text
+      insights = text
+        .split('\n')
+        .filter((l: string) => /^\d+\./.test(l.trim()))
+        .slice(0, 4)
+        .map((l: string, idx: number) => ({
+          category: ['Engagement', 'Reach', 'Posting Strategy', 'Platform Mix'][idx] ?? 'General',
+          text: l.replace(/^\d+\.\s*/, '').trim(),
+        }))
+    }
 
     return new Response(JSON.stringify({ insights }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },

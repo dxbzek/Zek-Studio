@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Briefcase,
   TrendingUp,
-  Sparkles,
   CalendarDays,
   LogOut,
   ChevronDown,
@@ -79,13 +78,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-          <Sparkles className="h-4 w-4 text-primary-foreground" />
-        </div>
-        <span className="font-semibold tracking-tight text-sidebar-foreground">
-          Zek Studio
-        </span>
+      <div className="flex h-14 items-center border-b border-border px-4">
+        <img
+          src="/logo.png"
+          alt="Zek Studio"
+          className="h-7 w-auto dark:invert"
+        />
       </div>
 
       {/* Brand Switcher */}

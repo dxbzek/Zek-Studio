@@ -127,8 +127,13 @@ export default function AnalyticsPage() {
   const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null)
   const [syncingAll, setSyncingAll] = useState(false)
   const [syncErrors, setSyncErrors] = useState<Record<string, string>>({})
-  const [auditInsights, setAuditInsights] = useState<string[] | null>(null)
+  const [auditInsights, setAuditInsights] = useState<{ category: string; text: string }[] | null>(null)
   const [auditLoading, setAuditLoading] = useState(false)
+  const [auditDateFrom, setAuditDateFrom] = useState<string>(format(subDays(new Date(), 90), 'yyyy-MM-dd'))
+  const [auditDateTo, setAuditDateTo] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
+  const [auditPlatform, setAuditPlatform] = useState<string>('all')
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>('all')
+  const [auditSortBy, setAuditSortBy] = useState<'default' | 'category'>('default')
   const [syncFrom, setSyncFrom] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
   const [syncTo, setSyncTo] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
 
@@ -496,9 +501,15 @@ export default function AnalyticsPage() {
 
   async function handleAudit() {
     setAuditLoading(true)
+    setAuditCategoryFilter('all')
     try {
       const { data, error } = await supabase.functions.invoke('content-audit', {
-        body: { brand_id: activeBrand?.id },
+        body: {
+          brand_id: activeBrand?.id,
+          date_from: auditDateFrom,
+          date_to: auditDateTo,
+          platform: auditPlatform === 'all' ? undefined : auditPlatform,
+        },
       })
       if (error) throw error
       setAuditInsights(data.insights)
@@ -984,38 +995,115 @@ export default function AnalyticsPage() {
         )}
 
         {/* AI Content Audit */}
-        <section>
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold">AI Content Audit</h2>
-              <p className="text-sm text-muted-foreground">
-                Personalized recommendations based on your performance data
-              </p>
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <h2 className="text-base font-semibold">AI Content Audit</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Personalized recommendations based on your performance data
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleAudit}
+                disabled={auditLoading || allMetrics.length < 3}
+                className="shrink-0"
+              >
+                {auditLoading ? 'Analyzing…' : auditInsights ? 'Re-run' : 'Run Audit'}
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAudit}
-              disabled={auditLoading || allMetrics.length < 3}
-            >
-              {auditLoading ? 'Analyzing…' : auditInsights ? 'Re-run Audit' : 'Run Audit'}
-            </Button>
+
+            {/* Filters row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">Date:</span>
+              <input
+                type="date"
+                value={auditDateFrom}
+                max={auditDateTo}
+                onChange={(e) => setAuditDateFrom(e.target.value)}
+                className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+              />
+              <span className="text-[11px] text-muted-foreground">to</span>
+              <input
+                type="date"
+                value={auditDateTo}
+                min={auditDateFrom}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                onChange={(e) => setAuditDateTo(e.target.value)}
+                className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+              />
+              <select
+                value={auditPlatform}
+                onChange={(e) => setAuditPlatform(e.target.value)}
+                className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+              >
+                <option value="all">All platforms</option>
+                {SYNC_PLATFORMS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          {allMetrics.length < 3 && !auditInsights && (
-            <p className="text-sm text-muted-foreground">
-              Log at least 3 posts to run an AI audit.
-            </p>
-          )}
-          {auditInsights && (
-            <div className="space-y-3">
-              {auditInsights.map((insight, i) => (
-                <div key={i} className="flex gap-3 rounded-lg border border-border bg-card p-4">
-                  <span className="text-primary font-bold text-sm shrink-0">{i + 1}.</span>
-                  <p className="text-sm text-foreground">{insight}</p>
+
+          <div className="p-4">
+            {allMetrics.length < 3 && !auditInsights && (
+              <p className="text-sm text-muted-foreground py-2">
+                Log at least 3 posts to run an AI audit.
+              </p>
+            )}
+
+            {auditInsights && (() => {
+              const categories = ['all', ...Array.from(new Set(auditInsights.map((i) => i.category)))]
+              const filtered = auditInsights.filter(
+                (i) => auditCategoryFilter === 'all' || i.category === auditCategoryFilter
+              )
+              const sorted = auditSortBy === 'category'
+                ? [...filtered].sort((a, b) => a.category.localeCompare(b.category))
+                : filtered
+
+              return (
+                <div className="space-y-3">
+                  {/* Sort + category filter */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={auditSortBy}
+                      onChange={(e) => setAuditSortBy(e.target.value as 'default' | 'category')}
+                      className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
+                    >
+                      <option value="default">Sort: Default</option>
+                      <option value="category">Sort: Category</option>
+                    </select>
+                    <div className="flex flex-wrap gap-1">
+                      {categories.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setAuditCategoryFilter(cat)}
+                          className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                            auditCategoryFilter === cat
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-border bg-muted/40 text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {cat === 'all' ? 'All' : cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {sorted.map((insight, i) => (
+                    <div key={i} className="flex gap-3 rounded-lg border border-border bg-background p-4">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary h-fit shrink-0 mt-0.5">
+                        {insight.category}
+                      </span>
+                      <p className="text-sm text-foreground">{insight.text}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )
+            })()}
+          </div>
         </section>
 
         {/* Metrics table */}
