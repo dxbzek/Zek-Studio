@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { UserPlus, Trash2, Clock, CheckCircle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { UserPlus, Trash2, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,56 +10,118 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
-import type { TeamMember } from '@/types'
+import type { TeamMember, Task } from '@/types'
 
 function initials(email: string) {
   return email.slice(0, 2).toUpperCase()
 }
 
+interface MemberWorkload {
+  total: number
+  done: number
+  inProgress: number
+  todo: number
+  overdue: number
+}
+
+function computeWorkload(memberEmail: string, tasks: Task[]): MemberWorkload {
+  const today = new Date().toISOString().slice(0, 10)
+  const memberTasks = tasks.filter((t) => t.assignee_email === memberEmail)
+  return {
+    total:      memberTasks.length,
+    done:       memberTasks.filter((t) => t.status === 'done').length,
+    inProgress: memberTasks.filter((t) => t.status === 'in_progress').length,
+    todo:       memberTasks.filter((t) => t.status === 'todo').length,
+    overdue:    memberTasks.filter((t) => t.status !== 'done' && t.due_date && t.due_date < today).length,
+  }
+}
+
+function WorkloadBar({ workload }: { workload: MemberWorkload }) {
+  if (workload.total === 0) return null
+  const completionPct = Math.round((workload.done / workload.total) * 100)
+  const inProgressPct = Math.round((workload.inProgress / workload.total) * 100)
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center gap-3 text-[11px]">
+        <span className="text-muted-foreground">
+          {workload.done}/{workload.total} done · {completionPct}%
+        </span>
+        {workload.inProgress > 0 && (
+          <span className="text-blue-500 dark:text-blue-400">{workload.inProgress} in progress</span>
+        )}
+        {workload.overdue > 0 && (
+          <span className="flex items-center gap-0.5 text-red-500">
+            <AlertCircle className="h-3 w-3" />
+            {workload.overdue} overdue
+          </span>
+        )}
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden flex">
+        {workload.done > 0 && (
+          <div
+            className="h-full bg-emerald-500 transition-all"
+            style={{ width: `${completionPct}%` }}
+          />
+        )}
+        {workload.inProgress > 0 && (
+          <div
+            className="h-full bg-blue-500 transition-all"
+            style={{ width: `${inProgressPct}%` }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
 function MemberRow({
   member,
-  taskCount,
+  workload,
   onRemove,
 }: {
   member: TeamMember
-  taskCount: number
+  workload: MemberWorkload
   onRemove: () => void
 }) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
-      <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
-        {initials(member.email)}
+    <div className="p-3 rounded-lg border border-border bg-card">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+          {initials(member.email)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{member.email}</p>
+          <p className="text-xs text-muted-foreground">
+            {workload.total} task{workload.total !== 1 ? 's' : ''} assigned
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {member.accepted_at ? (
+            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+              <CheckCircle className="h-3.5 w-3.5" />
+              Active
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+              <Clock className="h-3.5 w-3.5" />
+              Pending
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            onClick={onRemove}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{member.email}</p>
-        <p className="text-xs text-muted-foreground">
-          {taskCount} task{taskCount !== 1 ? 's' : ''} assigned
-        </p>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {member.accepted_at ? (
-          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-            <CheckCircle className="h-3.5 w-3.5" />
-            Active
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-            <Clock className="h-3.5 w-3.5" />
-            Pending
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-          onClick={onRemove}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+      <WorkloadBar workload={workload} />
     </div>
   )
 }
@@ -73,17 +135,19 @@ export default function TeamPage() {
   const [emailInput, setEmailInput] = useState('')
   const [confirmRemove, setConfirmRemove] = useState<TeamMember | null>(null)
 
-  if (!activeBrand) {
-    return (
-      <div className="p-6 text-muted-foreground">
-        Select a brand to manage your team.
-      </div>
-    )
-  }
+  const allTasks = tasks.data ?? []
 
-  function taskCountFor(member: TeamMember) {
-    return (tasks.data ?? []).filter((t) => t.assignee_email === member.email).length
-  }
+  const teamStats = useMemo(() => {
+    if (allTasks.length === 0) return { totalTasks: 0, totalDone: 0, totalOverdue: 0 }
+    const today = new Date().toISOString().slice(0, 10)
+    return {
+      totalTasks:   allTasks.length,
+      totalDone:    allTasks.filter((t) => t.status === 'done').length,
+      totalOverdue: allTasks.filter((t) => t.status !== 'done' && t.due_date && t.due_date < today).length,
+    }
+  }, [allTasks])
+
+  if (!activeBrand) return <NoBrandSelected />
 
   async function handleInvite() {
     const email = emailInput.trim().toLowerCase()
@@ -111,6 +175,8 @@ export default function TeamPage() {
     }
   }
 
+  const memberList = members.data ?? []
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -128,7 +194,7 @@ export default function TeamPage() {
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         {members.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading team...</p>
-        ) : (members.data ?? []).length === 0 ? (
+        ) : memberList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
               <UserPlus className="h-6 w-6 text-muted-foreground" />
@@ -142,15 +208,35 @@ export default function TeamPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-2 max-w-2xl">
-            <p className="text-xs text-muted-foreground mb-3">
-              {(members.data ?? []).length} specialist{(members.data ?? []).length !== 1 ? 's' : ''} on this brand
+          <div className="space-y-4 max-w-2xl">
+            {/* Team summary bar */}
+            {allTasks.length > 0 && (
+              <div className="flex items-center gap-4 rounded-lg bg-muted/40 px-4 py-2.5 text-xs">
+                <span className="text-muted-foreground">
+                  Team total: <span className="font-medium text-foreground">{teamStats.totalTasks} tasks</span>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  {teamStats.totalDone} done
+                </span>
+                {teamStats.totalOverdue > 0 && (
+                  <span className="flex items-center gap-1 text-red-500 font-medium">
+                    <AlertCircle className="h-3 w-3" />
+                    {teamStats.totalOverdue} overdue
+                  </span>
+                )}
+                <span className="ml-auto text-muted-foreground">
+                  {teamStats.totalTasks > 0 ? Math.round((teamStats.totalDone / teamStats.totalTasks) * 100) : 0}% completion
+                </span>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {memberList.length} specialist{memberList.length !== 1 ? 's' : ''} on this brand
             </p>
-            {(members.data ?? []).map((member) => (
+            {memberList.map((member) => (
               <MemberRow
                 key={member.id}
                 member={member}
-                taskCount={taskCountFor(member)}
+                workload={computeWorkload(member.email, allTasks)}
                 onRemove={() => setConfirmRemove(member)}
               />
             ))}

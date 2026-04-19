@@ -85,7 +85,11 @@ export function useCompetitors(brandId: string | null) {
 
 // ─── Competitor Posts ─────────────────────────────────────────────────────────
 
-export function useCompetitorPosts(brandId: string | null, competitorId?: string | null) {
+export function useCompetitorPosts(
+  brandId: string | null,
+  competitorId?: string | null,
+  options?: { staleTime?: number; refetchOnMount?: boolean | 'always' },
+) {
   return useQuery({
     queryKey: ['competitor-posts', brandId, competitorId],
     queryFn: async () => {
@@ -105,6 +109,7 @@ export function useCompetitorPosts(brandId: string | null, competitorId?: string
       return (data ?? []) as CompetitorPost[]
     },
     enabled: !!brandId,
+    ...options,
   })
 }
 

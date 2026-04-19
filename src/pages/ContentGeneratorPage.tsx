@@ -1,33 +1,23 @@
-import { useState } from 'react'
-import { ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { ExternalLink, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { useGenerator } from '@/hooks/useGenerator'
 import { useNicheResearch } from '@/hooks/useNicheResearch'
-import { useCompetitorPosts, useSavedHooks } from '@/hooks/useCompetitors'
-import { supabase } from '@/lib/supabase'
+import { useCompetitorPosts } from '@/hooks/useCompetitors'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
-import { PLATFORMS, GENERATOR_PLATFORMS } from '@/types'
+import { PLATFORMS, GENERATOR_PLATFORMS, CONTENT_THEMES } from '@/types'
 import type {
-  ContentType, ContentTone, Platform, GeneratorPlatform, GenerateSource,
+  ContentTheme, ContentTone, ContentType, Platform, GeneratorPlatform, GenerateSource,
   GeneratedContent, TrendingTopic, CompetitorPost,
 } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CONTENT_TYPES: { value: ContentType; label: string; desc: string }[] = [
-  { value: 'hook',    label: 'Hook',              desc: 'Stop-the-scroll opener' },
-  { value: 'caption', label: 'Caption',           desc: 'Full post with CTA' },
-  { value: 'script',  label: 'Video Script',      desc: 'Reel / TikTok script' },
-  { value: 'listing', label: 'Property Spotlight',desc: 'Showcase a listing' },
-  { value: 'market',  label: 'Market Update',     desc: 'Data-driven insight' },
-  { value: 'story',   label: 'Personal Story',    desc: 'Agent / client story' },
-  { value: 'cta',     label: 'Call to Action',    desc: 'Single clear ask' },
-]
 
 const TONES: { value: ContentTone; label: string }[] = [
   { value: 'professional',  label: 'Professional' },
@@ -39,13 +29,20 @@ const TONES: { value: ContentTone; label: string }[] = [
   { value: 'urgent',        label: 'Urgency / FOMO' },
 ]
 
+const PACKAGE_SECTIONS: { label: string; contentType: ContentType; color: string }[] = [
+  { label: 'Hook',            contentType: 'hook',    color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+  { label: 'Caption',         contentType: 'caption', color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400' },
+  { label: 'Video Script',    contentType: 'script',  color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+  { label: 'Call to Action',  contentType: 'cta',     color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+]
+
 const PLATFORM_COLORS: Record<string, string> = {
-  meta: 'bg-gradient-to-r from-pink-500/10 to-blue-500/10 text-pink-600 dark:text-pink-400',
+  meta:      'bg-gradient-to-r from-pink-500/10 to-blue-500/10 text-pink-600 dark:text-pink-400',
   instagram: 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
-  tiktok: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
-  youtube: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  facebook: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  linkedin: 'bg-blue-700/10 text-blue-700 dark:text-blue-300',
+  tiktok:    'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
+  youtube:   'bg-red-500/10 text-red-600 dark:text-red-400',
+  facebook:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  linkedin:  'bg-blue-700/10 text-blue-700 dark:text-blue-300',
 }
 
 const TONE_COLORS: Record<string, string> = {
@@ -56,18 +53,22 @@ const TONE_COLORS: Record<string, string> = {
   educational:   'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
   inspirational: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
   urgent:        'bg-red-500/10 text-red-600 dark:text-red-400',
-  humorous:      'bg-amber-500/10 text-amber-600 dark:text-amber-400',
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  hook:    'bg-orange-500/10 text-orange-600 dark:text-orange-400',
-  caption: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
-  idea:    'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400',
-  script:  'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  listing: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  market:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  story:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  cta:     'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+const THEME_COLORS: Record<string, string> = {
+  property_tour:     'bg-green-500/10 text-green-600 dark:text-green-400',
+  market_update:     'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  agent_recruitment: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+  client_story:      'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+  investment_tips:   'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  behind_scenes:     'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+  new_launch:        'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400',
+  area_spotlight:    'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+}
+
+const PLATFORM_CHAR_LIMITS: Record<string, number> = {
+  meta: 2200, instagram: 2200, tiktok: 2200,
+  facebook: 63206, linkedin: 3000, youtube: 5000,
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -79,7 +80,52 @@ function fmtNum(n: number | null | undefined): string | null {
   return String(n)
 }
 
+function getThemeLabel(type: string): string {
+  return CONTENT_THEMES.find((t) => t.value === type)?.label ?? type
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function AutoTextarea({
+  value,
+  onChange,
+  className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  className?: string
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = 'auto'
+      ref.current.style.height = `${ref.current.scrollHeight}px`
+    }
+  }, [value])
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      rows={1}
+      className={`w-full resize-none overflow-hidden bg-transparent border border-transparent rounded-md focus:border-border/60 focus:bg-muted/20 px-1.5 py-1 -mx-1.5 outline-none ring-0 focus:ring-0 transition-colors leading-relaxed ${className ?? ''}`}
+    />
+  )
+}
+
+function CharCount({ text, platform }: { text: string; platform: string }) {
+  const limit = PLATFORM_CHAR_LIMITS[platform]
+  const len = text.length
+  const pct = limit ? len / limit : 0
+  const color = pct > 1 ? 'text-destructive font-medium' : pct > 0.9 ? 'text-amber-500' : 'text-muted-foreground'
+  return (
+    <span className={`text-[11px] ${color}`}>
+      {len.toLocaleString()}{limit ? ` / ${limit.toLocaleString()}` : ''} chars
+    </span>
+  )
+}
 
 function SegmentedControl<T extends string>({
   options, value, onChange,
@@ -111,6 +157,7 @@ function SegmentedControl<T extends string>({
 function HistoryItem({ item }: { item: GeneratedContent }) {
   const [expanded, setExpanded] = useState(false)
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null)
+  const isPackage = item.output.length === 4
 
   async function handleCopy(text: string, idx: number) {
     await navigator.clipboard.writeText(text)
@@ -128,8 +175,8 @@ function HistoryItem({ item }: { item: GeneratedContent }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{item.brief}</p>
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TYPE_COLORS[item.type] ?? ''}`}>
-              {item.type}
+            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${THEME_COLORS[item.type] ?? 'bg-muted text-muted-foreground'}`}>
+              {getThemeLabel(item.type)}
             </Badge>
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[item.platform] ?? ''}`}>
               {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === item.platform)?.label ?? item.platform}
@@ -150,6 +197,11 @@ function HistoryItem({ item }: { item: GeneratedContent }) {
         <div className="border-t border-border divide-y divide-border">
           {item.output.map((text, idx) => (
             <div key={idx} className="px-4 py-3 flex items-start gap-3">
+              <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium mt-0.5 ${
+                isPackage ? (PACKAGE_SECTIONS[idx]?.color ?? 'bg-muted text-muted-foreground') : 'bg-muted text-muted-foreground'
+              }`}>
+                {isPackage ? (PACKAGE_SECTIONS[idx]?.label ?? `${idx + 1}`) : idx + 1}
+              </span>
               <p className="text-sm flex-1 leading-relaxed whitespace-pre-wrap">{text}</p>
               <button
                 type="button"
@@ -172,16 +224,14 @@ type SourceMode = 'trending_topic' | 'competitor_post' | 'manual'
 
 export function ContentGeneratorPage() {
   const { activeBrand } = useActiveBrand()
-  const { generate, history, saveToCalendar } = useGenerator(activeBrand?.id ?? null)
+  const { generate, history, saveToCalendar, saveHook, loadMore, historyLimit } = useGenerator(activeBrand?.id ?? null)
   const { results: nicheResults } = useNicheResearch(
     activeBrand?.id ?? null,
     activeBrand?.niche ?? null,
     activeBrand?.target_location ?? null,
   )
-  const { data: allPosts = [] } = useCompetitorPosts(activeBrand?.id ?? null)
-  const { saveHook } = useSavedHooks(activeBrand?.id ?? null)
+  const { data: allPosts = [] } = useCompetitorPosts(activeBrand?.id ?? null, null, { staleTime: 0, refetchOnMount: true })
 
-  // Sort posts by views then likes
   const topPosts = [...allPosts]
     .sort((a, b) => {
       const scoreA = (a.views ?? 0) > 0 ? (a.views ?? 0) : (a.likes ?? 0) * 10
@@ -196,19 +246,28 @@ export function ContentGeneratorPage() {
   const [selectedTopic, setSelectedTopic] = useState<TrendingTopic | null>(null)
   const [selectedPost, setSelectedPost] = useState<CompetitorPost | null>(null)
   const [manualBrief, setManualBrief] = useState('')
-  const [type, setType] = useState<ContentType>('hook')
+  const [theme, setTheme] = useState<ContentTheme>('property_tour')
   const [platform, setPlatform] = useState<GeneratorPlatform>('meta')
   const [tone, setTone] = useState<ContentTone>('professional')
   const [latestResult, setLatestResult] = useState<GeneratedContent | null>(null)
+  const [editedOutput, setEditedOutput] = useState<string[]>([])
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
-  const [savingHookIndex, setSavingHookIndex] = useState<number | null>(null)
   const [calendarDate, setCalendarDate] = useState<Record<number, string>>({})
   const [showCalendar, setShowCalendar] = useState<Record<number, boolean>>({})
   const [savingCalendarIndex, setSavingCalendarIndex] = useState<number | null>(null)
-  const [repurposedVariants, setRepurposedVariants] = useState<Record<number, { platform: string; output: string }[]>>({})
-  const [repurposing, setRepurposing] = useState<number | null>(null)
+  const [historySearch, setHistorySearch] = useState('')
+
+  const topRef = useRef<HTMLDivElement>(null)
 
   if (!activeBrand) return <NoBrandSelected />
+
+  function updateOutput(index: number, value: string) {
+    setEditedOutput((prev) => {
+      const next = [...prev]
+      next[index] = value
+      return next
+    })
+  }
 
   async function handleGenerate() {
     let source: GenerateSource
@@ -223,14 +282,19 @@ export function ContentGeneratorPage() {
         hook: selectedPost.hook,
         views: selectedPost.views,
         likes: selectedPost.likes,
+        comments: selectedPost.comments,
+        shares: selectedPost.shares,
+        platform: selectedPost.platform,
+        transcript: selectedPost.transcript ? selectedPost.transcript.slice(0, 400) : null,
       }
     } else {
       if (!manualBrief.trim()) { toast.error('Enter a brief first'); return }
       source = { type: 'manual', brief: manualBrief }
     }
     try {
-      const record = await generate.mutateAsync({ type, platform, tone, source })
+      const record = await generate.mutateAsync({ theme, platform, tone, source })
       setLatestResult(record)
+      setEditedOutput([...record.output])
       setCopiedIndex(null)
       setCalendarDate({})
       setShowCalendar({})
@@ -239,41 +303,24 @@ export function ContentGeneratorPage() {
     }
   }
 
+  function handleClear() {
+    setLatestResult(null)
+    setEditedOutput([])
+    topRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   async function handleCopy(text: string, index: number) {
     await navigator.clipboard.writeText(text)
     setCopiedIndex(index)
     setTimeout(() => setCopiedIndex(null), 1500)
   }
 
-  async function handleSaveHook(text: string, index: number) {
-    setSavingHookIndex(index)
+  async function handleSaveHook(text: string) {
     try {
       await saveHook.mutateAsync({ text, platform })
       toast.success('Hook saved')
     } catch (err) {
       toast.error('Failed to save hook', { description: (err as Error).message })
-    } finally {
-      setSavingHookIndex(null)
-    }
-  }
-
-  async function handleRepurpose(index: number, content: string) {
-    setRepurposing(index)
-    try {
-      const { data, error } = await supabase.functions.invoke('repurpose-content', {
-        body: {
-          brand_id: activeBrand?.id,
-          original_content: content,
-          original_platform: platform === 'meta' ? 'instagram' : platform,
-          content_type: type,
-        },
-      })
-      if (error) throw error
-      setRepurposedVariants((prev) => ({ ...prev, [index]: data.variants }))
-    } catch (err) {
-      toast.error('Repurpose failed', { description: (err as Error).message })
-    } finally {
-      setRepurposing(null)
     }
   }
 
@@ -281,13 +328,15 @@ export function ContentGeneratorPage() {
     if (!calendarDate[index]) { toast.error('Pick a date first'); return }
     if (!latestResult) return
     setSavingCalendarIndex(index)
+    const section = PACKAGE_SECTIONS[index]
     try {
       await saveToCalendar.mutateAsync({
         output: text,
-        type: latestResult.type,
-        platform: latestResult.platform,
+        theme: latestResult.type,
+        platform: latestResult.platform as Platform,
         generatedContentId: latestResult.id,
         scheduledDate: calendarDate[index],
+        sectionContentType: section?.contentType,
       })
       toast.success(`Scheduled for ${calendarDate[index]}`)
       setShowCalendar((prev) => ({ ...prev, [index]: false }))
@@ -299,14 +348,25 @@ export function ContentGeneratorPage() {
   }
 
   const historyItems = history.data ?? []
+  const isPackageResult = latestResult && editedOutput.length === 4
+
+  const filteredHistory = useMemo(() => {
+    if (!historySearch.trim()) return historyItems
+    const q = historySearch.toLowerCase()
+    return historyItems.filter((item) =>
+      item.brief.toLowerCase().includes(q) ||
+      item.type.toLowerCase().includes(q) ||
+      item.tone.toLowerCase().includes(q)
+    )
+  }, [historyItems, historySearch])
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" ref={topRef}>
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">AI Content Generator</h1>
         <p className="mt-1 text-muted-foreground">
-          Generating content for{' '}
+          Generating for{' '}
           <span className="font-medium text-foreground">{activeBrand.name}</span>
           {' '}· {activeBrand.niche}
         </p>
@@ -314,7 +374,6 @@ export function ContentGeneratorPage() {
 
       {/* Source Mode Tabs */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
-        {/* Tab bar */}
         <div className="flex border-b border-border">
           {([
             { value: 'trending_topic', label: 'Trending Topics', count: trendingTopics.length },
@@ -341,10 +400,7 @@ export function ContentGeneratorPage() {
           ))}
         </div>
 
-        {/* Tab content */}
         <div className="p-4">
-
-          {/* Trending Topics */}
           {sourceMode === 'trending_topic' && (
             trendingTopics.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
@@ -387,7 +443,6 @@ export function ContentGeneratorPage() {
             )
           )}
 
-          {/* Competitor Posts */}
           {sourceMode === 'competitor_post' && (
             topPosts.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
@@ -416,7 +471,7 @@ export function ContentGeneratorPage() {
                         {((post.hook ?? post.caption ?? '').length > 80) ? '…' : ''}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge
                         variant="secondary"
                         className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[post.platform] ?? ''}`}
@@ -429,6 +484,14 @@ export function ContentGeneratorPage() {
                       {fmtNum(post.likes) && (
                         <span className="text-xs text-muted-foreground">{fmtNum(post.likes)} likes</span>
                       )}
+                      {fmtNum(post.comments) && (
+                        <span className="text-xs text-muted-foreground">{fmtNum(post.comments)} comments</span>
+                      )}
+                      {post.views && post.views > 0 && (post.likes ?? 0) + (post.comments ?? 0) > 0 && (
+                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                          {(((post.likes ?? 0) + (post.comments ?? 0)) / post.views * 100).toFixed(1)}% eng
+                        </span>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -436,15 +499,20 @@ export function ContentGeneratorPage() {
             )
           )}
 
-          {/* Manual Brief */}
           {sourceMode === 'manual' && (
-            <Textarea
-              placeholder="Describe your content idea… (e.g. 'Why Dubai real estate prices will keep rising in 2025')"
-              value={manualBrief}
-              onChange={(e) => setManualBrief(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
+            <div className="space-y-1">
+              <Textarea
+                placeholder="Describe your content idea… (e.g. 'Why Palm Jumeirah villas are the best investment in 2025')"
+                value={manualBrief}
+                onChange={(e) => setManualBrief(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleGenerate()
+                }}
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-[11px] text-muted-foreground text-right">⌘↵ to generate</p>
+            </div>
           )}
         </div>
       </div>
@@ -452,16 +520,17 @@ export function ContentGeneratorPage() {
       {/* Settings */}
       <div className="rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Content type</label>
-          <div className="flex gap-1.5 flex-wrap">
-            {CONTENT_TYPES.map((opt) => (
+          <label className="text-sm font-medium">Content Theme</label>
+          <p className="text-xs text-muted-foreground">Each theme generates a full package: Hook · Caption · Video Script · Call to Action</p>
+          <div className="flex gap-1.5 flex-wrap mt-1">
+            {CONTENT_THEMES.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setType(opt.value)}
+                onClick={() => setTheme(opt.value)}
                 title={opt.desc}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                  type === opt.value
+                  theme === opt.value
                     ? 'bg-primary text-primary-foreground border-primary'
                     : 'bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
                 }`}
@@ -470,9 +539,9 @@ export function ContentGeneratorPage() {
               </button>
             ))}
           </div>
-          {CONTENT_TYPES.find((t) => t.value === type) && (
+          {CONTENT_THEMES.find((t) => t.value === theme) && (
             <p className="text-xs text-muted-foreground">
-              {CONTENT_TYPES.find((t) => t.value === type)!.desc}
+              {CONTENT_THEMES.find((t) => t.value === theme)!.desc}
             </p>
           )}
         </div>
@@ -489,155 +558,224 @@ export function ContentGeneratorPage() {
           disabled={generate.isPending}
           className="w-full"
         >
-          {generate.isPending ? 'Generating…' : 'Generate 3 Variants'}
+          {generate.isPending ? 'Generating package…' : 'Generate Content Package'}
         </Button>
       </div>
 
       {/* Results */}
-      {latestResult && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base font-semibold">Generated Variants</h2>
-            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TYPE_COLORS[latestResult.type] ?? ''}`}>
-              {latestResult.type}
-            </Badge>
-            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[latestResult.platform] ?? ''}`}>
-              {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === latestResult.platform)?.label ?? latestResult.platform}
-            </Badge>
-            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TONE_COLORS[latestResult.tone] ?? ''}`}>
-              {latestResult.tone}
-            </Badge>
-          </div>
+      {latestResult && isPackageResult && (() => {
+        const [hook, caption, script, cta] = editedOutput
+        const combinedPost = [hook, caption, cta].filter(Boolean).join('\n\n')
 
-          <div className="space-y-3">
-            {latestResult.output.map((text, idx) => (
-              <div key={idx} className="rounded-xl border border-border bg-card p-4 space-y-3">
-                <div className="flex items-start gap-3">
-                  <span className="shrink-0 text-xs font-bold text-muted-foreground mt-0.5 w-4">{idx + 1}</span>
-                  <p className="text-sm flex-1 leading-relaxed whitespace-pre-wrap">{text}</p>
-                </div>
-
-                <div className="flex items-center gap-2 justify-end flex-wrap">
-                  {latestResult.type === 'hook' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => handleSaveHook(text, idx)}
-                      disabled={savingHookIndex === idx}
-                    >
-                      {savingHookIndex === idx ? 'Saving…' : 'Save as Hook'}
-                    </Button>
-                  )}
-
-                  {showCalendar[idx] ? (
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="date"
-                        value={calendarDate[idx] ?? ''}
-                        onChange={(e) => setCalendarDate((prev) => ({ ...prev, [idx]: e.target.value }))}
-                        className="h-7 text-xs border border-border rounded px-2 bg-background text-foreground"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => handleSaveToCalendar(text, idx)}
-                        disabled={savingCalendarIndex === idx || !calendarDate[idx]}
-                      >
-                        {savingCalendarIndex === idx ? 'Scheduling…' : 'Schedule'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs"
-                        onClick={() => setShowCalendar((prev) => ({ ...prev, [idx]: false }))}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => setShowCalendar((prev) => ({ ...prev, [idx]: true }))}
-                    >
-                      Save to Calendar
-                    </Button>
-                  )}
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs"
-                    onClick={() => handleCopy(text, idx)}
-                  >
-                    {copiedIndex === idx ? 'Copied!' : 'Copy'}
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs"
-                    disabled={repurposing === idx}
-                    onClick={() => handleRepurpose(idx, text)}
-                  >
-                    {repurposing === idx ? 'Repurposing…' : 'Repurpose'}
-                  </Button>
-                </div>
-
-                {/* Repurposed variants */}
-                {repurposedVariants[idx] && (
-                  <div className="mt-3 pt-3 border-t border-border space-y-2">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                      Repurposed for:
-                    </p>
-                    {repurposedVariants[idx].map((v) => (
-                      <div key={v.platform} className="flex items-start gap-2">
-                        <span
-                          className={`shrink-0 text-[11px] px-1.5 py-0.5 rounded font-medium capitalize ${
-                            PLATFORM_COLORS[v.platform] ?? 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {v.platform}
-                        </span>
-                        <p className="text-sm text-foreground flex-1 leading-relaxed">{v.output}</p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-xs shrink-0"
-                          onClick={() => {
-                            navigator.clipboard.writeText(v.output)
-                            toast.success('Copied')
-                          }}
-                        >
-                          Copy
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+        return (
+          <section className="space-y-3">
+            {/* Results header */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-semibold">Your Content</h2>
+              <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${THEME_COLORS[latestResult.type] ?? 'bg-muted text-muted-foreground'}`}>
+                {getThemeLabel(latestResult.type)}
+              </Badge>
+              <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[latestResult.platform] ?? ''}`}>
+                {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === latestResult.platform)?.label ?? latestResult.platform}
+              </Badge>
+              <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TONE_COLORS[latestResult.tone] ?? ''}`}>
+                {latestResult.tone}
+              </Badge>
+              <div className="ml-auto flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={handleGenerate}
+                  disabled={generate.isPending}
+                >
+                  <RefreshCw className={`h-3 w-3 ${generate.isPending ? 'animate-spin' : ''}`} />
+                  {generate.isPending ? 'Regenerating…' : 'Regenerate'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-muted-foreground"
+                  onClick={handleClear}
+                  disabled={generate.isPending}
+                >
+                  Start over
+                </Button>
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+            </div>
+
+            {/* Post card: Hook + Caption + CTA */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Post</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs text-muted-foreground"
+                  onClick={() => handleSaveHook(hook)}
+                  disabled={saveHook.isPending}
+                >
+                  {saveHook.isPending ? 'Saving…' : 'Save hook'}
+                </Button>
+              </div>
+
+              {/* Hook */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-orange-500">Hook</span>
+                <AutoTextarea
+                  value={hook}
+                  onChange={(v) => updateOutput(0, v)}
+                  className="text-sm font-medium"
+                />
+              </div>
+
+              {/* Caption */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-teal-500">Caption</span>
+                  <CharCount text={caption} platform={platform} />
+                </div>
+                <AutoTextarea
+                  value={caption}
+                  onChange={(v) => updateOutput(1, v)}
+                  className="text-sm"
+                />
+              </div>
+
+              {/* CTA */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-amber-500">Call to Action</span>
+                <AutoTextarea
+                  value={cta}
+                  onChange={(v) => updateOutput(3, v)}
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 justify-end flex-wrap pt-1 border-t border-border">
+                {showCalendar[0] ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      value={calendarDate[0] ?? ''}
+                      onChange={(e) => setCalendarDate((prev) => ({ ...prev, 0: e.target.value }))}
+                      className="h-7 text-xs border border-border rounded px-2 bg-background text-foreground"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => handleSaveToCalendar(combinedPost, 0)}
+                      disabled={savingCalendarIndex === 0 || !calendarDate[0]}
+                    >
+                      {savingCalendarIndex === 0 ? 'Scheduling…' : 'Schedule'}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowCalendar((prev) => ({ ...prev, 0: false }))}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowCalendar((prev) => ({ ...prev, 0: true }))}>
+                    Add to Calendar
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => handleCopy(combinedPost, 0)}
+                >
+                  {copiedIndex === 0 ? 'Copied!' : 'Copy Post'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Video Script card */}
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Video Script</span>
+                <CharCount text={script} platform={platform} />
+              </div>
+              <AutoTextarea
+                value={script}
+                onChange={(v) => updateOutput(2, v)}
+                className="text-sm text-foreground"
+              />
+              <div className="flex items-center gap-2 justify-end pt-1 border-t border-border">
+                {showCalendar[2] ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      value={calendarDate[2] ?? ''}
+                      onChange={(e) => setCalendarDate((prev) => ({ ...prev, 2: e.target.value }))}
+                      className="h-7 text-xs border border-border rounded px-2 bg-background text-foreground"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => handleSaveToCalendar(script, 2)}
+                      disabled={savingCalendarIndex === 2 || !calendarDate[2]}
+                    >
+                      {savingCalendarIndex === 2 ? 'Scheduling…' : 'Schedule'}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowCalendar((prev) => ({ ...prev, 2: false }))}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowCalendar((prev) => ({ ...prev, 2: true }))}>
+                    Add to Calendar
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => handleCopy(script, 2)}
+                >
+                  {copiedIndex === 2 ? 'Copied!' : 'Copy Script'}
+                </Button>
+              </div>
+            </div>
+          </section>
+        )
+      })()}
 
       {/* History */}
       {historyItems.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold">
-            History
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              ({historyItems.length})
-            </span>
-          </h2>
-          <div className="space-y-2">
-            {historyItems.map((item) => (
-              <HistoryItem key={item.id} item={item} />
-            ))}
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-base font-semibold">
+              History
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                ({filteredHistory.length}{historySearch ? ` of ${historyItems.length}` : ''})
+              </span>
+            </h2>
+            <Input
+              placeholder="Search history…"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              className="h-7 w-full sm:w-44 text-xs sm:ml-auto"
+            />
           </div>
+          {filteredHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No results for "{historySearch}"</p>
+          ) : (
+            <div className="space-y-2">
+              {filteredHistory.map((item) => (
+                <HistoryItem key={item.id} item={item} />
+              ))}
+              {!historySearch && historyItems.length === historyLimit && (
+                <div className="pt-1 text-center">
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={loadMore}>
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
     </div>

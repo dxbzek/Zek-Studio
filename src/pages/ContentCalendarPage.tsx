@@ -24,7 +24,7 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trash2, Copy, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,19 +43,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useCalendar, useGeneratedContent } from '@/hooks/useCalendar'
 import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
-import { PLATFORMS } from '@/types'
+import { PLATFORMS, CONTENT_THEMES } from '@/types'
 import type {
   CalendarEntry,
   CalendarEntryInsert,
   CalendarStatus,
   Platform,
   ContentType,
+  ContentTheme,
   ApprovalStatus,
   ContentPillar,
 } from '@/types'
@@ -82,11 +94,7 @@ const STATUS_BORDER_COLORS: Record<CalendarStatus, string> = {
   published: 'border-l-emerald-500',
 }
 
-const CONTENT_TYPES: { value: ContentType; label: string }[] = [
-  { value: 'hook',    label: 'Hook'    },
-  { value: 'caption', label: 'Caption' },
-  { value: 'idea',    label: 'Idea'    },
-]
+const CONTENT_TYPES = CONTENT_THEMES
 
 const STATUSES: { value: CalendarStatus; label: string }[] = [
   { value: 'draft',     label: 'Draft'     },
@@ -100,6 +108,19 @@ const PILLAR_COLORS = [
   '#0ea5e9', '#3b82f6', '#64748b', '#0f172a',
 ]
 
+// Production roles shown on entry cards and in the drawer
+const PRODUCTION_ROLES = [
+  { key: 'assigned_editor',  label: 'Editor',                dot: 'bg-teal-400',   badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',   letter: 'E' },
+  { key: 'assigned_shooter', label: 'Shooter / Videographer', dot: 'bg-blue-400',   badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',   letter: 'S' },
+  { key: 'assigned_talent',  label: 'Talent / Spokesperson',  dot: 'bg-violet-400', badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', letter: 'T' },
+] as const
+
+type RoleKey = typeof PRODUCTION_ROLES[number]['key']
+
+function emailHandle(email: string) {
+  return email.split('@')[0]
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function EntryCard({
@@ -111,6 +132,10 @@ function EntryCard({
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: entry.id })
+
+  const assignedRoles = PRODUCTION_ROLES.filter(
+    (r) => entry[r.key as RoleKey],
+  )
 
   return (
     <div
@@ -124,21 +149,34 @@ function EntryCard({
       onClick={onClick}
       className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[entry.status]} bg-card px-2 py-1 text-xs hover:bg-accent transition-colors select-none`}
     >
-      <span
-        className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium mr-1 ${PLATFORM_CHIP_COLORS[entry.platform]}`}
-      >
-        {entry.platform}
-      </span>
-      {entry.approval_status === 'pending_review' && (
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 mr-1 shrink-0 align-middle" />
-      )}
-      {entry.approval_status === 'approved' && (
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 shrink-0 align-middle" />
-      )}
-      {entry.approval_status === 'rejected' && (
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-1 shrink-0 align-middle" />
-      )}
-      <span className="text-foreground line-clamp-1">{entry.title}</span>
+      <div className="flex items-center gap-1 flex-wrap">
+        <span
+          className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${PLATFORM_CHIP_COLORS[entry.platform]}`}
+        >
+          {entry.platform}
+        </span>
+        {entry.approval_status === 'pending_review' && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+        )}
+        {entry.approval_status === 'approved' && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+        )}
+        {entry.approval_status === 'rejected' && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+        )}
+        {assignedRoles.length > 0 && (
+          <span className="flex gap-0.5 items-center ml-auto shrink-0">
+            {assignedRoles.map((r) => (
+              <span
+                key={r.key}
+                title={`${r.label}: ${emailHandle(entry[r.key as RoleKey] ?? '')}`}
+                className={`inline-block w-1.5 h-1.5 rounded-full ${r.dot}`}
+              />
+            ))}
+          </span>
+        )}
+      </div>
+      <span className="text-foreground line-clamp-1 mt-0.5">{entry.title}</span>
     </div>
   )
 }
@@ -233,6 +271,45 @@ function GeneratedContentPreview({ id }: { id: string }) {
   )
 }
 
+// ─── Role picker helper ───────────────────────────────────────────────────────
+
+function RolePicker({
+  label,
+  value,
+  onChange,
+  members,
+  dotColor,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  members: { id: string; email: string }[]
+  dotColor: string
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
+        <label className="text-xs text-muted-foreground">{label}</label>
+      </div>
+      <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
+        <SelectTrigger className="h-8 text-sm">
+          <SelectValue placeholder="Unassigned" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Unassigned</SelectItem>
+          {members.map((m) => (
+            <SelectItem key={m.id} value={m.email}>
+              {emailHandle(m.email)}
+              <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ContentCalendarPage() {
@@ -261,13 +338,16 @@ export function ContentCalendarPage() {
     viewMonth,
   )
   const { members } = useTeam(activeBrand?.id ?? null)
-  const { createTask } = useTasks(activeBrand?.id ?? null)
+  const { tasks, createTask, updateTask } = useTasks(activeBrand?.id ?? null)
   const { campaigns } = useCampaigns(activeBrand?.id ?? null)
   const { pillars, createPillar, deletePillar } = useContentPillars(activeBrand?.id ?? null)
+
+  const teamMembers = members.data ?? []
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [filterPlatforms, setFilterPlatforms] = useState<Platform[]>([])
   const [filterStatus, setFilterStatus]       = useState<CalendarStatus | 'all'>('all')
+  const [search, setSearch]                   = useState('')
 
   const filteredEntries = useMemo(() => {
     let result = entries.data ?? []
@@ -275,8 +355,16 @@ export function ContentCalendarPage() {
       result = result.filter((e) => filterPlatforms.includes(e.platform))
     if (filterStatus !== 'all')
       result = result.filter((e) => e.status === filterStatus)
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      result = result.filter((e) =>
+        e.title.toLowerCase().includes(q) ||
+        (e.body ?? '').toLowerCase().includes(q) ||
+        e.content_type.toLowerCase().includes(q),
+      )
+    }
     return result
-  }, [entries.data, filterPlatforms, filterStatus])
+  }, [entries.data, filterPlatforms, filterStatus, search])
 
   const entriesForDay = (day: Date) =>
     filteredEntries.filter((e) => e.scheduled_date === format(day, 'yyyy-MM-dd'))
@@ -325,7 +413,13 @@ export function ContentCalendarPage() {
     const targetDate = over.id as string
     const entry = (entries.data ?? []).find((e) => e.id === active.id)
     if (!entry || entry.scheduled_date === targetDate) return
-    updateEntry.mutate({ id: entry.id, patch: { scheduled_date: targetDate } })
+    updateEntry.mutate(
+      { id: entry.id, patch: { scheduled_date: targetDate } },
+      {
+        onSuccess: () => toast.success('Entry rescheduled'),
+        onError: (err) => toast.error('Failed to reschedule', { description: (err as Error).message }),
+      },
+    )
   }
 
   // ── Entry drawer ─────────────────────────────────────────────────────────
@@ -335,33 +429,68 @@ export function ContentCalendarPage() {
   const [formTitle, setFormTitle]             = useState('')
   const [formBody, setFormBody]               = useState('')
   const [formDate, setFormDate]               = useState('')
-  const [formPlatform, setFormPlatform]       = useState<Platform>('instagram')
-  const [formContentType, setFormContentType] = useState<ContentType>('hook')
+  const [formPlatforms, setFormPlatforms]     = useState<Platform[]>(['instagram'])
+  const [formContentType, setFormContentType] = useState<ContentTheme>('property_tour')
   const [formStatus, setFormStatus]           = useState<CalendarStatus>('draft')
   const [formAssigneeEmail, setFormAssigneeEmail] = useState('')
   const [formCampaignId, setFormCampaignId]   = useState<string | null>(null)
   const [formPillarId, setFormPillarId]       = useState<string | null>(null)
   const [formApprovalStatus, setFormApprovalStatus] = useState<ApprovalStatus | null>(null)
+  const [formApprovalNote, setFormApprovalNote]     = useState('')
+  // Production roles
+  const [formEditor, setFormEditor]   = useState('')
+  const [formShooter, setFormShooter] = useState('')
+  const [formTalent, setFormTalent]   = useState('')
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+
+  function resetForm() {
+    setFormTitle(''); setFormBody('')
+    setFormDate(format(new Date(), 'yyyy-MM-dd'))
+    setFormPlatforms(['instagram']); setFormContentType('property_tour'); setFormStatus('draft')
+    setFormAssigneeEmail(''); setFormCampaignId(null); setFormPillarId(null); setFormApprovalStatus(null); setFormApprovalNote('')
+    setFormEditor(''); setFormShooter(''); setFormTalent('')
+  }
 
   function openCreate(date?: string) {
     setDrawerMode('create'); setEditingEntry(null)
-    setFormTitle(''); setFormBody('')
-    setFormDate(date ?? format(new Date(), 'yyyy-MM-dd'))
-    setFormPlatform('instagram'); setFormContentType('hook'); setFormStatus('draft')
-    setFormAssigneeEmail(''); setFormCampaignId(null); setFormPillarId(null); setFormApprovalStatus(null)
+    resetForm()
+    if (date) setFormDate(date)
     setDrawerOpen(true)
   }
 
   function openEdit(entry: CalendarEntry) {
     setDrawerMode('edit'); setEditingEntry(entry)
     setFormTitle(entry.title); setFormBody(entry.body ?? '')
-    setFormDate(entry.scheduled_date); setFormPlatform(entry.platform)
-    setFormContentType(entry.content_type); setFormStatus(entry.status)
-    setFormAssigneeEmail('')
+    setFormDate(entry.scheduled_date); setFormPlatforms([entry.platform])
+    setFormContentType((entry.content_type as ContentTheme) ?? 'property_tour'); setFormStatus(entry.status)
+    const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === entry.id)
+    setFormAssigneeEmail(existingTask?.assignee_email ?? '')
     setFormCampaignId(entry.campaign_id ?? null)
     setFormPillarId(entry.pillar_id ?? null)
     setFormApprovalStatus(entry.approval_status ?? null)
+    setFormApprovalNote(entry.approval_note ?? '')
+    setFormEditor(entry.assigned_editor ?? '')
+    setFormShooter(entry.assigned_shooter ?? '')
+    setFormTalent(entry.assigned_talent ?? '')
     setDrawerOpen(true)
+  }
+
+  function buildEntryPayload() {
+    return {
+      platform: formPlatforms[0] ?? 'instagram' as Platform,
+      content_type: formContentType as ContentType,
+      title: formTitle.trim(),
+      body: formBody.trim() || null,
+      scheduled_date: formDate,
+      status: formStatus,
+      campaign_id: formCampaignId,
+      pillar_id: formPillarId,
+      approval_status: formApprovalStatus,
+      approval_note: formApprovalNote.trim() || null,
+      assigned_editor: formEditor || null,
+      assigned_shooter: formShooter || null,
+      assigned_talent: formTalent || null,
+    }
   }
 
   async function handleSave() {
@@ -371,56 +500,73 @@ export function ContentCalendarPage() {
     }
     try {
       if (drawerMode === 'create') {
-        const entry = await createEntry.mutateAsync({
-          brand_id: activeBrand!.id,
-          platform: formPlatform,
-          content_type: formContentType,
-          title: formTitle.trim(),
-          body: formBody.trim() || null,
-          scheduled_date: formDate,
-          status: formStatus,
-          generated_content_id: null,
-          campaign_id: formCampaignId,
-          pillar_id: formPillarId,
-          approval_status: formApprovalStatus,
-          approval_note: null,
-        } as CalendarEntryInsert)
+        const platforms = formPlatforms.length > 0 ? formPlatforms : ['instagram' as Platform]
+        const assigneeId = formAssigneeEmail
+          ? teamMembers.find((m) => m.email === formAssigneeEmail)?.user_id ?? null
+          : null
 
-        if (formAssigneeEmail && entry) {
-          const assigneeId = (members.data ?? []).find(
-            (m) => m.email === formAssigneeEmail,
-          )?.user_id ?? null
-          await createTask.mutateAsync({
+        for (const plat of platforms) {
+          const entry = await createEntry.mutateAsync({
             brand_id: activeBrand!.id,
-            title: formTitle.trim(),
-            description: null,
-            type: 'content',
-            status: 'todo',
-            priority: 'medium',
-            assignee_id: assigneeId,
-            assignee_email: formAssigneeEmail,
-            calendar_entry_id: entry.id,
-            due_date: formDate,
-            created_by: null,
-          })
+            ...buildEntryPayload(),
+            platform: plat,
+            generated_content_id: null,
+          } as CalendarEntryInsert)
+
+          if (formAssigneeEmail && entry) {
+            await createTask.mutateAsync({
+              brand_id: activeBrand!.id,
+              title: formTitle.trim(),
+              description: null,
+              type: 'content',
+              status: 'todo',
+              priority: 'medium',
+              assignee_id: assigneeId,
+              assignee_email: formAssigneeEmail,
+              calendar_entry_id: entry.id,
+              due_date: formDate,
+              created_by: null,
+            })
+          }
         }
 
-        toast.success('Entry created')
+        toast.success(platforms.length > 1 ? `${platforms.length} entries created` : 'Entry created')
       } else {
         await updateEntry.mutateAsync({
           id: editingEntry!.id,
-          patch: {
-            platform: formPlatform,
-            content_type: formContentType,
-            title: formTitle.trim(),
-            body: formBody.trim() || null,
-            scheduled_date: formDate,
-            status: formStatus,
-            campaign_id: formCampaignId,
-            pillar_id: formPillarId,
-            approval_status: formApprovalStatus,
-          },
+          patch: buildEntryPayload(),
         })
+
+        const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === editingEntry!.id)
+        if (formAssigneeEmail) {
+          const assigneeId = teamMembers.find((m) => m.email === formAssigneeEmail)?.user_id ?? null
+          if (existingTask) {
+            await updateTask.mutateAsync({
+              id: existingTask.id,
+              patch: { assignee_id: assigneeId, assignee_email: formAssigneeEmail, due_date: formDate },
+            })
+          } else {
+            await createTask.mutateAsync({
+              brand_id: activeBrand!.id,
+              title: formTitle.trim(),
+              description: null,
+              type: 'content',
+              status: 'todo',
+              priority: 'medium',
+              assignee_id: assigneeId,
+              assignee_email: formAssigneeEmail,
+              calendar_entry_id: editingEntry!.id,
+              due_date: formDate,
+              created_by: null,
+            })
+          }
+        } else if (existingTask) {
+          await updateTask.mutateAsync({
+            id: existingTask.id,
+            patch: { assignee_id: null, assignee_email: null },
+          })
+        }
+
         toast.success('Entry saved')
       }
       setDrawerOpen(false)
@@ -436,6 +582,38 @@ export function ContentCalendarPage() {
       setDrawerOpen(false)
     } catch (err) {
       toast.error('Failed to delete', { description: (err as Error).message })
+    }
+  }
+
+  async function confirmAndDelete() {
+    setConfirmDeleteOpen(false)
+    await handleDelete()
+  }
+
+  async function handleDuplicate() {
+    if (!editingEntry || !activeBrand) return
+    try {
+      await createEntry.mutateAsync({
+        brand_id: activeBrand.id,
+        platform: editingEntry.platform,
+        content_type: editingEntry.content_type,
+        title: `${editingEntry.title} (copy)`,
+        body: editingEntry.body,
+        scheduled_date: editingEntry.scheduled_date,
+        status: 'draft',
+        generated_content_id: null,
+        campaign_id: editingEntry.campaign_id,
+        pillar_id: editingEntry.pillar_id,
+        approval_status: null,
+        approval_note: null,
+        assigned_editor: editingEntry.assigned_editor,
+        assigned_shooter: editingEntry.assigned_shooter,
+        assigned_talent: editingEntry.assigned_talent,
+      } as CalendarEntryInsert)
+      toast.success('Entry duplicated')
+      setDrawerOpen(false)
+    } catch (err) {
+      toast.error('Failed to duplicate', { description: (err as Error).message })
     }
   }
 
@@ -462,13 +640,9 @@ export function ContentCalendarPage() {
   }
 
   // ── Guard ─────────────────────────────────────────────────────────────────
-  if (!activeBrand) {
-    return (
-      <div className="p-6 text-muted-foreground">
-        Select a brand to view the calendar.
-      </div>
-    )
-  }
+  if (!activeBrand) return <NoBrandSelected />
+
+  const saving = createEntry.isPending || updateEntry.isPending
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -522,6 +696,24 @@ export function ContentCalendarPage() {
             {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
+        <div className="ml-auto relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search entries…"
+            className="h-7 pl-8 pr-7 w-full sm:w-44 text-xs"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Pillar distribution bar */}
@@ -649,6 +841,7 @@ export function ContentCalendarPage() {
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            {/* Title */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Title</label>
               <Input
@@ -658,9 +851,10 @@ export function ContentCalendarPage() {
               />
             </div>
 
+            {/* Caption / Notes */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                Content{' '}
+                Caption / Notes{' '}
                 <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <Textarea
@@ -668,10 +862,11 @@ export function ContentCalendarPage() {
                 onChange={(e) => setFormBody(e.target.value)}
                 rows={5}
                 className="resize-none"
-                placeholder="Full caption, hook text, or idea…"
+                placeholder="Full caption, hook text, script notes…"
               />
             </div>
 
+            {/* Date */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Scheduled date</label>
               <input
@@ -682,16 +877,32 @@ export function ContentCalendarPage() {
               />
             </div>
 
+            {/* Platform */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Platform</label>
+              <label className="text-sm font-medium">
+                Platform
+                {drawerMode === 'create' && (
+                  <span className="text-muted-foreground font-normal text-xs ml-1">(select one or more)</span>
+                )}
+              </label>
               <div className="flex flex-wrap gap-1.5">
                 {PLATFORMS.map((p) => (
                   <button
                     key={p.value}
                     type="button"
-                    onClick={() => setFormPlatform(p.value)}
+                    onClick={() => {
+                      if (drawerMode === 'edit') {
+                        setFormPlatforms([p.value])
+                      } else {
+                        setFormPlatforms((prev) =>
+                          prev.includes(p.value)
+                            ? prev.length > 1 ? prev.filter((x) => x !== p.value) : prev
+                            : [...prev, p.value],
+                        )
+                      }
+                    }}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      formPlatform === p.value
+                      formPlatforms.includes(p.value)
                         ? `${PLATFORM_CHIP_COLORS[p.value]} border-transparent`
                         : 'border-border text-muted-foreground hover:text-foreground'
                     }`}
@@ -702,14 +913,16 @@ export function ContentCalendarPage() {
               </div>
             </div>
 
+            {/* Content type */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Content type</label>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {CONTENT_TYPES.map((ct) => (
                   <button
                     key={ct.value}
                     type="button"
-                    onClick={() => setFormContentType(ct.value)}
+                    title={ct.desc}
+                    onClick={() => setFormContentType(ct.value as ContentTheme)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                       formContentType === ct.value
                         ? 'bg-primary text-primary-foreground border-primary'
@@ -722,6 +935,7 @@ export function ContentCalendarPage() {
               </div>
             </div>
 
+            {/* Status */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Status</label>
               <div className="flex gap-1.5">
@@ -740,6 +954,57 @@ export function ContentCalendarPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Client Approval */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Client Approval{' '}
+                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+              </label>
+              <div className="flex gap-1.5 flex-wrap">
+                {(
+                  [null, 'pending_review', 'approved', 'rejected'] as const
+                ).map((s) => (
+                  <button
+                    key={s ?? '__none__'}
+                    type="button"
+                    onClick={() => setFormApprovalStatus(s)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                      formApprovalStatus === s
+                        ? s === 'approved'
+                          ? 'bg-emerald-500 text-white border-emerald-500'
+                          : s === 'rejected'
+                          ? 'bg-red-500 text-white border-red-500'
+                          : s === 'pending_review'
+                          ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-foreground text-background border-foreground'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {s === null
+                      ? 'None'
+                      : s === 'pending_review'
+                      ? 'Pending Review'
+                      : s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                ))}
+              </div>
+              {formApprovalStatus && (
+                <Textarea
+                  value={formApprovalNote}
+                  onChange={(e) => setFormApprovalNote(e.target.value)}
+                  placeholder={
+                    formApprovalStatus === 'rejected'
+                      ? 'Reason for rejection…'
+                      : formApprovalStatus === 'approved'
+                      ? 'Approval note (optional)…'
+                      : 'Note for reviewer (optional)…'
+                  }
+                  rows={2}
+                  className="resize-none text-sm"
+                />
+              )}
             </div>
 
             {/* Campaign selector */}
@@ -806,47 +1071,43 @@ export function ContentCalendarPage() {
               </div>
             )}
 
-            {/* Client Approval (edit mode only) */}
-            {drawerMode === 'edit' && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Client Approval</label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {(
-                    [null, 'pending_review', 'approved', 'rejected'] as const
-                  ).map((s) => (
-                    <button
-                      key={s ?? '__none__'}
-                      type="button"
-                      onClick={() => setFormApprovalStatus(s)}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        formApprovalStatus === s
-                          ? s === 'approved'
-                            ? 'bg-emerald-500 text-white border-emerald-500'
-                            : s === 'rejected'
-                            ? 'bg-red-500 text-white border-red-500'
-                            : s === 'pending_review'
-                            ? 'bg-amber-500 text-white border-amber-500'
-                            : 'bg-foreground text-background border-foreground'
-                          : 'border-border text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      {s === null
-                        ? 'None'
-                        : s === 'pending_review'
-                        ? 'Pending Review'
-                        : s.charAt(0).toUpperCase() + s.slice(1)}
-                    </button>
-                  ))}
+            {/* Production Roles — only shown if team members exist */}
+            {teamMembers.length > 0 && (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <div>
+                  <p className="text-sm font-medium">Production Roles</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Assign team members to specific production roles. All optional.</p>
                 </div>
+                <RolePicker
+                  label="Editor"
+                  value={formEditor}
+                  onChange={setFormEditor}
+                  members={teamMembers}
+                  dotColor="bg-teal-400"
+                />
+                <RolePicker
+                  label="Shooter / Videographer"
+                  value={formShooter}
+                  onChange={setFormShooter}
+                  members={teamMembers}
+                  dotColor="bg-blue-400"
+                />
+                <RolePicker
+                  label="Talent / Spokesperson"
+                  value={formTalent}
+                  onChange={setFormTalent}
+                  members={teamMembers}
+                  dotColor="bg-violet-400"
+                />
               </div>
             )}
 
-            {/* Assign to (create mode) */}
-            {drawerMode === 'create' && (members.data ?? []).length > 0 && (
+            {/* Assign to (task owner for workload tracking) */}
+            {teamMembers.length > 0 && (
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">
                   Assign to{' '}
-                  <span className="text-muted-foreground font-normal">(optional — creates a task)</span>
+                  <span className="text-muted-foreground font-normal text-xs">(task owner)</span>
                 </label>
                 <Select
                   value={formAssigneeEmail || '__none__'}
@@ -857,7 +1118,7 @@ export function ContentCalendarPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Unassigned</SelectItem>
-                    {(members.data ?? []).map((m) => (
+                    {teamMembers.map((m) => (
                       <SelectItem key={m.id} value={m.email}>{m.email}</SelectItem>
                     ))}
                   </SelectContent>
@@ -872,14 +1133,26 @@ export function ContentCalendarPage() {
 
           <SheetFooter className="border-t border-border px-6 py-4 flex-row gap-2">
             {drawerMode === 'edit' && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDelete}
-                disabled={deleteEntry.isPending}
-              >
-                Delete
-              </Button>
+              <>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  disabled={deleteEntry.isPending}
+                >
+                  Delete
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDuplicate}
+                  disabled={createEntry.isPending}
+                  title="Duplicate this entry as a draft"
+                >
+                  <Copy className="h-3.5 w-3.5 mr-1" />
+                  Duplicate
+                </Button>
+              </>
             )}
             <Button
               variant="outline"
@@ -889,12 +1162,8 @@ export function ContentCalendarPage() {
             >
               Cancel
             </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={createEntry.isPending || updateEntry.isPending}
-            >
-              {createEntry.isPending || updateEntry.isPending ? 'Saving…' : 'Save'}
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -907,7 +1176,6 @@ export function ContentCalendarPage() {
             <SheetTitle>Configure Pillars</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            {/* Existing pillars */}
             {(pillars.data ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No pillars yet. Add one below.</p>
             ) : (
@@ -925,7 +1193,12 @@ export function ContentCalendarPage() {
                     <span className="text-xs text-muted-foreground">{p.target_pct}% target</span>
                     <button
                       type="button"
-                      onClick={() => deletePillar.mutate(p.id)}
+                      onClick={() =>
+                        deletePillar.mutate(p.id, {
+                          onSuccess: () => toast.success('Pillar deleted'),
+                          onError: (err) => toast.error('Failed to delete pillar', { description: (err as Error).message }),
+                        })
+                      }
                       className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -991,6 +1264,24 @@ export function ContentCalendarPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this calendar entry?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmAndDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

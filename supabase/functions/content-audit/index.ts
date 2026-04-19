@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+// @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')!

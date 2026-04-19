@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+// @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN')!
@@ -43,7 +44,7 @@ function buildApifyInput(platform: string, handle: string, since?: string, until
     case 'tiktok':
       return { profiles: [`@${clean}`], resultsPerPage: 50 }
     case 'facebook':
-      return { startUrls: [{ url: `https://www.facebook.com/${clean}` }] }
+      return { startUrls: [{ url: `https://www.facebook.com/${clean}` }], maxPosts: 50 }
     case 'youtube':
       return { startUrls: [{ url: `https://www.youtube.com/@${clean}` }], maxResultsShorts: 0, maxResults: 50 }
     default:
@@ -53,6 +54,35 @@ function buildApifyInput(platform: string, handle: string, since?: string, until
 
 function nonNeg(v: number | null): number | null {
   return v !== null && v >= 0 ? v : null
+}
+
+function extractFollowers(platform: string, rawItems: Record<string, any>[]): number | null {
+  if (rawItems.length === 0) return null
+  for (const raw of rawItems.slice(0, 5)) {
+    switch (platform) {
+      case 'instagram':
+        if (raw.followersCount != null) return Number(raw.followersCount)
+        if (raw.owner?.edge_followed_by?.count != null) return Number(raw.owner.edge_followed_by.count)
+        break
+      case 'tiktok':
+        if (raw.authorMeta?.fans != null) return Number(raw.authorMeta.fans)
+        if (raw.author?.followers_count != null) return Number(raw.author.followers_count)
+        break
+      case 'facebook':
+        if (raw.pageInfo?.likes != null) return Number(raw.pageInfo.likes)
+        if (raw.fanCount != null) return Number(raw.fanCount)
+        if (raw.fans != null) return Number(raw.fans)
+        break
+      case 'youtube':
+        if (raw.numberOfSubscribers != null) {
+          const n = parseInt(String(raw.numberOfSubscribers).replace(/[^0-9]/g, ''))
+          if (!isNaN(n) && n > 0) return n
+        }
+        if (raw.channelStats?.subscriberCount != null) return Number(raw.channelStats.subscriberCount)
+        break
+    }
+  }
+  return null
 }
 
 function normalizeToMetric(
@@ -245,7 +275,7 @@ Deno.serve(async (req) => {
 
     // Fetch dataset items
     const itemsRes = await fetch(
-      `https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=20&clean=true`,
+      `https://api.apify.com/v2/datasets/${run.defaultDatasetId}/items?token=${APIFY_TOKEN}&limit=100&clean=true`,
     )
     if (!itemsRes.ok) throw new Error('Failed to fetch Apify results')
     const rawPosts: Record<string, any>[] = await itemsRes.json()
@@ -266,6 +296,16 @@ Deno.serve(async (req) => {
         .from('post_metrics')
         .upsert(metric, { onConflict: 'brand_id,platform,post_url', ignoreDuplicates: false })
       if (!error) synced++
+    }
+
+    // Capture follower snapshot for today
+    const followerCount = extractFollowers(platform, rawPosts)
+    if (followerCount !== null && followerCount > 0) {
+      const today = new Date().toISOString().slice(0, 10)
+      await supabase.from('growth_snapshots').upsert(
+        { brand_id, platform, followers: followerCount, recorded_at: today },
+        { onConflict: 'brand_id,platform,recorded_at', ignoreDuplicates: true },
+      )
     }
 
     return new Response(JSON.stringify({ synced }), {

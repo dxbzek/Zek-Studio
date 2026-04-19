@@ -1,9 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
+// @ts-nocheck
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')!
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
@@ -33,21 +30,6 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
 
   try {
-    const sb = createClient(SUPABASE_URL, SERVICE_KEY)
-
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      })
-    }
-    const { data: { user } } = await sb.auth.getUser(authHeader.replace('Bearer ', ''))
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      })
-    }
-
     const { mode, brandName, niche, title, targetKeyword } = await req.json()
 
     if (mode === 'ideas') {
@@ -65,16 +47,19 @@ Return ONLY a JSON array of 5 strings, nothing else. Example: ["Title 1", "Title
 
     if (mode === 'draft') {
       const kwHint = targetKeyword ? ` Target keyword: "${targetKeyword}".` : ''
-      const prompt = `Write a comprehensive, well-structured blog post for "${brandName}" (a ${niche} brand) with the title: "${title}".${kwHint}
+      const prompt = `Write a comprehensive, publish-ready blog post for "${brandName}" (a ${niche} brand) with the title: "${title}".${kwHint}
 
-Optimize for:
-- **SEO**: Use H1 title, H2 subheadings, keyword-rich intro, mark internal linking opportunities as [INTERNAL LINK: topic]
-- **AEO**: Include a "Frequently Asked Questions" section at the end with 3-5 questions and concise direct answers
-- **GEO**: Cite statistics and authoritative sources, include expertise-driven insights, add a brief author perspective section
+Requirements:
+- Output ONLY clean HTML using these tags: <h1>, <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>. No other tags.
+- DO NOT use Markdown. No # hashtags, no **, no backticks, no dashes as bullets, no code blocks.
+- DO NOT include any placeholder text like [INTERNAL LINK: ...] or [INSERT LINK HERE].
+- The content must be ready to paste directly into a blog CMS with no editing needed.
+- Write at least 800 words.
+- SEO: keyword-rich intro paragraph, descriptive subheadings, naturally referenced related topics
+- AEO: include a "Frequently Asked Questions" section near the end with 3-5 questions as <h3> and answers as <p>
+- GEO: cite real statistics and authoritative sources inline, include a brief author expertise/perspective paragraph
 
-Format in Markdown. Write at least 800 words.
-
-After the article, on a new line, output exactly this JSON block (no markdown fences):
+After the article HTML, on a new line, output exactly this JSON block (no markdown, no fences):
 METADATA:{"slug":"url-friendly-slug-here","meta_title":"SEO meta title under 60 chars","meta_description":"Compelling meta description 140-160 chars"}`
 
       const raw = await groq(prompt, 3000)

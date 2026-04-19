@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +13,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from '@/components/ui/sheet'
+import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { supabase } from '@/lib/supabase'
@@ -29,7 +30,7 @@ function CampaignEntryCount({ campaignId }: { campaignId: string }) {
     queryKey: ['campaign-entry-count', campaignId],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count: c, error } = await (supabase as any)
+      const { count: c, error } = await supabase
         .from('calendar_entries')
         .select('id', { count: 'exact', head: true })
         .eq('campaign_id', campaignId)
@@ -121,11 +122,7 @@ export default function CampaignsPage() {
     }
   }
 
-  if (!activeBrand) {
-    return (
-      <div className="p-6 text-muted-foreground">Select a brand to view campaigns.</div>
-    )
-  }
+  if (!activeBrand) return <NoBrandSelected />
 
   const list = campaigns.data ?? []
   const saving = createCampaign.isPending || updateCampaign.isPending
@@ -144,7 +141,10 @@ export default function CampaignsPage() {
       {/* List */}
       <div className="flex-1 overflow-y-auto px-6 pb-6">
         {campaigns.isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <div className="flex items-center gap-2 py-6 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Loading campaigns…</span>
+          </div>
         ) : list.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-muted-foreground text-sm">No campaigns yet.</p>

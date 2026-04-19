@@ -17,10 +17,10 @@ export type Platform =
 
 export const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
-  { value: 'facebook', label: 'Facebook' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'linkedin', label: 'LinkedIn' },
-  { value: 'youtube', label: 'YouTube' },
+  { value: 'facebook',  label: 'Facebook'  },
+  { value: 'tiktok',    label: 'TikTok'    },
+  { value: 'linkedin',  label: 'LinkedIn'  },
+  { value: 'youtube',   label: 'YouTube'   },
 ]
 
 // Generator-specific platform list — merges Instagram + Facebook into Meta
@@ -139,18 +139,42 @@ export interface TopCreator {
 
 // ─── Generated Content ───────────────────────────────────────────────────────
 
-export type ContentType = 'hook' | 'caption' | 'idea' | 'script' | 'listing' | 'market' | 'story' | 'cta'
+export type ContentTheme =
+  | 'property_tour'
+  | 'market_update'
+  | 'agent_recruitment'
+  | 'client_story'
+  | 'investment_tips'
+  | 'behind_scenes'
+  | 'new_launch'
+  | 'area_spotlight'
+
+export type ContentType =
+  | ContentTheme
+  | 'hook' | 'caption' | 'idea' | 'script' | 'listing' | 'market' | 'story' | 'cta'
+
 export type ContentTone = 'professional' | 'casual' | 'humorous' | 'inspirational' | 'educational' | 'authoritative' | 'luxurious' | 'urgent'
+
+export const CONTENT_THEMES: { value: ContentTheme; label: string; desc: string }[] = [
+  { value: 'property_tour',     label: 'Property Tour',     desc: 'Showcase a listing' },
+  { value: 'market_update',     label: 'Market Update',     desc: 'Dubai market data & trends' },
+  { value: 'agent_recruitment', label: 'Recruitment',       desc: 'Attract agents to join' },
+  { value: 'client_story',      label: 'Client Story',      desc: 'Buyer / investor journey' },
+  { value: 'investment_tips',   label: 'Investment Tips',   desc: 'Why invest in Dubai' },
+  { value: 'behind_scenes',     label: 'Behind the Scenes', desc: 'Team & office culture' },
+  { value: 'new_launch',        label: 'New Launch',        desc: 'Off-plan announcement' },
+  { value: 'area_spotlight',    label: 'Area Spotlight',    desc: 'Dubai neighborhood guide' },
+]
 
 export type GenerateSource =
   | { type: 'trending_topic'; title: string; summary: string }
-  | { type: 'competitor_post'; caption: string | null; hook: string | null; views: number | null; likes: number | null }
+  | { type: 'competitor_post'; caption: string | null; hook: string | null; views: number | null; likes: number | null; comments: number | null; shares: number | null; platform: string | null; transcript: string | null }
   | { type: 'manual'; brief: string }
 
 export interface GeneratedContent {
   id: string
   brand_id: string
-  type: ContentType
+  type: ContentType | ContentTheme
   platform: Platform
   brief: string
   output: string[]
@@ -177,6 +201,9 @@ export interface CalendarEntry {
   pillar_id: string | null
   approval_status: ApprovalStatus | null
   approval_note: string | null
+  assigned_editor: string | null
+  assigned_shooter: string | null
+  assigned_talent: string | null
   created_at: string
   updated_at: string
 }
@@ -388,6 +415,31 @@ export interface ReviewSnapshot {
   created_at: string
 }
 export type ReviewSnapshotInsert = Omit<ReviewSnapshot, 'id' | 'created_at'>
+
+// ─── Brand KPIs ───────────────────────────────────────────────────────────────
+
+export interface BrandKpi {
+  id: string
+  brand_id: string
+  month: string        // ISO date string, first of month (e.g. "2026-04-01")
+  posts_target: number | null
+  views_target: number | null
+  engagement_target: number | null
+  keywords_target: number | null
+  created_at: string
+  updated_at: string
+}
+
+// ─── Growth Snapshots ─────────────────────────────────────────────────────────
+
+export interface GrowthSnapshot {
+  id: string
+  brand_id: string
+  platform: Platform
+  followers: number
+  recorded_at: string
+  created_at: string
+}
 
 // ─── Share Tokens ─────────────────────────────────────────────────────────────
 
