@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { format, parseISO, subDays, startOfMonth, endOfMonth } from 'date-fns'
-import { TrendingUp, Eye, ThumbsUp, BarChart3, RefreshCw, Pencil, Users } from 'lucide-react'
+import { TrendingUp, Eye, ThumbsUp, BarChart3, RefreshCw, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import {

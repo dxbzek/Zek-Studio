@@ -219,6 +219,9 @@ export type Database = {
           pillar_id: string | null
           approval_status: string | null
           approval_note: string | null
+          assigned_editor: string | null
+          assigned_shooter: string | null
+          assigned_talent: string | null
           created_at: string
           updated_at: string
         }
@@ -236,6 +239,9 @@ export type Database = {
           pillar_id?: string | null
           approval_status?: string | null
           approval_note?: string | null
+          assigned_editor?: string | null
+          assigned_shooter?: string | null
+          assigned_talent?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -252,6 +258,39 @@ export type Database = {
           pillar_id?: string | null
           approval_status?: string | null
           approval_note?: string | null
+          assigned_editor?: string | null
+          assigned_shooter?: string | null
+          assigned_talent?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      brand_kpis: {
+        Row: {
+          id: string
+          brand_id: string
+          month: string
+          posts_target: number | null
+          views_target: number | null
+          engagement_target: number | null
+          keywords_target: number | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          month: string
+          posts_target?: number | null
+          views_target?: number | null
+          engagement_target?: number | null
+          keywords_target?: number | null
+          updated_at?: string
+        }
+        Update: {
+          posts_target?: number | null
+          views_target?: number | null
+          engagement_target?: number | null
+          keywords_target?: number | null
           updated_at?: string
         }
         Relationships: []
