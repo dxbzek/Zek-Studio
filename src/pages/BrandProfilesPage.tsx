@@ -80,15 +80,18 @@ export function BrandProfilesPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Brand Profiles</h1>
-          <p className="mt-1 text-muted-foreground">
+          <div className="eyebrow mb-1.5">Workspace</div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>
+            Brand Profiles
+          </h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">
             Manage the brands and clients you create content for.
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={() => setShowForm(true)} size="sm">
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add brand
         </Button>
       </div>
@@ -112,34 +115,34 @@ export function BrandProfilesPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {brands.map((brand) => (
-            <Card key={brand.id} className="group relative overflow-hidden">
-              {/* Color bar */}
-              <div
-                className="h-1.5 w-full"
-                style={{ background: brand.color ?? '#6366f1' }}
-              />
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
+            <Card key={brand.id} className="group relative overflow-hidden rounded-xl border border-border bg-card hover:bg-muted/20 transition-colors">
+              <div className="h-[3px] w-full" style={{ background: brand.color ?? '#B8C5D1' }} />
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start gap-3 mb-3">
                   <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white shadow-sm"
-                    style={{ background: brand.color ?? '#6366f1' }}
+                    className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[8px] text-[11px] font-bold text-white"
+                    style={{ background: brand.color ?? '#B8C5D1' }}
                   >
                     {brand.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-semibold">{brand.name}</h3>
-                    <p className="truncate text-sm text-muted-foreground">{brand.niche}</p>
+                    <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em' }} className="truncate">
+                      {brand.name}
+                    </h3>
+                    {brand.niche && (
+                      <p className="truncate text-[12px] text-muted-foreground mt-0.5">{brand.niche}</p>
+                    )}
                     {brand.website_url && (
                       <a
                         href={brand.website_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Globe className="h-3 w-3" />
+                        <Globe className="h-3 w-3 shrink-0" />
                         <span className="truncate">{brand.website_url.replace(/^https?:\/\//, '')}</span>
                         <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                       </a>
@@ -148,38 +151,25 @@ export function BrandProfilesPage() {
                 </div>
 
                 {/* Platforms */}
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {brand.platforms.map((p) => (
-                    <Badge key={p} variant="secondary" className="capitalize text-xs">
-                      {p}
-                    </Badge>
-                  ))}
-                </div>
+                {brand.platforms.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {brand.platforms.map((p) => (
+                      <span key={p} className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-background text-muted-foreground capitalize font-medium">
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Actions */}
-                <div className="mt-4 flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setActiveBrand(brand)}
-                  >
+                <div className="flex items-center gap-1.5">
+                  <Button size="sm" variant="outline" className="flex-1 h-[30px] text-[12px]" onClick={() => setActiveBrand(brand)}>
                     Set active
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => setEditing(brand)}
-                  >
+                  <Button size="icon" variant="ghost" className="h-[30px] w-[30px]" onClick={() => setEditing(brand)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => setDeleting(brand)}
-                  >
+                  <Button size="icon" variant="ghost" className="h-[30px] w-[30px] text-destructive hover:text-destructive" onClick={() => setDeleting(brand)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>

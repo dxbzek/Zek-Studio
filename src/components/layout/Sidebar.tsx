@@ -12,6 +12,12 @@ import {
   Plus,
   UsersRound,
   BarChart3,
+  Eye,
+  Hash,
+  MessageSquare,
+  Flag,
+  Grid3x3,
+  Globe,
 } from 'lucide-react'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useBrands } from '@/hooks/useBrands'
@@ -28,14 +34,45 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
-const NAV_ITEMS = [
-  { to: '/',          label: 'Dashboard',      icon: LayoutDashboard },
-  { to: '/brands',    label: 'Brand Profiles', icon: Briefcase },
-  { to: '/research',  label: 'Research',       icon: TrendingUp },
-  { to: '/content',   label: 'Content',        icon: Sparkles },
-  { to: '/calendar',  label: 'Calendar',       icon: CalendarDays },
-  { to: '/workspace', label: 'Workspace',      icon: UsersRound },
-  { to: '/analytics', label: 'Analytics',      icon: BarChart3 },
+const NAV_GROUPS = [
+  {
+    label: 'Workspace',
+    items: [
+      { to: '/',       label: 'Dashboard',   icon: LayoutDashboard, end: true },
+      { to: '/brands', label: 'Brands',      icon: Briefcase },
+    ],
+  },
+  {
+    label: 'Intelligence',
+    items: [
+      { to: '/research',                  label: 'Research',     icon: TrendingUp },
+      { to: '/research?tab=competitors',  label: 'Competitors',  icon: Eye },
+      { to: '/research?tab=seo',          label: 'SEO Keywords', icon: Hash },
+    ],
+  },
+  {
+    label: 'Create',
+    items: [
+      { to: '/content',         label: 'Content',          icon: Sparkles },
+      { to: '/content/replies', label: 'Reply Templates',  icon: MessageSquare },
+      { to: '/calendar',        label: 'Calendar',         icon: CalendarDays },
+    ],
+  },
+  {
+    label: 'Collaborate',
+    items: [
+      { to: '/campaigns', label: 'Campaigns', icon: Flag },
+      { to: '/tasks',     label: 'Tasks',     icon: Grid3x3 },
+      { to: '/workspace', label: 'Team',      icon: UsersRound },
+    ],
+  },
+  {
+    label: 'Measure',
+    items: [
+      { to: '/analytics', label: 'Analytics',     icon: BarChart3 },
+      { to: '/report',    label: 'Public Report', icon: Globe },
+    ],
+  },
 ]
 
 interface SidebarProps {
@@ -49,7 +86,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { brands } = useBrands()
   const { user } = useAuth()
 
-  // Keep activeBrand in sync with latest data from the server
   useEffect(() => {
     if (activeBrand && brands.length > 0) {
       const fresh = brands.find((b) => b.id === activeBrand.id)
@@ -70,45 +106,52 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex w-60 flex-col border-r border-border bg-sidebar',
-        // Mobile: fixed overlay drawer with slide animation
+        'flex w-[232px] flex-col border-r border-border bg-sidebar',
         'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-200',
         open ? 'translate-x-0' : '-translate-x-full',
-        // Desktop: static in flex layout
         'sm:relative sm:translate-x-0',
       )}
     >
       {/* Logo */}
-      <div className="flex h-14 items-center border-b border-border px-4">
-        <img
-          src="/logo.png"
-          alt="Zek Studio"
-          className="h-7 w-auto dark:invert"
-        />
+      <div className="flex h-[52px] items-center gap-2.5 border-b border-border px-4 shrink-0">
+        <img src="/logo.png" alt="Zek" className="h-[18px] w-auto dark:invert" />
+        <span style={{ fontFamily: 'var(--font-heading)', fontSize: 15, letterSpacing: '-0.02em' }}>
+          Studio
+        </span>
+        <span className="ml-auto rounded border border-border px-1.5 py-0.5 text-[9.5px] font-semibold text-muted-foreground">
+          BETA
+        </span>
       </div>
 
       {/* Brand Switcher */}
-      <div className="border-b border-border p-3">
+      <div className="border-b border-border p-2.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-between px-2 hover:bg-sidebar-accent"
+              className="w-full justify-between px-2.5 h-[38px] hover:bg-sidebar-accent border border-border rounded-[10px]"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Avatar className="h-6 w-6 shrink-0">
+                <Avatar className="h-[22px] w-[22px] shrink-0">
                   <AvatarFallback
-                    className="text-xs"
-                    style={{ background: activeBrand?.color ?? '#6366f1' }}
+                    className="text-[10px] font-semibold"
+                    style={{ background: activeBrand?.color ?? '#B8C5D1' }}
                   >
                     {brandInitials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="truncate text-sm font-medium text-sidebar-foreground">
-                  {activeBrand?.name ?? 'Select a brand'}
-                </span>
+                <div className="flex flex-col text-left min-w-0">
+                  <span className="truncate text-[12.5px] font-medium text-sidebar-foreground leading-tight">
+                    {activeBrand?.name ?? 'Select a brand'}
+                  </span>
+                  {activeBrand?.handle && (
+                    <span className="truncate text-[10.5px] text-muted-foreground leading-tight">
+                      {activeBrand.handle}
+                    </span>
+                  )}
+                </div>
               </div>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-52" align="start">
@@ -120,8 +163,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               >
                 <Avatar className="h-5 w-5">
                   <AvatarFallback
-                    className="text-xs"
-                    style={{ background: brand.color ?? '#6366f1' }}
+                    className="text-[10px]"
+                    style={{ background: brand.color ?? '#B8C5D1' }}
                   >
                     {brand.name.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
@@ -131,58 +174,69 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             ))}
             {brands.length > 0 && <DropdownMenuSeparator />}
             <DropdownMenuItem onClick={() => navigate('/brands?new=1')} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add brand
+              <Plus className="h-3.5 w-3.5" />
+              New brand
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-0.5 p-2">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            onClick={onClose}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
-              )
-            }
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {label}
-          </NavLink>
+      <nav className="flex-1 overflow-y-auto py-1">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label}>
+            <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.09em] text-muted-foreground/60">
+              {group.label}
+            </div>
+            {group.items.map(({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2.5 h-[30px] mx-1.5 px-2.5 rounded-[7px] text-[12.5px] font-medium transition-colors',
+                    isActive
+                      ? 'bg-accent/60 text-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )
+                }
+              >
+                <Icon className="h-[15px] w-[15px] shrink-0" />
+                {label}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border p-3 space-y-2">
-        {user && (
-          <div className="flex items-center gap-2 px-1 min-w-0">
-            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
-              {user.email?.slice(0, 2).toUpperCase() ?? 'ZS'}
-            </div>
-            <span className="truncate text-xs text-sidebar-foreground/60 flex-1">{user.email}</span>
-          </div>
-        )}
-        <div className="flex items-center justify-between">
-          <ThemeToggle />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSignOut}
-            className="h-9 w-9 text-muted-foreground hover:text-foreground"
-            title="Sign out"
+      <div className="border-t border-border p-2.5 flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div
+            className="h-[26px] w-[26px] rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
+            style={{ background: '#D4C2A8', color: '#111' }}
           >
-            <LogOut className="h-4 w-4" />
-          </Button>
+            {user?.email?.slice(0, 2).toUpperCase() ?? 'ZS'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[12px] font-medium text-sidebar-foreground leading-tight">
+              {user?.email?.split('@')[0] ?? 'Account'}
+            </div>
+            <div className="truncate text-[10.5px] text-muted-foreground leading-tight">Owner</div>
+          </div>
         </div>
+        <ThemeToggle />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleSignOut}
+          className="h-[26px] w-[26px] text-muted-foreground hover:text-foreground shrink-0"
+          title="Sign out"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </aside>
   )

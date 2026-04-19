@@ -88,40 +88,31 @@ function MemberRow({
   onRemove: () => void
 }) {
   return (
-    <div className="p-3 rounded-lg border border-border bg-card">
-      <div className="flex items-center gap-3">
-        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
-          {initials(member.email)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">{member.email}</p>
-          <p className="text-xs text-muted-foreground">
-            {workload.total} task{workload.total !== 1 ? 's' : ''} assigned
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {member.accepted_at ? (
-            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
-              <CheckCircle className="h-3.5 w-3.5" />
-              Active
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-              <Clock className="h-3.5 w-3.5" />
-              Pending
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={onRemove}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card">
+      <div className="h-[34px] w-[34px] rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: '#D4C2A8', color: '#111' }}>
+        {initials(member.email)}
       </div>
-      <WorkloadBar workload={workload} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-foreground truncate">{member.email}</p>
+        <p className="text-[11px] text-muted-foreground">
+          {workload.total} task{workload.total !== 1 ? 's' : ''} · {workload.done} done
+        </p>
+        <WorkloadBar workload={workload} />
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {member.accepted_at ? (
+          <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+            Active
+          </span>
+        ) : (
+          <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+            Pending
+          </span>
+        )}
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={onRemove}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
     </div>
   )
 }
@@ -182,12 +173,15 @@ export default function TeamPage() {
       {/* Header */}
       <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-semibold">Team</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{activeBrand.name}</p>
+          <div className="eyebrow mb-1.5">Collaborate</div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>
+            Team
+          </h1>
+          <p className="text-[13px] text-muted-foreground mt-1">{activeBrand.name}</p>
         </div>
         <Button size="sm" onClick={() => setInviteOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-1.5" />
-          Invite Specialist
+          <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+          Invite
         </Button>
       </div>
 
@@ -208,30 +202,21 @@ export default function TeamPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4 max-w-2xl">
-            {/* Team summary bar */}
-            {allTasks.length > 0 && (
-              <div className="flex items-center gap-4 rounded-lg bg-muted/40 px-4 py-2.5 text-xs">
-                <span className="text-muted-foreground">
-                  Team total: <span className="font-medium text-foreground">{teamStats.totalTasks} tasks</span>
-                </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  {teamStats.totalDone} done
-                </span>
-                {teamStats.totalOverdue > 0 && (
-                  <span className="flex items-center gap-1 text-red-500 font-medium">
-                    <AlertCircle className="h-3 w-3" />
-                    {teamStats.totalOverdue} overdue
-                  </span>
-                )}
-                <span className="ml-auto text-muted-foreground">
-                  {teamStats.totalTasks > 0 ? Math.round((teamStats.totalDone / teamStats.totalTasks) * 100) : 0}% completion
-                </span>
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {memberList.length} specialist{memberList.length !== 1 ? 's' : ''} on this brand
-            </p>
+          <div className="space-y-3 max-w-2xl">
+            {/* KPI stat row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              {[
+                { label: 'Members', value: String(memberList.length) },
+                { label: 'Total tasks', value: String(teamStats.totalTasks) },
+                { label: 'Completed', value: String(teamStats.totalDone) },
+                { label: 'Overdue', value: String(teamStats.totalOverdue) },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl border border-border bg-card p-3">
+                  <div className="eyebrow mb-1" style={{ fontSize: 9.5 }}>{label}</div>
+                  <div className="mono-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 26, fontWeight: 400, lineHeight: 1 }}>{value}</div>
+                </div>
+              ))}
+            </div>
             {memberList.map((member) => (
               <MemberRow
                 key={member.id}

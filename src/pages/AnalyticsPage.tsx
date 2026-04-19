@@ -69,10 +69,35 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string; 
     <div className="rounded-xl border border-border bg-card p-4 space-y-1">
       <div className="flex items-center gap-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
-        <span className="text-xs font-medium">{label}</span>
+        <span className="eyebrow" style={{ fontSize: 10 }}>{label}</span>
       </div>
-      <p className="text-2xl font-semibold text-foreground">{value}</p>
+      <p className="mono-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 500 }}>{value}</p>
     </div>
+  )
+}
+
+// ─── Sparkline ────────────────────────────────────────────────────────────────
+
+function Sparkline({ data }: { data: number[] }) {
+  const max = Math.max(...data, 1)
+  const w = 64, h = 22
+  if (data.length < 2) return <span className="text-muted-foreground text-[10px]">—</span>
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w
+    const y = h - (v / max) * (h - 2) - 1
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  return (
+    <svg width={w} height={h} className="overflow-visible opacity-80">
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
   )
 }
 
@@ -420,6 +445,31 @@ export default function AnalyticsPage() {
     }))
   }, [allMetrics, competitorPostsQuery.data])
 
+  // ── Channel stats + sparklines ────────────────────────────────────────────
+
+  const channelStats = useMemo(() => {
+    const platformSet = [...new Set(allMetrics.map((m) => m.platform))]
+    return platformSet.map((platform) => {
+      const pm = allMetrics.filter((m) => m.platform === platform)
+      const totalReach = pm.reduce((s, m) => s + (m.reach ?? m.views ?? 0), 0)
+      const engRates = pm.map((m) => {
+        const eng = (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.saves ?? 0)
+        const base = m.reach ?? m.impressions ?? m.views
+        return base ? (eng / base) * 100 : null
+      }).filter((v): v is number => v !== null)
+      const avgEng = engRates.length > 0 ? engRates.reduce((a, b) => a + b) / engRates.length : null
+      const now = new Date()
+      const weekBuckets: number[] = Array(8).fill(0)
+      pm.forEach((m) => {
+        if (!m.posted_at) return
+        const d = new Date(m.posted_at + 'T00:00:00')
+        const weeksAgo = Math.floor((now.getTime() - d.getTime()) / (7 * 24 * 60 * 60 * 1000))
+        if (weeksAgo >= 0 && weeksAgo < 8) weekBuckets[7 - weeksAgo] += (m.views ?? 0)
+      })
+      return { platform, totalReach, avgEng, weekBuckets, count: pm.length }
+    }).sort((a, b) => b.totalReach - a.totalReach)
+  }, [allMetrics])
+
   // ── Drawer helpers ────────────────────────────────────────────────────────
 
   function setField(key: keyof typeof form, value: string) {
@@ -527,13 +577,99 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-semibold">Analytics</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{activeBrand.name}</p>
+          <div className="eyebrow mb-1.5">Performance overview · {activeBrand.name}</div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>
+            Analytics
+          </h1>
         </div>
         <Button size="sm" onClick={openCreate}>
           Log Metrics
         </Button>
       </div>
+
+      {/* Editorial hero card */}
+      {summary && (
+        <div className="px-6 pb-4 shrink-0">
+          <div className="rounded-xl border border-border bg-card overflow-hidden grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr]">
+            {/* Left — big reach number */}
+            <div className="p-5 border-b lg:border-b-0 lg:border-r border-border">
+              <div className="eyebrow mb-3">Total reach</div>
+              <div
+                className="mono-num"
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: 'clamp(52px, 7vw, 72px)',
+                  fontWeight: 400,
+                  lineHeight: 1,
+                  letterSpacing: '-0.03em',
+                }}
+              >
+                {fmt(summary.totalViews)}
+              </div>
+              <p className="text-[12px] text-muted-foreground mt-2 italic" style={{ fontFamily: 'var(--font-heading)' }}>
+                Across {summary.count} post{summary.count !== 1 ? 's' : ''}, all platforms
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-foreground/10 text-foreground font-medium">
+                  {summary.count} posts logged
+                </span>
+                <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-foreground/8 text-muted-foreground font-medium uppercase tracking-wide">
+                  Top: {summary.topPlatform}
+                </span>
+              </div>
+            </div>
+
+            {/* Center — engagement stats */}
+            <div className="p-5 border-b lg:border-b-0 lg:border-r border-border flex flex-col gap-4">
+              <div>
+                <div className="eyebrow mb-1">Avg engagement rate</div>
+                <div
+                  className="mono-num"
+                  style={{ fontFamily: 'var(--font-heading)', fontSize: 40, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.03em' }}
+                >
+                  {summary.avgEngRate != null ? `${summary.avgEngRate.toFixed(1)}%` : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="eyebrow mb-1">Total likes</div>
+                <div
+                  className="mono-num"
+                  style={{ fontFamily: 'var(--font-heading)', fontSize: 40, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.03em' }}
+                >
+                  {fmt(summary.totalLikes)}
+                </div>
+              </div>
+            </div>
+
+            {/* Right — velocity + best platform */}
+            <div className="p-5 flex flex-col gap-4">
+              <div>
+                <div className="eyebrow mb-1">Consistency score</div>
+                <div
+                  className="mono-num"
+                  style={{ fontFamily: 'var(--font-heading)', fontSize: 40, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.03em' }}
+                >
+                  {consistencyScore != null ? `${consistencyScore}%` : '—'}
+                </div>
+                {consistencyScore != null && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {consistencyScore >= 80 ? 'On track' : consistencyScore >= 50 ? 'Improving' : 'Needs attention'}
+                  </p>
+                )}
+              </div>
+              <div>
+                <div className="eyebrow mb-1">Platforms tracked</div>
+                <div
+                  className="mono-num"
+                  style={{ fontFamily: 'var(--font-heading)', fontSize: 40, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.03em' }}
+                >
+                  {channelStats.length}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
         {/* Brand Accounts */}
@@ -698,10 +834,11 @@ export default function AnalyticsPage() {
         {/* Follower Growth */}
         {(growthChartResult || growthQuery.isLoading) && (
           <section>
-            <div className="flex items-start justify-between mb-1">
+            <div className="flex items-start justify-between mb-3">
               <div>
-                <h2 className="text-lg font-semibold">Follower Growth</h2>
-                <p className="text-sm text-muted-foreground">Last 90 days — captured automatically on each sync</p>
+                <div className="eyebrow mb-1">Growth</div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Follower Growth</h2>
+                <p className="text-[12px] text-muted-foreground mt-0.5">Last 90 days — captured automatically on each sync</p>
               </div>
             </div>
             {growthNetStats && (
@@ -835,8 +972,9 @@ export default function AnalyticsPage() {
         {/* Best Posting Times */}
         {allMetrics.length > 0 && (
           <section>
-            <h2 className="text-lg font-semibold mb-1">Best Posting Times</h2>
-            <p className="text-sm text-muted-foreground mb-4">Average views by day of week and time of day</p>
+            <div className="eyebrow mb-1">Timing</div>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 4 }}>Best Posting Times</h2>
+            <p className="text-[12px] text-muted-foreground mb-4">Average views by day of week and time of day</p>
             {bestTimesData.every((d) => d.avg === 0) ? (
               <p className="text-sm text-muted-foreground">
                 Not enough data yet — log posts with dates to see patterns.
@@ -926,8 +1064,9 @@ export default function AnalyticsPage() {
           <section>
             <div className="flex items-start justify-between mb-1">
               <div>
-                <h2 className="text-lg font-semibold">Content Velocity</h2>
-                <p className="text-sm text-muted-foreground mb-4">
+                <div className="eyebrow mb-1">Output</div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Content Velocity</h2>
+                <p className="text-[12px] text-muted-foreground mb-4">
                   Planned vs published this month
                   {consistencyScore !== null && (
                     <span className={`ml-2 font-semibold ${consistencyScore >= 80 ? 'text-emerald-600 dark:text-emerald-400' : consistencyScore >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
@@ -953,8 +1092,9 @@ export default function AnalyticsPage() {
         {/* Competitor Benchmark */}
         {(allMetrics.length > 0 || (competitorPostsQuery.data ?? []).length > 0) && (
           <section>
-            <h2 className="text-lg font-semibold mb-1">Competitor Benchmark</h2>
-            <p className="text-sm text-muted-foreground mb-4">
+            <div className="eyebrow mb-1">Benchmark</div>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 4 }}>Competitor Benchmark</h2>
+            <p className="text-[12px] text-muted-foreground mb-4">
               Your total views vs competitor posts by week (last 12 weeks)
             </p>
             {benchmarkData.length === 0 ? (
@@ -1106,20 +1246,67 @@ export default function AnalyticsPage() {
           </div>
         </section>
 
+        {/* Channel breakdown table */}
+        {channelStats.length > 0 && (
+          <div className="rounded-xl border border-border overflow-hidden">
+            <div className="px-4 py-3 border-b border-border">
+              <div className="eyebrow">Channel breakdown</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead>
+                  <tr className="border-b border-border bg-muted/20">
+                    <th className="text-left px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Channel</th>
+                    <th className="text-right px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Reach</th>
+                    <th className="text-right px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Engagement</th>
+                    <th className="text-right px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Posts</th>
+                    <th className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">8-wk trend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {channelStats.map((ch) => (
+                    <tr key={ch.platform} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className={`text-[11px] px-2 py-0.5 rounded font-semibold ${PLATFORM_CHIP_COLORS[ch.platform as Platform] ?? 'bg-muted text-muted-foreground'}`}>
+                          {ch.platform}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="mono-num text-[13px]">{fmt(ch.totalReach)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="mono-num text-[13px]">
+                          {ch.avgEng != null ? `${ch.avgEng.toFixed(1)}%` : '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="mono-num text-[13px]">{ch.count}</span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        <Sparkline data={ch.weekBuckets} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Metrics table */}
         {displayed.length > 0 && (
           <div className="rounded-xl border border-border overflow-hidden">
             <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[600px]">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Date</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Platform</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Views</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Likes</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Comments</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Eng. Rate</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">URL</th>
+                <tr className="border-b border-border bg-muted/20">
+                  <th className="text-left px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Date</th>
+                  <th className="text-left px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Platform</th>
+                  <th className="text-right px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Views</th>
+                  <th className="text-right px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Likes</th>
+                  <th className="text-right px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Comments</th>
+                  <th className="text-right px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Eng. Rate</th>
+                  <th className="text-left px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">URL</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>

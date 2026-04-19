@@ -159,7 +159,8 @@ export function CompetitorResearchPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Competitor Research</h1>
+        <div className="eyebrow mb-1.5">Intelligence</div>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Competitor Research</h1>
         <p className="mt-1 text-muted-foreground">
           Analyzing competitors for{' '}
           <span className="font-medium text-foreground">{activeBrand.name}</span>

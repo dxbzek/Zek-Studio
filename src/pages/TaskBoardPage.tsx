@@ -304,12 +304,13 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       {/* Header */}
       <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-semibold">Tasks</h1>
+          <div className="eyebrow mb-1.5">Collaborate</div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Tasks</h1>
           {!isSpecialist && activeBrand && (
-            <p className="text-sm text-muted-foreground mt-0.5">{activeBrand.name}</p>
+            <p className="text-[13px] text-muted-foreground mt-1">{activeBrand.name}</p>
           )}
           {isSpecialist && (
-            <p className="text-sm text-muted-foreground mt-0.5">Your assigned tasks</p>
+            <p className="text-[13px] text-muted-foreground mt-1">Your assigned tasks</p>
           )}
         </div>
         {!isSpecialist && (

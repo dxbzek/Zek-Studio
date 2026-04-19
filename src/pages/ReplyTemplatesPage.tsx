@@ -112,8 +112,9 @@ export default function ReplyTemplatesPage() {
       {/* Header */}
       <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-semibold">Reply Templates</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{activeBrand.name}</p>
+          <div className="eyebrow mb-1.5">Create</div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Reply Templates</h1>
+          <p className="text-[13px] text-muted-foreground mt-1">{activeBrand.name}</p>
         </div>
         <Button size="sm" onClick={openCreate}>New Template</Button>
       </div>

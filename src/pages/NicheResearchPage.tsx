@@ -77,7 +77,8 @@ export function NicheResearchPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Niche Research</h1>
+          <div className="eyebrow mb-1.5">Intelligence</div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Niche Research</h1>
           <p className="mt-1 text-muted-foreground">
             Trending topics and top creators for{' '}
             <span className="font-medium text-foreground">{activeBrand.niche}</span>

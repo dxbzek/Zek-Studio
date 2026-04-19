@@ -104,8 +104,9 @@ export default function PublicReportPage() {
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
         {/* Brand info */}
         <div>
-          <h1 className="text-3xl font-bold">{brand.name}</h1>
-          <p className="text-muted-foreground mt-1">{brand.niche} · Analytics Report</p>
+          <div className="eyebrow mb-2">Analytics Report</div>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 48, fontWeight: 400, lineHeight: 1.05, letterSpacing: '-0.025em' }}>{brand.name}</h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">{brand.niche}</p>
         </div>
 
         {/* Stat cards */}
@@ -117,8 +118,8 @@ export default function PublicReportPage() {
             { label: 'Avg Engagement', value: avgEngRate },
           ].map(({ label, value }) => (
             <div key={label} className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className="text-2xl font-semibold mt-1">{value}</p>
+              <p className="eyebrow" style={{ fontSize: 10 }}>{label}</p>
+              <p className="mono-num mt-1" style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 400, lineHeight: 1 }}>{value}</p>
             </div>
           ))}
         </div>
@@ -126,7 +127,7 @@ export default function PublicReportPage() {
         {/* Platform breakdown */}
         {platformRows.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold mb-3">Platform Breakdown</h2>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 12 }}>Platform Breakdown</h2>
             <div className="rounded-xl border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
@@ -159,7 +160,7 @@ export default function PublicReportPage() {
         {/* Top posts */}
         {topPosts.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold mb-3">Top Posts</h2>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 12 }}>Top Posts</h2>
             <div className="rounded-xl border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>

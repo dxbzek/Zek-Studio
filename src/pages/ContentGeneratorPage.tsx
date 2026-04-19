@@ -364,7 +364,8 @@ export function ContentGeneratorPage() {
     <div className="p-6 space-y-6" ref={topRef}>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">AI Content Generator</h1>
+        <div className="eyebrow mb-1.5">Create</div>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>AI Content Generator</h1>
         <p className="mt-1 text-muted-foreground">
           Generating for{' '}
           <span className="font-medium text-foreground">{activeBrand.name}</span>
