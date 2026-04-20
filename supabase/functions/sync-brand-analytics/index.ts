@@ -205,6 +205,7 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       })
     }
+    const user = await userRes.json()
 
     const { brand_id, platform, since, until } = await req.json() as {
       brand_id: string
