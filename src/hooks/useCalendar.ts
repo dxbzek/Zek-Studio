@@ -32,7 +32,7 @@ export function useCalendar(brandId: string | null, year: number, month: number)
     mutationFn: async (payload: CalendarEntryInsert) => {
       const { data, error } = await supabase
         .from('calendar_entries')
-        .insert(payload)
+        .insert(payload as any)
         .select()
         .single()
       if (error) throw error
@@ -46,7 +46,7 @@ export function useCalendar(brandId: string | null, year: number, month: number)
     mutationFn: async ({ id, patch }) => {
       const { data, error } = await supabase
         .from('calendar_entries')
-        .update({ ...patch, updated_at: new Date().toISOString() })
+        .update({ ...patch, updated_at: new Date().toISOString() } as any)
         .eq('id', id)
         .select()
         .single()
