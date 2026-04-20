@@ -8,7 +8,6 @@ import { useActiveBrand } from '@/stores/activeBrand'
 import { BrandForm } from '@/components/brand/BrandForm'
 import type { BrandProfile } from '@/types'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,

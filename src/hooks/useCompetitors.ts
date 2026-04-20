@@ -20,6 +20,7 @@ export function useCompetitors(brandId: string | null) {
       return (data ?? []) as Competitor[]
     },
     enabled: !!brandId,
+    refetchOnMount: true,
   })
 
   const runResearch = useMutation({

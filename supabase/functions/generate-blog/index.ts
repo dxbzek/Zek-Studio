@@ -64,15 +64,27 @@ METADATA:{"slug":"url-friendly-slug-here","meta_title":"SEO meta title under 60 
 
       const raw = await groq(prompt, 3000)
 
+      // Convert any markdown the LLM output despite instructions
+      function sanitizeToHtml(text: string): string {
+        return text
+          .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+          .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+          .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/^- (.+)$/gm, '<li>$1</li>')
+          .replace(/```[\s\S]*?```/g, '')
+      }
+
       // Split content from metadata
       const metaMatch = raw.match(/METADATA:(\{.*\})\s*$/s)
-      let content = raw
+      let content = sanitizeToHtml(raw)
       let slug: string | null = null
       let meta_title: string | null = null
       let meta_description: string | null = null
 
       if (metaMatch) {
-        content = raw.slice(0, metaMatch.index).trim()
+        content = sanitizeToHtml(raw.slice(0, metaMatch.index).trim())
         try {
           const meta = JSON.parse(metaMatch[1])
           slug = meta.slug ?? null

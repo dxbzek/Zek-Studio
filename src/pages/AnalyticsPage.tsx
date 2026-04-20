@@ -198,11 +198,6 @@ export default function AnalyticsPage() {
     return Object.values(weekMap).sort((a, b) => a.label.localeCompare(b.label))
   }, [velocityQuery.data])
 
-  const consistencyScore = useMemo(() => {
-    const total  = velocityData.reduce((s, w) => s + w.planned + w.published, 0)
-    const published = velocityData.reduce((s, w) => s + w.published, 0)
-    return total > 0 ? Math.round((published / total) * 100) : null
-  }, [velocityData])
 
   // ── Follower Growth ───────────────────────────────────────────────────────
 
@@ -641,21 +636,17 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            {/* Right — velocity + best platform */}
+            {/* Right — posts + platforms */}
             <div className="p-5 flex flex-col gap-4">
               <div>
-                <div className="eyebrow mb-1">Consistency score</div>
+                <div className="eyebrow mb-1">Posts tracked</div>
                 <div
                   className="mono-num"
                   style={{ fontFamily: 'var(--font-heading)', fontSize: 40, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.03em' }}
                 >
-                  {consistencyScore != null ? `${consistencyScore}%` : '—'}
+                  {allMetrics.length}
                 </div>
-                {consistencyScore != null && (
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    {consistencyScore >= 80 ? 'On track' : consistencyScore >= 50 ? 'Improving' : 'Needs attention'}
-                  </p>
-                )}
+                <p className="text-[11px] text-muted-foreground mt-1">across all platforms</p>
               </div>
               <div>
                 <div className="eyebrow mb-1">Platforms tracked</div>
@@ -1068,11 +1059,6 @@ export default function AnalyticsPage() {
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}>Content Velocity</h2>
                 <p className="text-[12px] text-muted-foreground mb-4">
                   Planned vs published this month
-                  {consistencyScore !== null && (
-                    <span className={`ml-2 font-semibold ${consistencyScore >= 80 ? 'text-emerald-600 dark:text-emerald-400' : consistencyScore >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
-                      · {consistencyScore}% consistency
-                    </span>
-                  )}
                 </p>
               </div>
             </div>

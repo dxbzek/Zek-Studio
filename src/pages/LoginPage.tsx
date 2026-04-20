@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import logoSrc from '/logo.png'
 
 export function LoginPage() {
   const { user, loading } = useAuth()
@@ -63,8 +64,8 @@ export function LoginPage() {
         />
 
         {/* Logo */}
-        <div className="relative flex items-center gap-2.5">
-          <img src="/logo.png" alt="Zek" className="h-[18px] w-auto dark:invert" />
+        <div className="relative flex items-center gap-2.5 animate-in fade-in slide-in-from-top-2 duration-500">
+          <img src={logoSrc} alt="Zek" className="h-[18px] w-auto dark:invert" />
           <span style={{ fontFamily: 'var(--font-heading)', fontSize: 15, letterSpacing: '-0.02em' }}>
             Studio
           </span>
@@ -72,8 +73,9 @@ export function LoginPage() {
 
         {/* Editorial headline */}
         <div className="relative max-w-[480px]">
-          <div className="eyebrow mb-5">Vol. 04 · Spring '26</div>
+          <div className="eyebrow mb-5 animate-in fade-in slide-in-from-bottom-3 duration-700" style={{ animationDelay: '100ms', animationFillMode: 'backwards' }}>Vol. 04 · Spring '26</div>
           <h1
+            className="animate-in fade-in slide-in-from-bottom-4 duration-700"
             style={{
               fontFamily: 'var(--font-heading)',
               fontSize: 'clamp(44px, 5.2vw, 64px)',
@@ -81,25 +83,23 @@ export function LoginPage() {
               lineHeight: 1.08,
               letterSpacing: '-0.025em',
               marginBottom: 22,
+              animationDelay: '200ms',
+              animationFillMode: 'backwards',
             }}
           >
             Your strategist,<br />
             <em style={{ fontStyle: 'italic', color: 'var(--muted-foreground)' }}>in the corner.</em>
           </h1>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: 14, lineHeight: 1.55, maxWidth: 360 }}>
+          <p
+            className="animate-in fade-in slide-in-from-bottom-3 duration-700"
+            style={{ color: 'var(--muted-foreground)', fontSize: 14, lineHeight: 1.55, maxWidth: 360, animationDelay: '350ms', animationFillMode: 'backwards' }}
+          >
             Research niches, ship content, and track what lands — from one calm workspace. No growth hacks, no confetti.
           </p>
         </div>
 
-        {/* Footer */}
-        <div
-          className="relative flex items-center gap-6 text-[11px] text-muted-foreground"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
-          <span>EST. 2025</span>
-          <span>DXB · REMOTE</span>
-          <span>SOC 2 · IN PROGRESS</span>
-        </div>
+        {/* Footer spacer */}
+        <div />
       </div>
 
       {/* Right panel — form */}
@@ -107,7 +107,7 @@ export function LoginPage() {
         <div className="w-full max-w-[360px]">
           {/* Mobile logo */}
           <div className="flex items-center gap-2.5 mb-8 md:hidden">
-            <img src="/logo.png" alt="Zek" className="h-[18px] w-auto dark:invert" />
+            <img src={logoSrc} alt="Zek" className="h-[18px] w-auto dark:invert" />
             <span style={{ fontFamily: 'var(--font-heading)', fontSize: 15, letterSpacing: '-0.02em' }}>
               Studio
             </span>

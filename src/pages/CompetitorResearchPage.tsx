@@ -3,7 +3,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, Plus, Trash2, BookmarkX } from 'lucide-react'
+import { Loader2, Plus, Trash2, BookmarkX, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
@@ -81,6 +81,7 @@ export function CompetitorResearchPage() {
   const [sortKey, setSortKey] = useState<SortKey>('engagement')
   const [savingPostId, setSavingPostId] = useState<string | null>(null)
   const [transcribingPostId, setTranscribingPostId] = useState<string | null>(null)
+  const [rescrapingId, setRescrapingId] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(10)
 
   const { competitors, runResearch, deleteCompetitor, transcribePost } = useCompetitors(activeBrand?.id ?? null)
@@ -135,6 +136,19 @@ export function CompetitorResearchPage() {
       if (selectedCompetitorId === id) setSelectedCompetitorId(null)
     } catch (err) {
       toast.error((err as Error).message)
+    }
+  }
+
+  async function handleRescrape(id: string, handle: string, platform: Platform) {
+    setRescrapingId(id)
+    try {
+      const result = await runResearch.mutateAsync({ handle, platform })
+      const count = result.posts?.length ?? 0
+      toast.success(`Re-scraped @${handle} — ${count} posts updated`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setRescrapingId(null)
     }
   }
 
@@ -247,26 +261,38 @@ export function CompetitorResearchPage() {
                 All
               </button>
               {competitors.map((c) => (
-                <div key={c.id} className="flex items-center gap-1">
+                <div key={c.id} className="group flex items-center gap-1 rounded-full border border-border bg-background pr-1 hover:border-border/80 transition-colors">
                   <button
                     onClick={() => {
                       setSelectedCompetitorId(c.id === selectedCompetitorId ? null : c.id)
                       setVisibleCount(10)
                     }}
                     className={cn(
-                      'rounded-full border px-3 py-1 text-sm font-medium transition-colors',
+                      'rounded-full px-3 py-1 text-sm font-medium transition-colors',
                       c.id === selectedCompetitorId
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border bg-background hover:bg-muted',
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted',
                     )}
-                    title={c.last_scraped_at ? `Scraped ${formatDistanceToNow(parseISO(c.last_scraped_at), { addSuffix: true })}` : 'Never scraped'}
                   >
                     @{c.handle}
                     <span className="opacity-60 text-xs capitalize ml-1.5">{c.platform}</span>
+                    {c.last_scraped_at && (
+                      <span className="opacity-40 text-[10px] ml-1.5">
+                        · {formatDistanceToNow(parseISO(c.last_scraped_at), { addSuffix: true })}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleRescrape(c.id, c.handle, c.platform as Platform)}
+                    disabled={rescrapingId === c.id || runResearch.isPending}
+                    className="flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40"
+                    title="Re-scrape latest posts"
+                  >
+                    <RefreshCw className={cn('h-3.5 w-3.5', rescrapingId === c.id && 'animate-spin')} />
                   </button>
                   <button
                     onClick={() => handleDeleteCompetitor(c.id)}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    className="flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                     title="Remove competitor"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

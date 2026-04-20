@@ -14,10 +14,8 @@ import {
   BarChart3,
   Eye,
   Hash,
-  MessageSquare,
   Flag,
   Grid3x3,
-  Globe,
 } from 'lucide-react'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useBrands } from '@/hooks/useBrands'
@@ -53,24 +51,22 @@ const NAV_GROUPS = [
   {
     label: 'Create',
     items: [
-      { to: '/content',         label: 'Content',          icon: Sparkles },
-      { to: '/content/replies', label: 'Reply Templates',  icon: MessageSquare },
-      { to: '/calendar',        label: 'Calendar',         icon: CalendarDays },
+      { to: '/content',  label: 'Content',  icon: Sparkles },
+      { to: '/calendar', label: 'Calendar', icon: CalendarDays },
     ],
   },
   {
     label: 'Collaborate',
     items: [
-      { to: '/campaigns', label: 'Campaigns', icon: Flag },
-      { to: '/tasks',     label: 'Tasks',     icon: Grid3x3 },
-      { to: '/workspace', label: 'Team',      icon: UsersRound },
+      { to: '/campaigns',       label: 'Campaigns', icon: Flag },
+      { to: '/workspace/tasks', label: 'Tasks',     icon: Grid3x3 },
+      { to: '/workspace/team',  label: 'Team',      icon: UsersRound },
     ],
   },
   {
     label: 'Measure',
     items: [
-      { to: '/analytics', label: 'Analytics',     icon: BarChart3 },
-      { to: '/report',    label: 'Public Report', icon: Globe },
+      { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     ],
   },
 ]
@@ -144,9 +140,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   <span className="truncate text-[12.5px] font-medium text-sidebar-foreground leading-tight">
                     {activeBrand?.name ?? 'Select a brand'}
                   </span>
-                  {activeBrand?.handle && (
+                  {activeBrand?.instagram_handle && (
                     <span className="truncate text-[10.5px] text-muted-foreground leading-tight">
-                      {activeBrand.handle}
+                      @{activeBrand.instagram_handle}
                     </span>
                   )}
                 </div>

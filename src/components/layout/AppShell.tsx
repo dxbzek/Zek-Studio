@@ -7,20 +7,19 @@ import { ThemeToggle } from './ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
 import { useIsSpecialist } from '@/hooks/useTeam'
 import { Button } from '@/components/ui/button'
-import TaskBoardPage from '@/pages/TaskBoardPage'
 
 const ROUTE_MAP: Record<string, [string, string]> = {
   '/':                   ['Workspace',     'Dashboard'],
   '/brands':             ['Workspace',     'Brands'],
   '/research':           ['Intelligence',  'Research'],
   '/content':            ['Create',        'Content'],
-  '/content/replies':    ['Create',        'Reply Templates'],
   '/calendar':           ['Create',        'Calendar'],
   '/campaigns':          ['Collaborate',   'Campaigns'],
   '/tasks':              ['Collaborate',   'Tasks'],
   '/workspace':          ['Collaborate',   'Team'],
   '/analytics':          ['Measure',       'Analytics'],
-  '/report':             ['Measure',       'Public Report'],
+  '/workspace/tasks':    ['Collaborate',   'Tasks'],
+  '/workspace/team':     ['Collaborate',   'Team'],
 }
 
 function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
@@ -99,11 +98,7 @@ export function AppShell() {
   }
 
   if (isSpecialist) {
-    return (
-      <SpecialistShell>
-        <TaskBoardPage isSpecialist />
-      </SpecialistShell>
-    )
+    return <SpecialistShell />
   }
 
   return (

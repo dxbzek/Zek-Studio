@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { UserPlus, Trash2, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { UserPlus, Trash2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
