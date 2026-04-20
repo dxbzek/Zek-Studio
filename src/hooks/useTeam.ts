@@ -61,18 +61,30 @@ export function useSpecialistBrand() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return null
-      const { data: memberships } = await supabase
-        .from('team_members')
-        .select('brand_id')
-        .eq('user_id', user.id)
-        .limit(1)
-      const brandId = memberships?.[0]?.brand_id
+
+      // Try by user_id first, fall back to email (handles unconfirmed invites)
+      let brandId: string | null = null
+      const { data: byId } = await supabase
+        .from('team_members').select('brand_id').eq('user_id', user.id).limit(1)
+      brandId = byId?.[0]?.brand_id ?? null
+
+      if (!brandId && user.email) {
+        const { data: byEmail } = await supabase
+          .from('team_members').select('brand_id').eq('email', user.email.toLowerCase()).limit(1)
+        brandId = byEmail?.[0]?.brand_id ?? null
+
+        // Backfill user_id so future lookups are faster
+        if (brandId) {
+          await supabase.from('team_members')
+            .update({ user_id: user.id })
+            .eq('email', user.email.toLowerCase())
+            .is('user_id', null)
+        }
+      }
+
       if (!brandId) return null
       const { data: brand } = await supabase
-        .from('brand_profiles')
-        .select('*')
-        .eq('id', brandId)
-        .single()
+        .from('brand_profiles').select('*').eq('id', brandId).single()
       return (brand ?? null) as BrandProfile | null
     },
     staleTime: 5 * 60 * 1000,
