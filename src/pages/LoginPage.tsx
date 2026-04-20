@@ -17,8 +17,21 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   if (!loading && user) return <Navigate to="/" replace />
+
+  async function handleGoogleSignIn() {
+    setGoogleLoading(true)
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/` },
+    })
+    if (error) {
+      setError(error.message)
+      setGoogleLoading(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -164,8 +177,13 @@ export function LoginPage() {
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          <Button variant="outline" className="w-full h-[38px] text-[13px]">
-            Continue with Google
+          <Button
+            variant="outline"
+            className="w-full h-[38px] text-[13px]"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+          >
+            {googleLoading ? 'Redirecting…' : 'Continue with Google'}
           </Button>
 
           <p className="mt-6 text-center text-[11px] text-muted-foreground">
