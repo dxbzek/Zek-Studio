@@ -55,7 +55,7 @@ export function useTeam(brandId: string | null) {
     mutationFn: async ({ memberId, newBrandId }: { memberId: string; newBrandId: string }) => {
       const { error } = await supabase
         .from('team_members')
-        .update({ brand_id: newBrandId })
+        .update({ brand_id: newBrandId } as any)
         .eq('id', memberId)
       if (error) throw error
     },

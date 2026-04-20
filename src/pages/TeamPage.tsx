@@ -22,7 +22,7 @@ import { useActiveBrand } from '@/stores/activeBrand'
 import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
 import { useBrands } from '@/hooks/useBrands'
-import type { TeamMember, Task } from '@/types'
+import type { TeamMember, Task, BrandProfile } from '@/types'
 
 function initials(email: string) {
   return email.slice(0, 2).toUpperCase()
@@ -135,7 +135,7 @@ export default function TeamPage() {
   const { members, invite, removeMember, reassignBrand } = useTeam(activeBrand?.id ?? null)
   const { tasks } = useTasks(activeBrand?.id ?? null)
   const { brands } = useBrands()
-  const allBrands = brands.data ?? []
+  const allBrands = brands ?? []
 
   const [inviteOpen, setInviteOpen] = useState(false)
   const [emailInput, setEmailInput] = useState('')
@@ -161,7 +161,8 @@ export default function TeamPage() {
   async function handleInvite() {
     const email = emailInput.trim().toLowerCase()
     if (!email || !email.includes('@')) { toast.error('Enter a valid email address'); return }
-    const brandId = inviteBrandId || activeBrand.id
+    const brandId = inviteBrandId || activeBrand?.id
+    if (!brandId) return
     try {
       // Temporarily use selected brand by calling invite-member directly with that brand_id
       const { supabase } = await import('@/lib/supabase')
@@ -290,7 +291,7 @@ export default function TeamPage() {
                   <SelectValue placeholder="Select brand" />
                 </SelectTrigger>
                 <SelectContent>
-                  {allBrands.map((b) => (
+                  {allBrands.map((b: BrandProfile) => (
                     <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -321,7 +322,7 @@ export default function TeamPage() {
                 <SelectValue placeholder="Select brand" />
               </SelectTrigger>
               <SelectContent>
-                {allBrands.map((b) => (
+                {allBrands.map((b: BrandProfile) => (
                   <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                 ))}
               </SelectContent>
