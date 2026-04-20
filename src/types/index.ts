@@ -204,9 +204,13 @@ export interface CalendarEntry {
   assigned_editor: string | null
   assigned_shooter: string | null
   assigned_talent: string | null
+  character: string | null
   created_at: string
   updated_at: string
 }
+
+export const CHARACTERS = ['Edna', 'Nikhil', 'Imran', 'Khuram', 'Ibrahim', 'Elliot', 'Keeley'] as const
+export type Character = typeof CHARACTERS[number]
 
 export type CalendarEntryInsert = Omit<CalendarEntry, 'id' | 'created_at' | 'updated_at'>
 export type CalendarEntryUpdate = Partial<CalendarEntryInsert>

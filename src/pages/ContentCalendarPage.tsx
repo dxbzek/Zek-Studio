@@ -60,7 +60,7 @@ import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
-import { PLATFORMS, CONTENT_THEMES } from '@/types'
+import { PLATFORMS, CONTENT_THEMES, CHARACTERS } from '@/types'
 import type {
   CalendarEntry,
   CalendarEntryInsert,
@@ -438,9 +438,10 @@ export function ContentCalendarPage() {
   const [formApprovalStatus, setFormApprovalStatus] = useState<ApprovalStatus | null>(null)
   const [formApprovalNote, setFormApprovalNote]     = useState('')
   // Production roles
-  const [formEditor, setFormEditor]   = useState('')
-  const [formShooter, setFormShooter] = useState('')
-  const [formTalent, setFormTalent]   = useState('')
+  const [formEditor, setFormEditor]     = useState('')
+  const [formShooter, setFormShooter]   = useState('')
+  const [formTalent, setFormTalent]     = useState('')
+  const [formCharacter, setFormCharacter] = useState<string>('')
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   function resetForm() {
@@ -448,7 +449,7 @@ export function ContentCalendarPage() {
     setFormDate(format(new Date(), 'yyyy-MM-dd'))
     setFormPlatforms(['instagram']); setFormContentType('property_tour'); setFormStatus('draft')
     setFormAssigneeEmail(''); setFormCampaignId(null); setFormPillarId(null); setFormApprovalStatus(null); setFormApprovalNote('')
-    setFormEditor(''); setFormShooter(''); setFormTalent('')
+    setFormEditor(''); setFormShooter(''); setFormTalent(''); setFormCharacter('')
   }
 
   function openCreate(date?: string) {
@@ -472,6 +473,7 @@ export function ContentCalendarPage() {
     setFormEditor(entry.assigned_editor ?? '')
     setFormShooter(entry.assigned_shooter ?? '')
     setFormTalent(entry.assigned_talent ?? '')
+    setFormCharacter(entry.character ?? '')
     setDrawerOpen(true)
   }
 
@@ -490,6 +492,7 @@ export function ContentCalendarPage() {
       assigned_editor: formEditor || null,
       assigned_shooter: formShooter || null,
       assigned_talent: formTalent || null,
+      character: formCharacter || null,
     }
   }
 
@@ -609,6 +612,7 @@ export function ContentCalendarPage() {
         assigned_editor: editingEntry.assigned_editor,
         assigned_shooter: editingEntry.assigned_shooter,
         assigned_talent: editingEntry.assigned_talent,
+        character: editingEntry.character,
       } as CalendarEntryInsert)
       toast.success('Entry duplicated')
       setDrawerOpen(false)
@@ -1100,6 +1104,27 @@ export function ContentCalendarPage() {
                   members={teamMembers}
                   dotColor="bg-violet-400"
                 />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
+                    Character / Model
+                    <span className="text-muted-foreground/50 font-normal">(optional)</span>
+                  </label>
+                  <Select
+                    value={formCharacter || '__none__'}
+                    onValueChange={(v) => setFormCharacter(v === '__none__' ? '' : v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {CHARACTERS.map((name) => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
 

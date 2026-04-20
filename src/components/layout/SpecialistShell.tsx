@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MoonStar, Sun, LogOut, LayoutList, CalendarDays } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
+import { useSpecialistBrand } from '@/hooks/useTeam'
+import { useActiveBrand } from '@/stores/activeBrand'
 import TaskBoardPage from '@/pages/TaskBoardPage'
 import { ContentCalendarPage } from '@/pages/ContentCalendarPage'
 
@@ -16,6 +18,14 @@ const NAV: { id: Page; label: string; icon: React.ElementType }[] = [
 export function SpecialistShell() {
   const { theme, setTheme } = useTheme()
   const [page, setPage] = useState<Page>('tasks')
+  const { data: specialistBrand } = useSpecialistBrand()
+  const { activeBrand, setActiveBrand } = useActiveBrand()
+
+  useEffect(() => {
+    if (specialistBrand && !activeBrand) {
+      setActiveBrand(specialistBrand)
+    }
+  }, [specialistBrand, activeBrand, setActiveBrand])
 
   async function handleSignOut() {
     await supabase.auth.signOut()

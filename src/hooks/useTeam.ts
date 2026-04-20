@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { TeamMember } from '@/types'
+import type { TeamMember, BrandProfile } from '@/types'
 
 export function useTeam(brandId: string | null) {
   const queryClient = useQueryClient()
@@ -52,6 +52,31 @@ export function useTeam(brandId: string | null) {
   })
 
   return { members, invite, removeMember }
+}
+
+/** Returns the first brand the specialist belongs to (for auto-seeding activeBrand) */
+export function useSpecialistBrand() {
+  return useQuery({
+    queryKey: ['specialist-brand'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return null
+      const { data: memberships } = await supabase
+        .from('team_members')
+        .select('brand_id')
+        .eq('user_id', user.id)
+        .limit(1)
+      const brandId = memberships?.[0]?.brand_id
+      if (!brandId) return null
+      const { data: brand } = await supabase
+        .from('brand_profiles')
+        .select('*')
+        .eq('id', brandId)
+        .single()
+      return (brand ?? null) as BrandProfile | null
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 }
 
 /** Returns true if the current user is a specialist (not an owner) on any brand */

@@ -190,17 +190,17 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 
-    // Validate caller
+    // Validate caller via Auth REST API (avoids ES256 local-decode issues)
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       })
     }
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', ''),
-    )
-    if (userError || !user) {
+    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: authHeader, apikey: SERVICE_KEY },
+    })
+    if (!userRes.ok) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       })
