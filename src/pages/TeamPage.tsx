@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { UserPlus, Trash2, AlertCircle } from 'lucide-react'
+import { UserPlus, Trash2, AlertCircle, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,10 +10,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
+import { useBrands } from '@/hooks/useBrands'
 import type { TeamMember, Task } from '@/types'
 
 function initials(email: string) {
@@ -82,10 +90,12 @@ function MemberRow({
   member,
   workload,
   onRemove,
+  onReassign,
 }: {
   member: TeamMember
   workload: MemberWorkload
   onRemove: () => void
+  onReassign: () => void
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card">
@@ -109,6 +119,9 @@ function MemberRow({
             Pending
           </span>
         )}
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onReassign} title="Change brand">
+          <Building2 className="h-3.5 w-3.5" />
+        </Button>
         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={onRemove}>
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
@@ -119,12 +132,17 @@ function MemberRow({
 
 export default function TeamPage() {
   const { activeBrand } = useActiveBrand()
-  const { members, invite, removeMember } = useTeam(activeBrand?.id ?? null)
+  const { members, invite, removeMember, reassignBrand } = useTeam(activeBrand?.id ?? null)
   const { tasks } = useTasks(activeBrand?.id ?? null)
+  const { brands } = useBrands()
+  const allBrands = brands.data ?? []
 
   const [inviteOpen, setInviteOpen] = useState(false)
   const [emailInput, setEmailInput] = useState('')
+  const [inviteBrandId, setInviteBrandId] = useState<string>('')
   const [confirmRemove, setConfirmRemove] = useState<TeamMember | null>(null)
+  const [reassignMember, setReassignMember] = useState<TeamMember | null>(null)
+  const [reassignBrandId, setReassignBrandId] = useState<string>('')
 
   const allTasks = tasks.data ?? []
 
@@ -142,17 +160,34 @@ export default function TeamPage() {
 
   async function handleInvite() {
     const email = emailInput.trim().toLowerCase()
-    if (!email || !email.includes('@')) {
-      toast.error('Enter a valid email address')
-      return
-    }
+    if (!email || !email.includes('@')) { toast.error('Enter a valid email address'); return }
+    const brandId = inviteBrandId || activeBrand.id
     try {
-      await invite.mutateAsync(email)
+      // Temporarily use selected brand by calling invite-member directly with that brand_id
+      const { supabase } = await import('@/lib/supabase')
+      const { data, error } = await supabase.functions.invoke('invite-member', {
+        body: { email, brand_id: brandId },
+      })
+      if (error) throw new Error((error as any).message)
+      if (data?.error) throw new Error(data.error)
       toast.success(`Invite sent to ${email}`)
       setEmailInput('')
+      setInviteBrandId('')
       setInviteOpen(false)
     } catch (err) {
       toast.error('Failed to send invite', { description: (err as Error).message })
+    }
+  }
+
+  async function handleReassign() {
+    if (!reassignMember || !reassignBrandId) return
+    try {
+      await reassignBrand.mutateAsync({ memberId: reassignMember.id, newBrandId: reassignBrandId })
+      toast.success(`${reassignMember.email} moved to new brand`)
+      setReassignMember(null)
+      setReassignBrandId('')
+    } catch (err) {
+      toast.error('Failed to reassign', { description: (err as Error).message })
     }
   }
 
@@ -223,6 +258,7 @@ export default function TeamPage() {
                 member={member}
                 workload={computeWorkload(member.email, allTasks)}
                 onRemove={() => setConfirmRemove(member)}
+                onReassign={() => { setReassignMember(member); setReassignBrandId(member.brand_id) }}
               />
             ))}
           </div>
@@ -237,7 +273,7 @@ export default function TeamPage() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              The specialist will receive an email to set up their Zek Studio account. They'll see only their assigned tasks.
+              The specialist will receive an email to set up their Zek Studio account.
             </p>
             <Input
               type="email"
@@ -247,13 +283,54 @@ export default function TeamPage() {
               onKeyDown={(e) => { if (e.key === 'Enter') handleInvite() }}
               autoFocus
             />
+            <div className="space-y-1.5">
+              <label className="text-[12px] text-muted-foreground">Assign to brand</label>
+              <Select value={inviteBrandId || activeBrand.id} onValueChange={setInviteBrandId}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Select brand" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allBrands.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setInviteOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setInviteOpen(false)}>Cancel</Button>
             <Button size="sm" onClick={handleInvite} disabled={invite.isPending}>
               {invite.isPending ? 'Sending...' : 'Send Invite'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reassign Brand Dialog */}
+      <Dialog open={!!reassignMember} onOpenChange={() => setReassignMember(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change Brand</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Reassign <strong>{reassignMember?.email}</strong> to a different brand.
+            </p>
+            <Select value={reassignBrandId} onValueChange={setReassignBrandId}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Select brand" />
+              </SelectTrigger>
+              <SelectContent>
+                {allBrands.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setReassignMember(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleReassign} disabled={reassignBrand.isPending || !reassignBrandId}>
+              {reassignBrand.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -51,7 +51,18 @@ export function useTeam(brandId: string | null) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   })
 
-  return { members, invite, removeMember }
+  const reassignBrand = useMutation({
+    mutationFn: async ({ memberId, newBrandId }: { memberId: string; newBrandId: string }) => {
+      const { error } = await supabase
+        .from('team_members')
+        .update({ brand_id: newBrandId })
+        .eq('id', memberId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  })
+
+  return { members, invite, removeMember, reassignBrand }
 }
 
 /** Returns the first brand the specialist belongs to (for auto-seeding activeBrand) */
