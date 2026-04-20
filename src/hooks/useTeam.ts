@@ -98,12 +98,16 @@ export function useIsSpecialist() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return false
-      const { data } = await supabase
-        .from('team_members')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1)
-      return Array.isArray(data) && data.length > 0
+      const { data: byId } = await supabase
+        .from('team_members').select('id').eq('user_id', user.id).limit(1)
+      if (Array.isArray(byId) && byId.length > 0) return true
+      // Fall back to email match (user_id may be null for unconfirmed invites)
+      if (user.email) {
+        const { data: byEmail } = await supabase
+          .from('team_members').select('id').eq('email', user.email.toLowerCase()).limit(1)
+        return Array.isArray(byEmail) && byEmail.length > 0
+      }
+      return false
     },
     staleTime: 5 * 60 * 1000,
   })
