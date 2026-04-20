@@ -1,6 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY')
@@ -240,7 +239,7 @@ function extractCreator(result: any, platform: 'instagram' | 'tiktok' | 'youtube
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }

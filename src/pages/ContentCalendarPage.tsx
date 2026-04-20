@@ -108,6 +108,8 @@ const PILLAR_COLORS = [
   '#0ea5e9', '#3b82f6', '#64748b', '#0f172a',
 ]
 
+const AGENTS = ['Edna', 'Nikhil', 'Imran', 'Khuram', 'Ibrahim', 'Elliot', 'Keeley']
+
 // Production roles shown on entry cards and in the drawer
 const PRODUCTION_ROLES = [
   { key: 'assigned_editor',  label: 'Editor',                dot: 'bg-teal-400',   badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',   letter: 'E' },
@@ -298,7 +300,10 @@ function RolePicker({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">Unassigned</SelectItem>
-          {members.map((m) => (
+          {AGENTS.map((name) => (
+            <SelectItem key={name} value={name}>{name}</SelectItem>
+          ))}
+          {members.filter((m) => !AGENTS.includes(m.email)).map((m) => (
             <SelectItem key={m.id} value={m.email}>
               {emailHandle(m.email)}
               <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
