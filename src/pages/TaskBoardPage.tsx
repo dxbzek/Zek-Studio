@@ -201,6 +201,7 @@ function QuickAddTask({
           if (e.key === 'Enter' && title.trim()) {
             onAdd(title.trim())
             setTitle('')
+            inputRef.current?.blur()
           } else if (e.key === 'Escape') {
             setTitle('')
             inputRef.current?.blur()
@@ -306,6 +307,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
 
   // Drag
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
+  const collisionMissLogged = useRef(false)
 
   // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -614,7 +616,12 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           collisionDetection={(args) => {
             const within = pointerWithin(args)
             if (within.length > 0) return within
-            return rectIntersection(args)
+            const rect = rectIntersection(args)
+            if (rect.length === 0 && !collisionMissLogged.current) {
+              collisionMissLogged.current = true
+              console.warn('[TaskBoard] collisionDetection returned no targets — drops will no-op')
+            }
+            return rect
           }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}

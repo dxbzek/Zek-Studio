@@ -44,8 +44,24 @@ export function LoginPage() {
         if (error) throw error
         navigate('/')
       } else {
-        const { error } = await supabase.auth.signUp({ email, password })
-        if (error) throw error
+        const { data, error } = await supabase.auth.signUp({ email, password })
+        if (error) {
+          // Supabase surfaces duplicate-email as "User already registered" (422).
+          // Catch it and route the user to sign-in instead of a generic error.
+          if (/already\s+registered|already\s+been\s+registered/i.test(error.message)) {
+            setError('An account with that email already exists. Try signing in instead.')
+            setMode('login')
+            return
+          }
+          throw error
+        }
+        // Supabase returns a user with empty identities[] when the email is
+        // already taken but confirmations are enabled — still treat as dup.
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          setError('An account with that email already exists. Try signing in instead.')
+          setMode('login')
+          return
+        }
         setSuccessMsg('Account created! Check your email to confirm.')
         setMode('login')
       }

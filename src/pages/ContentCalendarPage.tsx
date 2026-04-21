@@ -520,19 +520,38 @@ export function ContentCalendarPage() {
 
       if (drawerMode === 'create') {
         const platforms = formPlatforms.length > 0 ? formPlatforms : ['instagram' as Platform]
-        let firstEntry: CalendarEntry | null = null
 
-        for (const plat of platforms) {
-          const entry = await createEntry.mutateAsync({
-            brand_id: activeBrand!.id,
-            ...buildCommonPayload(),
-            platform: plat,
-            generated_content_id: null,
-          } as CalendarEntryInsert)
-          if (!firstEntry) firstEntry = entry
+        // Fire all platform inserts in parallel and surface per-platform results.
+        // If any fail, roll back the successful rows so we don't leave a partial
+        // group (e.g. 2/3 platforms created) that the UI would render as an
+        // incomplete multi-platform post.
+        const results = await Promise.allSettled(
+          platforms.map((plat) =>
+            createEntry.mutateAsync({
+              brand_id: activeBrand!.id,
+              ...buildCommonPayload(),
+              platform: plat,
+              generated_content_id: null,
+            } as CalendarEntryInsert)
+          )
+        )
+        const created: CalendarEntry[] = []
+        const failed: { platform: Platform; reason: unknown }[] = []
+        results.forEach((r, i) => {
+          if (r.status === 'fulfilled') created.push(r.value)
+          else failed.push({ platform: platforms[i], reason: r.reason })
+        })
+
+        if (failed.length > 0) {
+          await Promise.allSettled(created.map((e) => deleteEntry.mutateAsync(e.id)))
+          const first = failed[0].reason
+          throw first instanceof Error
+            ? first
+            : new Error(`Failed to create entry for ${failed.map((f) => f.platform).join(', ')}`)
         }
 
         // Every calendar entry gets a linked task — assignee optional
+        const firstEntry = created[0] ?? null
         if (firstEntry) {
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,

@@ -16,7 +16,6 @@ import AnalyticsPage from '@/pages/AnalyticsPage'
 import CampaignsPage from '@/pages/CampaignsPage'
 import { SeoPage } from '@/pages/SeoPage'
 import { ResearchShell }  from '@/pages/shells/ResearchShell'
-import { ContentShell }   from '@/pages/shells/ContentShell'
 import { WorkspaceShell } from '@/pages/shells/WorkspaceShell'
 import PublicReportPage from '@/pages/PublicReportPage'
 import PublicApprovalPage from '@/pages/PublicApprovalPage'
@@ -51,10 +50,8 @@ export default function App() {
               </Route>
 
               {/* Content */}
-              <Route path="/content" element={<ContentShell />}>
-                <Route index element={<Navigate to="generator" replace />} />
-                <Route path="generator" element={<ContentGeneratorPage />} />
-              </Route>
+              <Route path="/content" element={<ContentGeneratorPage />} />
+              <Route path="/content/generator" element={<Navigate to="/content" replace />} />
 
               {/* Workspace */}
               <Route path="/workspace" element={<WorkspaceShell />}>

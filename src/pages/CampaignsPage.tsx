@@ -280,14 +280,20 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Description{' '}
-                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">
+                  Description{' '}
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </label>
+                <span className="text-[10.5px] tabular-nums text-muted-foreground">
+                  {description.length}/500
+                </span>
+              </div>
               <Textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => setDescription(e.target.value.slice(0, 500))}
                 rows={3}
+                maxLength={500}
                 className="resize-none"
                 placeholder="Campaign notes or strategy…"
               />

@@ -312,7 +312,15 @@ export default function TeamPage() {
       </Dialog>
 
       {/* Reassign Brand Dialog */}
-      <Dialog open={!!reassignMember} onOpenChange={() => setReassignMember(null)}>
+      <Dialog
+        open={!!reassignMember}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReassignMember(null)
+            setReassignBrandId('')
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Change Brand</DialogTitle>
@@ -328,7 +336,13 @@ export default function TeamPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setReassignMember(null)}>Cancel</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setReassignMember(null); setReassignBrandId('') }}
+            >
+              Cancel
+            </Button>
             <Button size="sm" onClick={handleReassign} disabled={reassignBrand.isPending || !reassignBrandId}>
               {reassignBrand.isPending ? 'Saving...' : 'Save'}
             </Button>

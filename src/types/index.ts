@@ -330,19 +330,6 @@ export interface ContentPillar {
 }
 export type ContentPillarInsert = Omit<ContentPillar, 'id' | 'created_at'>
 
-// ─── Reply Templates ──────────────────────────────────────────────────────────
-
-export interface ReplyTemplate {
-  id: string
-  brand_id: string
-  label: string
-  text: string
-  platform: Platform | null
-  tags: string[]
-  created_at: string
-}
-export type ReplyTemplateInsert = Omit<ReplyTemplate, 'id' | 'created_at'>
-
 // ─── SEO Module ───────────────────────────────────────────────────────────────
 
 export type SeoKeywordDifficulty = 'easy' | 'medium' | 'hard'

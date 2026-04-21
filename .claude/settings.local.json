@@ -54,7 +54,25 @@
       "WebSearch",
       "Bash(ffmpeg -version)",
       "Bash(winget install *)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(echo \"exit=$?\")",
+      "mcp__claude_ai_Canva__list-brand-kits",
+      "WebFetch(domain:www.arabianbusiness.com)",
+      "mcp__claude_ai_Canva__generate-design",
+      "Bash(xargs grep *)",
+      "Bash(start \"\" \"c:/Zek Studio/content/social/palm-carousel-preview.html\")",
+      "Bash(git -C \"c:/Zek Studio\" add content/social/palm-carousel-preview.html)",
+      "Bash(git -C 'c:/Zek Studio' commit -m ' *)",
+      "Bash(git -C \"c:/Zek Studio\" push origin main)",
+      "Bash(start \"\" \"c:\\\\Zek Studio\\\\content\\\\social\\\\palm-carousel-preview.html\")",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(curl -s \"https://cdn.simpleicons.org/linkedin\")",
+      "Bash(curl -sL \"https://cdn.simpleicons.org/linkedin\" -o /tmp/li.svg)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://cdn.simpleicons.org/linkedin/0A66C2\")",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://cdn.simpleicons.org/facebook/1877F2\")",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://cdn.simpleicons.org/linkedin/0A66C2\" -w \"HTTP:%{http_code} SIZE:%{size_download}\\\\n\" -o /tmp/li.svg)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://simpleicons.org/?q=linkedin\" -o /tmp/si.html -w \"%{http_code}\\\\n\")",
+      "Bash(git restore *)"
     ]
   }
 }
