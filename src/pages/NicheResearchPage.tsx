@@ -6,31 +6,19 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useNicheResearch } from '@/hooks/useNicheResearch'
 import { useCompetitors } from '@/hooks/useCompetitors'
+import { fmtCompactOrNull } from '@/lib/formatting'
 import { toast } from 'sonner'
+import { PLATFORM_BRAND } from '@/lib/platformBrand'
 import type { TopCreator, Platform } from '@/types'
 import { formatDistanceToNow } from 'date-fns'
 
-const PLATFORM_COLORS: Record<string, string> = {
-  instagram: 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
-  tiktok: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
-  youtube: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  facebook: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  linkedin: 'bg-blue-700/10 text-blue-700 dark:text-blue-300',
-}
-
-function fmtNum(n: number | null | undefined): string | null {
-  if (n == null || n === 0) return null
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return String(n)
-}
-
-const PLATFORM_LABELS: Record<string, string> = {
+const PLATFORM_LABELS: Record<Platform, string> = {
   instagram: 'Instagram',
-  tiktok: 'TikTok',
-  youtube: 'YouTube',
-  facebook: 'Facebook',
-  linkedin: 'LinkedIn',
+  tiktok:    'TikTok',
+  youtube:   'YouTube',
+  facebook:  'Facebook',
+  linkedin:  'LinkedIn',
+  twitter:   'X',
 }
 
 export function NicheResearchPage() {
@@ -220,22 +208,22 @@ export function NicheResearchPage() {
                           <span className="text-sm font-medium truncate">@{creator.handle}</span>
                           <Badge
                             variant="secondary"
-                            className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[creator.platform] ?? ''}`}
+                            className={`text-xs px-1.5 py-0 ${PLATFORM_BRAND[creator.platform as Platform]?.chip ?? ''}`}
                           >
-                            {PLATFORM_LABELS[creator.platform] ?? creator.platform}
+                            {PLATFORM_LABELS[creator.platform as Platform] ?? creator.platform}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          {fmtNum(creator.top_post_views) && (
+                          {fmtCompactOrNull(creator.top_post_views) && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Eye className="h-3 w-3" />
-                              {fmtNum(creator.top_post_views)} views
+                              {fmtCompactOrNull(creator.top_post_views)} views
                             </span>
                           )}
-                          {fmtNum(creator.top_post_likes) && (
+                          {fmtCompactOrNull(creator.top_post_likes) && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Heart className="h-3 w-3" />
-                              {fmtNum(creator.top_post_likes)} likes
+                              {fmtCompactOrNull(creator.top_post_likes)} likes
                             </span>
                           )}
                           {creator.top_post_date && (

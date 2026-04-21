@@ -15,15 +15,8 @@ import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useReplyTemplates } from '@/hooks/useReplyTemplates'
 import { PLATFORMS } from '@/types'
+import { PLATFORM_BRAND } from '@/lib/platformBrand'
 import type { Platform, ReplyTemplate } from '@/types'
-
-const PLATFORM_COLORS: Record<string, string> = {
-  instagram: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  tiktok:    'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  facebook:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  linkedin:  'bg-blue-800/10 text-blue-800 dark:text-blue-300',
-  youtube:   'bg-red-500/10 text-red-600 dark:text-red-400',
-}
 
 export default function ReplyTemplatesPage() {
   const { activeBrand } = useActiveBrand()
@@ -146,7 +139,7 @@ export default function ReplyTemplatesPage() {
               onClick={() => setFilterPlatform(p.value)}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 filterPlatform === p.value
-                  ? `${PLATFORM_COLORS[p.value]} border-transparent`
+                  ? `${PLATFORM_BRAND[p.value].chip} border-transparent`
                   : 'border-border text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -194,7 +187,7 @@ export default function ReplyTemplatesPage() {
                         {t.platform && (
                           <span
                             className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
-                              PLATFORM_COLORS[t.platform] ?? 'bg-muted text-muted-foreground'
+                              (t.platform ? PLATFORM_BRAND[t.platform].chip : "bg-muted text-muted-foreground")
                             }`}
                           >
                             {t.platform}
@@ -306,7 +299,7 @@ export default function ReplyTemplatesPage() {
                     onClick={() => setFormPlatform(p.value)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                       formPlatform === p.value
-                        ? `${PLATFORM_COLORS[p.value]} border-transparent`
+                        ? `${PLATFORM_BRAND[p.value].chip} border-transparent`
                         : 'border-border text-muted-foreground'
                     }`}
                   >

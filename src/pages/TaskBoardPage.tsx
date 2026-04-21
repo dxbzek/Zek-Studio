@@ -32,6 +32,7 @@ import {
   TASK_STATUS_BORDER, TASK_STATUS_CHIP,
   TASK_STATUS_COLUMN_TINT, TASK_STATUS_ACCENT, TASK_STATUS_ICON_COLOR,
   TASK_STATUS_DOT,
+  TASK_TYPE_CHIP, TASK_PRIORITY_DOT, TASK_PRIORITY_CHIP, TASK_PRIORITY_LABEL,
 } from '@/lib/statusTokens'
 import type {
   Task, TaskStatus, TaskType, TaskPriority, TaskInsert, CalendarEntry,
@@ -50,32 +51,6 @@ const COLUMNS: {
   { id: 'scheduled',   label: 'Scheduled',   icon: Clock,         empty: 'Drop here to schedule' },
   { id: 'done',        label: 'Done',        icon: CheckCircle2,  empty: 'Ship something 🚀' },
 ]
-
-const TYPE_COLORS: Record<TaskType, string> = {
-  content:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  shoot:    'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  approval: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  backup:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  other:    'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
-}
-
-const PRIORITY_COLORS: Record<TaskPriority, string> = {
-  low:    'bg-zinc-400',
-  medium: 'bg-amber-400',
-  high:   'bg-rose-500',
-}
-
-const PRIORITY_CHIP: Record<TaskPriority, string> = {
-  low:    'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
-  medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  high:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-}
-
-const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  low:    'Low priority',
-  medium: 'Medium priority',
-  high:   'High priority',
-}
 
 function dueMeta(due: string | null): { label: string; tone: string } | null {
   if (!due) return null
@@ -148,9 +123,9 @@ function TaskChip({
           {task.title}
         </span>
         <span
-          aria-label={PRIORITY_LABELS[task.priority]}
-          title={PRIORITY_LABELS[task.priority]}
-          className={`h-2 w-2 rounded-full mt-0.5 shrink-0 ${PRIORITY_COLORS[task.priority]} ${
+          aria-label={TASK_PRIORITY_LABEL[task.priority]}
+          title={TASK_PRIORITY_LABEL[task.priority]}
+          className={`h-2 w-2 rounded-full mt-0.5 shrink-0 ${TASK_PRIORITY_DOT[task.priority]} ${
             isHighPriority ? 'animate-pulse' : ''
           }`}
         />
@@ -159,7 +134,7 @@ function TaskChip({
         {linkedEntry ? (
           <PlatformBadge platform={linkedEntry.platform} size="xs" />
         ) : (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLORS[task.type]}`}>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TASK_TYPE_CHIP[task.type]}`}>
             {task.type}
           </span>
         )}
@@ -803,7 +778,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                       onClick={() => setFormType(tt.value)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                         active
-                          ? `${TYPE_COLORS[tt.value]} border-transparent`
+                          ? `${TASK_TYPE_CHIP[tt.value]} border-transparent`
                           : 'border-border text-muted-foreground'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
@@ -825,7 +800,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                     onClick={() => setFormPriority(p.value)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                       formPriority === p.value
-                        ? `${PRIORITY_CHIP[p.value]} border-transparent`
+                        ? `${TASK_PRIORITY_CHIP[p.value]} border-transparent`
                         : 'border-border text-muted-foreground'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >

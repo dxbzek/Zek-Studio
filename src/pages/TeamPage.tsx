@@ -10,19 +10,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { BrandSelect } from '@/components/BrandSelect'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
 import { useBrands } from '@/hooks/useBrands'
-import type { TeamMember, Task, BrandProfile } from '@/types'
+import type { TeamMember, Task } from '@/types'
 
 function initials(email: string) {
   return email.slice(0, 2).toUpperCase()
@@ -286,16 +280,11 @@ export default function TeamPage() {
             />
             <div className="space-y-1.5">
               <label className="text-[12px] text-muted-foreground">Assign to brand</label>
-              <Select value={inviteBrandId || activeBrand.id} onValueChange={setInviteBrandId}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Select brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {allBrands.map((b: BrandProfile) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <BrandSelect
+                brands={allBrands}
+                value={inviteBrandId || activeBrand.id}
+                onChange={setInviteBrandId}
+              />
             </div>
           </div>
           <DialogFooter>
@@ -317,16 +306,11 @@ export default function TeamPage() {
             <p className="text-sm text-muted-foreground">
               Reassign <strong>{reassignMember?.email}</strong> to a different brand.
             </p>
-            <Select value={reassignBrandId} onValueChange={setReassignBrandId}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder="Select brand" />
-              </SelectTrigger>
-              <SelectContent>
-                {allBrands.map((b: BrandProfile) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <BrandSelect
+              brands={allBrands}
+              value={reassignBrandId}
+              onChange={setReassignBrandId}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setReassignMember(null)}>Cancel</Button>

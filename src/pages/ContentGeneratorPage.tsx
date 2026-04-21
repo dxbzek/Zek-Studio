@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { useGenerator } from '@/hooks/useGenerator'
 import { useNicheResearch } from '@/hooks/useNicheResearch'
 import { useCompetitorPosts } from '@/hooks/useCompetitors'
+import { fmtCompactOrNull } from '@/lib/formatting'
+import { PLATFORM_BRAND } from '@/lib/platformBrand'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
 import { PLATFORMS, GENERATOR_PLATFORMS, CONTENT_THEMES } from '@/types'
@@ -36,13 +38,13 @@ const PACKAGE_SECTIONS: { label: string; contentType: ContentType; color: string
   { label: 'Call to Action',  contentType: 'cta',     color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
 ]
 
-const PLATFORM_COLORS: Record<string, string> = {
-  meta:      'bg-gradient-to-r from-pink-500/10 to-blue-500/10 text-pink-600 dark:text-pink-400',
-  instagram: 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
-  tiktok:    'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
-  youtube:   'bg-red-500/10 text-red-600 dark:text-red-400',
-  facebook:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  linkedin:  'bg-blue-700/10 text-blue-700 dark:text-blue-300',
+// Generator platforms include "meta" (a Facebook+Instagram duo) which isn't a
+// real Platform value, so it gets its own gradient chip. Everything else is
+// delegated to the canonical PLATFORM_BRAND map.
+const META_CHIP = 'bg-gradient-to-r from-pink-500/10 to-blue-500/10 text-pink-600 dark:text-pink-400'
+function platformChip(platform: string): string {
+  if (platform === 'meta') return META_CHIP
+  return PLATFORM_BRAND[platform as Platform]?.chip ?? ''
 }
 
 const TONE_COLORS: Record<string, string> = {
@@ -73,12 +75,7 @@ const PLATFORM_CHAR_LIMITS: Record<string, number> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtNum(n: number | null | undefined): string | null {
-  if (n == null || n === 0) return null
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${Math.round(n / 1_000)}K`
-  return String(n)
-}
+const fmtNum = fmtCompactOrNull
 
 function getThemeLabel(type: string): string {
   return CONTENT_THEMES.find((t) => t.value === type)?.label ?? type
@@ -178,7 +175,7 @@ function HistoryItem({ item }: { item: GeneratedContent }) {
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${THEME_COLORS[item.type] ?? 'bg-muted text-muted-foreground'}`}>
               {getThemeLabel(item.type)}
             </Badge>
-            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[item.platform] ?? ''}`}>
+            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${platformChip(item.platform)}`}>
               {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === item.platform)?.label ?? item.platform}
             </Badge>
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TONE_COLORS[item.tone] ?? ''}`}>
@@ -475,7 +472,7 @@ export function ContentGeneratorPage() {
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge
                         variant="secondary"
-                        className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[post.platform] ?? ''}`}
+                        className={`text-xs px-1.5 py-0 ${platformChip(post.platform)}`}
                       >
                         {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === post.platform)?.label ?? post.platform}
                       </Badge>
@@ -576,7 +573,7 @@ export function ContentGeneratorPage() {
               <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${THEME_COLORS[latestResult.type] ?? 'bg-muted text-muted-foreground'}`}>
                 {getThemeLabel(latestResult.type)}
               </Badge>
-              <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${PLATFORM_COLORS[latestResult.platform] ?? ''}`}>
+              <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${platformChip(latestResult.platform)}`}>
                 {[...PLATFORMS, ...GENERATOR_PLATFORMS].find((p) => p.value === latestResult.platform)?.label ?? latestResult.platform}
               </Badge>
               <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${TONE_COLORS[latestResult.tone] ?? ''}`}>

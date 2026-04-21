@@ -1,4 +1,4 @@
-import type { CalendarStatus, TaskStatus } from '@/types'
+import type { ApprovalStatus, CalendarStatus, TaskPriority, TaskStatus, TaskType } from '@/types'
 
 // Unified status palette. "Scheduled" uses the same amber across Calendar and
 // Tasks so the concept reads the same on either surface. Todo maps to the
@@ -66,4 +66,59 @@ export const TASK_STATUS_ICON_COLOR: Record<TaskStatus, string> = {
   in_progress: 'text-indigo-500 dark:text-indigo-400',
   scheduled:   'text-amber-500 dark:text-amber-400',
   done:        'text-emerald-600 dark:text-emerald-400',
+}
+
+// Approval palette (Calendar client-approval chips, dots, solid buttons).
+// Pending = amber, Approved = emerald, Rejected = red — kept distinct from the
+// scheduled/published palette since "approved" is not "published".
+export const APPROVAL_STATUS_CHIP: Record<ApprovalStatus, string> = {
+  pending_review: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  approved:       'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  rejected:       'bg-red-500/10 text-red-600 dark:text-red-400',
+}
+
+export const APPROVAL_STATUS_SOLID: Record<ApprovalStatus, string> = {
+  pending_review: 'bg-amber-500 text-white border-amber-500',
+  approved:       'bg-emerald-500 text-white border-emerald-500',
+  rejected:       'bg-red-500 text-white border-red-500',
+}
+
+export const APPROVAL_STATUS_DOT: Record<ApprovalStatus, string> = {
+  pending_review: 'bg-amber-400',
+  approved:       'bg-emerald-500',
+  rejected:       'bg-red-500',
+}
+
+export const APPROVAL_STATUS_LABEL: Record<ApprovalStatus, string> = {
+  pending_review: 'Pending Review',
+  approved:       'Approved',
+  rejected:       'Rejected',
+}
+
+// Task type palette (chips on task cards + quick-add type picker).
+export const TASK_TYPE_CHIP: Record<TaskType, string> = {
+  content:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  shoot:    'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+  approval: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  backup:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+  other:    'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
+}
+
+// Task priority palette (dot on card + chip on priority picker).
+export const TASK_PRIORITY_DOT: Record<TaskPriority, string> = {
+  low:    'bg-zinc-400',
+  medium: 'bg-amber-400',
+  high:   'bg-rose-500',
+}
+
+export const TASK_PRIORITY_CHIP: Record<TaskPriority, string> = {
+  low:    'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
+  medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  high:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+}
+
+export const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
+  low:    'Low priority',
+  medium: 'Medium priority',
+  high:   'High priority',
 }

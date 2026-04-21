@@ -210,10 +210,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       {/* Footer */}
       <div className="border-t border-border p-2.5 flex items-center gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div
-            className="h-[26px] w-[26px] rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
-            style={{ background: '#D4C2A8', color: '#111' }}
-          >
+          <div className="h-[26px] w-[26px] rounded-full bg-muted text-foreground flex items-center justify-center text-[10px] font-semibold shrink-0">
             {user?.email?.slice(0, 2).toUpperCase() ?? 'ZS'}
           </div>
           <div className="min-w-0 flex-1">

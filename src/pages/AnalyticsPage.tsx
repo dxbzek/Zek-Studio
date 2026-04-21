@@ -31,14 +31,20 @@ import { useBrandSync } from '@/hooks/usePlatformConnections'
 import { useShareTokens } from '@/hooks/useShareTokens'
 import { useCompetitorPosts } from '@/hooks/useCompetitors'
 import { supabase } from '@/lib/supabase'
+import { fmtCompact } from '@/lib/formatting'
 import { PLATFORMS } from '@/types'
+import { PLATFORM_BRAND } from '@/lib/platformBrand'
 import type { Platform, PostMetric, PostMetricInsert } from '@/types'
 
+// Line-chart stroke per platform. Pulled from PLATFORM_BRAND.hex so the trend
+// chart lines match the brand colors used elsewhere on the page.
 const PLATFORM_LINE_COLORS: Record<string, string> = {
-  instagram: '#a855f7',
-  tiktok:    '#f43f5e',
-  facebook:  '#3b82f6',
-  youtube:   '#ef4444',
+  instagram: `#${PLATFORM_BRAND.instagram.hex}`,
+  tiktok:    `#${PLATFORM_BRAND.tiktok.hex}`,
+  facebook:  `#${PLATFORM_BRAND.facebook.hex}`,
+  linkedin:  `#${PLATFORM_BRAND.linkedin.hex}`,
+  youtube:   `#${PLATFORM_BRAND.youtube.hex}`,
+  twitter:   `#${PLATFORM_BRAND.twitter.hex}`,
 }
 
 function weekOfMonth(date: Date): number {
@@ -47,13 +53,6 @@ function weekOfMonth(date: Date): number {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmt(n: number | null | undefined): string {
-  if (n == null) return '—'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return String(n)
-}
 
 function engagementRate(m: PostMetric): string {
   const eng = (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.saves ?? 0)
@@ -101,16 +100,6 @@ function Sparkline({ data }: { data: number[] }) {
   )
 }
 
-// ─── Platform chip ───────────────────────────────────────────────────────────
-
-const PLATFORM_CHIP_COLORS: Record<Platform, string> = {
-  instagram: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  tiktok:    'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  facebook:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  linkedin:  'bg-blue-800/10 text-blue-800 dark:text-blue-300',
-  youtube:   'bg-red-500/10 text-red-600 dark:text-red-400',
-  twitter:   'bg-sky-500/10 text-sky-600 dark:text-sky-400',
-}
 
 // ─── Log/Edit form defaults ───────────────────────────────────────────────────
 
@@ -600,7 +589,7 @@ export default function AnalyticsPage() {
                   letterSpacing: '-0.03em',
                 }}
               >
-                {fmt(summary.totalViews)}
+                {fmtCompact(summary.totalViews)}
               </div>
               <p className="text-[12px] text-muted-foreground mt-2 italic" style={{ fontFamily: 'var(--font-heading)' }}>
                 Across {summary.count} post{summary.count !== 1 ? 's' : ''}, all platforms
@@ -632,7 +621,7 @@ export default function AnalyticsPage() {
                   className="mono-num"
                   style={{ fontFamily: 'var(--font-heading)', fontSize: 40, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.03em' }}
                 >
-                  {fmt(summary.totalLikes)}
+                  {fmtCompact(summary.totalLikes)}
                 </div>
               </div>
             </div>
@@ -708,7 +697,7 @@ export default function AnalyticsPage() {
 
               return (
                 <div key={p.value} className="flex items-center gap-3 px-4 py-3">
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded shrink-0 ${PLATFORM_CHIP_COLORS[p.value as Platform]}`}>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded shrink-0 ${PLATFORM_BRAND[p.value as Platform].chip}`}>
                     {p.label}
                   </span>
                   {handle ? (
@@ -837,7 +826,7 @@ export default function AnalyticsPage() {
               <div className="flex flex-wrap gap-3 mb-4">
                 {growthNetStats.map(({ platform, latest, net }) => (
                   <div key={platform} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${PLATFORM_CHIP_COLORS[platform as Platform]}`}>
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${PLATFORM_BRAND[platform as Platform].chip}`}>
                       {platform}
                     </span>
                     <span className="text-sm font-semibold tabular-nums">{latest >= 1000 ? `${(latest / 1000).toFixed(1)}K` : latest}</span>
@@ -854,8 +843,8 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={growthChartResult.chartData} margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} tickFormatter={fmt} />
-                  <Tooltip formatter={(v: unknown) => fmt(Number(v))} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtCompact} />
+                  <Tooltip formatter={(v: unknown) => fmtCompact(Number(v))} />
                   <Legend />
                   {growthChartResult.platforms.map((p) => (
                     <Line
@@ -892,8 +881,8 @@ export default function AnalyticsPage() {
         {summary ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Posts logged" value={String(summary.count)} icon={BarChart3} />
-            <StatCard label="Total views" value={fmt(summary.totalViews)} icon={Eye} />
-            <StatCard label="Total likes" value={fmt(summary.totalLikes)} icon={ThumbsUp} />
+            <StatCard label="Total views" value={fmtCompact(summary.totalViews)} icon={Eye} />
+            <StatCard label="Total likes" value={fmtCompact(summary.totalLikes)} icon={ThumbsUp} />
             <StatCard
               label="Avg engagement"
               value={summary.avgEngRate != null ? `${summary.avgEngRate.toFixed(1)}%` : '—'}
@@ -936,7 +925,7 @@ export default function AnalyticsPage() {
                 onClick={() => { setFilterPlatform(p.value); setMetricsLimit(50) }}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                   filterPlatform === p.value
-                    ? `${PLATFORM_CHIP_COLORS[p.value]} border-transparent`
+                    ? `${PLATFORM_BRAND[p.value].chip} border-transparent`
                     : 'border-border text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -978,18 +967,18 @@ export default function AnalyticsPage() {
                   layout="vertical"
                   margin={{ left: 8, right: 56, top: 4, bottom: 4 }}
                 >
-                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtCompact(v)} />
                   <YAxis type="category" dataKey="day" tick={{ fontSize: 11 }} width={80} />
                   <Tooltip
                     formatter={(value: unknown, _name: unknown, props: unknown) => {
                       const posts = (props as { payload?: { posts?: number } }).payload?.posts ?? 0
-                      return [`${fmt(Number(value))} avg views · ${posts} post${posts !== 1 ? 's' : ''}`, 'Performance']
+                      return [`${fmtCompact(Number(value))} avg views · ${posts} post${posts !== 1 ? 's' : ''}`, 'Performance']
                     }}
                   />
                   <Bar
                     dataKey="avg"
                     radius={[0, 4, 4, 0]}
-                    label={{ position: 'right', fontSize: 10, formatter: (v: unknown) => Number(v) > 0 ? fmt(Number(v)) : '' }}
+                    label={{ position: 'right', fontSize: 10, formatter: (v: unknown) => Number(v) > 0 ? fmtCompact(Number(v)) : '' }}
                   >
                     {bestTimesData.map((entry, i) => (
                       <Cell
@@ -1016,18 +1005,18 @@ export default function AnalyticsPage() {
                     layout="vertical"
                     margin={{ left: 8, right: 56, top: 4, bottom: 4 }}
                   >
-                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtCompact(v)} />
                     <YAxis type="category" dataKey="hour" tick={{ fontSize: 10 }} width={44} />
                     <Tooltip
                       formatter={(value: unknown, _name: unknown, props: unknown) => {
                         const posts = (props as { payload?: { posts?: number } }).payload?.posts ?? 0
-                        return [`${fmt(Number(value))} avg views · ${posts} post${posts !== 1 ? 's' : ''}`, 'Performance']
+                        return [`${fmtCompact(Number(value))} avg views · ${posts} post${posts !== 1 ? 's' : ''}`, 'Performance']
                       }}
                     />
                     <Bar
                       dataKey="avg"
                       radius={[0, 4, 4, 0]}
-                      label={{ position: 'right', fontSize: 10, formatter: (v: unknown) => Number(v) > 0 ? fmt(Number(v)) : '' }}
+                      label={{ position: 'right', fontSize: 10, formatter: (v: unknown) => Number(v) > 0 ? fmtCompact(Number(v)) : '' }}
                     >
                       {bestHoursData.map((entry, i) => (
                         <Cell
@@ -1095,8 +1084,8 @@ export default function AnalyticsPage() {
                   margin={{ left: 8, right: 16, top: 4, bottom: 4 }}
                 >
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => fmt(v)} />
-                  <Tooltip formatter={(v: unknown) => fmt(Number(v))} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => fmtCompact(v)} />
+                  <Tooltip formatter={(v: unknown) => fmtCompact(Number(v))} />
                   <Legend />
                   <Line
                     type="monotone"
@@ -1254,12 +1243,12 @@ export default function AnalyticsPage() {
                   {channelStats.map((ch) => (
                     <tr key={ch.platform} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                       <td className="px-4 py-3">
-                        <span className={`text-[11px] px-2 py-0.5 rounded font-semibold ${PLATFORM_CHIP_COLORS[ch.platform as Platform] ?? 'bg-muted text-muted-foreground'}`}>
+                        <span className={`text-[11px] px-2 py-0.5 rounded font-semibold ${PLATFORM_BRAND[ch.platform as Platform].chip ?? 'bg-muted text-muted-foreground'}`}>
                           {ch.platform}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="mono-num text-[13px]">{fmt(ch.totalReach)}</span>
+                        <span className="mono-num text-[13px]">{fmtCompact(ch.totalReach)}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className="mono-num text-[13px]">
@@ -1307,13 +1296,13 @@ export default function AnalyticsPage() {
                       {m.posted_at ? format(parseISO(m.posted_at), 'MMM d, yyyy') : '—'}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${PLATFORM_CHIP_COLORS[m.platform as Platform]}`}>
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${PLATFORM_BRAND[m.platform as Platform].chip}`}>
                         {m.platform}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmt(m.views)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmt(m.likes)}</td>
-                    <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmt(m.comments)}</td>
+                    <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmtCompact(m.views)}</td>
+                    <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmtCompact(m.likes)}</td>
+                    <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmtCompact(m.comments)}</td>
                     <td className="px-4 py-2.5 text-xs text-right tabular-nums">{engagementRate(m)}</td>
                     <td className="px-4 py-2.5 text-xs max-w-[120px]">
                       {m.post_url ? (
@@ -1377,7 +1366,7 @@ export default function AnalyticsPage() {
                     onClick={() => setField('platform', p.value)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                       form.platform === p.value
-                        ? `${PLATFORM_CHIP_COLORS[p.value]} border-transparent`
+                        ? `${PLATFORM_BRAND[p.value].chip} border-transparent`
                         : 'border-border text-muted-foreground'
                     }`}
                   >

@@ -9,18 +9,13 @@ import { useBrands } from '@/hooks/useBrands'
 import { usePostMetrics } from '@/hooks/usePostMetrics'
 import { useSeoKeywords, useBlogPosts } from '@/hooks/useSeo'
 import { supabase } from '@/lib/supabase'
+import { fmtCompact } from '@/lib/formatting'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import type { PostMetric, BrandKpi } from '@/types'
-
-function fmtNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return String(n)
-}
 
 function TrendBadge({ current, previous }: { current: number; previous: number }) {
   if (previous === 0) return null
@@ -229,7 +224,7 @@ export function DashboardPage() {
           <span className="inline-block size-[5px] rounded-full bg-emerald-500" style={{ boxShadow: '0 0 0 3px rgba(52,211,153,0.3)' }} />
           Live
         </span>
-        {kpis.viewsThis > 0 && <span>Reach {fmtNum(kpis.viewsThis)}</span>}
+        {kpis.viewsThis > 0 && <span>Reach {fmtCompact(kpis.viewsThis)}</span>}
         {kpis.avgEng != null && <span>Eng {kpis.avgEng.toFixed(1)}%</span>}
         <span>Posts {kpis.postsThis} this month</span>
         {kpis.rankingKw > 0 && <span>Keywords {kpis.rankingKw}/{kpis.totalKw}</span>}
@@ -266,8 +261,8 @@ export function DashboardPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <KpiTile
                 label="Reach this month"
-                value={fmtNum(kpis.viewsThis)}
-                sub={kpis.viewsLast > 0 ? `${fmtNum(kpis.viewsLast)} last month` : 'No data last month'}
+                value={fmtCompact(kpis.viewsThis)}
+                sub={kpis.viewsLast > 0 ? `${fmtCompact(kpis.viewsLast)} last month` : 'No data last month'}
                 trend={<TrendBadge current={kpis.viewsThis} previous={kpis.viewsLast} />}
               />
               <KpiTile
@@ -311,7 +306,7 @@ export function DashboardPage() {
                         <GoalBar label="Posts" actual={kpis.postsThis} target={kpiGoal!.posts_target} fmtFn={String} />
                       )}
                       {kpiGoal!.views_target != null && (
-                        <GoalBar label="Reach" actual={kpis.viewsThis} target={kpiGoal!.views_target} fmtFn={fmtNum} />
+                        <GoalBar label="Reach" actual={kpis.viewsThis} target={kpiGoal!.views_target} fmtFn={fmtCompact} />
                       )}
                       {kpiGoal!.engagement_target != null && kpis.avgEng != null && (
                         <GoalBar label="Engagement rate" actual={kpis.avgEng} target={kpiGoal!.engagement_target} fmtFn={(n) => `${n.toFixed(1)}%`} />

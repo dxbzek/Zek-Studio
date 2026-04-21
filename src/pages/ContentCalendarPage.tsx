@@ -66,6 +66,9 @@ import {
   CALENDAR_STATUS_BORDER,
   CALENDAR_STATUS_CHIP,
   CALENDAR_STATUS_DOT,
+  APPROVAL_STATUS_DOT,
+  APPROVAL_STATUS_SOLID,
+  APPROVAL_STATUS_LABEL,
 } from '@/lib/statusTokens'
 import type {
   CalendarEntry,
@@ -162,10 +165,8 @@ function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: group.id })
 
-  const approvalDot =
-    rep.approval_status === 'pending_review' ? 'bg-amber-400'
-    : rep.approval_status === 'approved'     ? 'bg-emerald-500'
-    : rep.approval_status === 'rejected'     ? 'bg-red-500'
+  const approvalDot = rep.approval_status
+    ? APPROVAL_STATUS_DOT[rep.approval_status]
     : null
 
   return (
@@ -1047,30 +1048,24 @@ export function ContentCalendarPage() {
               <div className="flex gap-1.5 flex-wrap">
                 {(
                   [null, 'pending_review', 'approved', 'rejected'] as const
-                ).map((s) => (
-                  <button
-                    key={s ?? '__none__'}
-                    type="button"
-                    onClick={() => setFormApprovalStatus(s)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      formApprovalStatus === s
-                        ? s === 'approved'
-                          ? 'bg-emerald-500 text-white border-emerald-500'
-                          : s === 'rejected'
-                          ? 'bg-red-500 text-white border-red-500'
-                          : s === 'pending_review'
-                          ? 'bg-amber-500 text-white border-amber-500'
-                          : 'bg-muted text-foreground border-border'
-                        : 'border-border text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {s === null
-                      ? 'None'
-                      : s === 'pending_review'
-                      ? 'Pending Review'
-                      : s.charAt(0).toUpperCase() + s.slice(1)}
-                  </button>
-                ))}
+                ).map((s) => {
+                  const selected = formApprovalStatus === s
+                  const selectedClass = s
+                    ? APPROVAL_STATUS_SOLID[s]
+                    : 'bg-muted text-foreground border-border'
+                  return (
+                    <button
+                      key={s ?? '__none__'}
+                      type="button"
+                      onClick={() => setFormApprovalStatus(s)}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                        selected ? selectedClass : 'border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {s === null ? 'None' : APPROVAL_STATUS_LABEL[s]}
+                    </button>
+                  )
+                })}
               </div>
               {formApprovalStatus && (
                 <Textarea

@@ -27,68 +27,24 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useSeoKeywords, useBlogPosts, useSeoAudit, useReviewSnapshots } from '@/hooks/useSeo'
+import {
+  SEO_DIFFICULTY_CHIP,
+  SEO_INTENT_CHIP,
+  SEO_KW_STATUS_CHIP,
+  SEO_KW_STATUS_LABEL,
+  BLOG_STATUS_CHIP,
+  SEO_AUDIT_PRIORITY_CHIP,
+  SEO_AUDIT_PRIORITY_LABEL,
+  SEO_AUDIT_CATEGORY_LABEL,
+} from '@/lib/seoTokens'
 import type {
   BrandProfile,
   SeoKeyword, SeoKeywordDifficulty, SeoKeywordIntent, SeoKeywordStatus,
-  BlogPost, BlogPostStatus,
-  SeoAuditItem, SeoAuditCategory, SeoAuditStatus, SeoAuditPriority,
+  BlogPost,
+  SeoAuditItem, SeoAuditCategory, SeoAuditStatus,
 } from '@/types'
 
 type Tab = 'keywords' | 'blog' | 'audit' | 'reviews'
-
-// ─── Badge helpers ────────────────────────────────────────────────────────────
-
-const DIFF_STYLES: Record<SeoKeywordDifficulty, string> = {
-  easy:   'bg-green-500/10 text-green-600 dark:text-green-400',
-  medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  hard:   'bg-red-500/10 text-red-600 dark:text-red-400',
-}
-
-const INTENT_STYLES: Record<SeoKeywordIntent, string> = {
-  buy:    'bg-green-500/10 text-green-600 dark:text-green-400',
-  info:   'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  invest: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  local:  'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-}
-
-const KW_STATUS_STYLES: Record<SeoKeywordStatus, string> = {
-  targeting:   'bg-muted text-muted-foreground',
-  in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  page_1_2:    'bg-green-500/10 text-green-600 dark:text-green-400',
-  page_3_plus: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-}
-
-const KW_STATUS_LABELS: Record<SeoKeywordStatus, string> = {
-  targeting:   'Targeting',
-  in_progress: 'In Progress',
-  page_1_2:    'Page 1–2',
-  page_3_plus: 'Page 3+',
-}
-
-const BLOG_STATUS_STYLES: Record<BlogPostStatus, string> = {
-  idea:      'bg-muted text-muted-foreground',
-  draft:     'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  published: 'bg-green-500/10 text-green-600 dark:text-green-400',
-}
-
-const PRIORITY_STYLES: Record<SeoAuditPriority, string> = {
-  p0: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  p1: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  ok: 'bg-green-500/10 text-green-600 dark:text-green-400',
-}
-
-const PRIORITY_LABELS: Record<SeoAuditPriority, string> = {
-  p0: 'P0 Critical',
-  p1: 'P1 Important',
-  ok: 'OK',
-}
-
-const AUDIT_CATEGORY_LABELS: Record<SeoAuditCategory, string> = {
-  technical: 'Technical',
-  on_page:   'On-Page',
-  off_page:  'Off-Page',
-  local:     'Local',
-}
 
 const AUDIT_CATEGORIES: SeoAuditCategory[] = ['technical', 'on_page', 'off_page', 'local']
 
@@ -127,7 +83,7 @@ function KeywordsTab({ brandId }: { brandId: string }) {
     intent: 'info' as SeoKeywordIntent, target_url: '',
   })
 
-  const statusCounts = (Object.keys(KW_STATUS_LABELS) as SeoKeywordStatus[]).reduce<Record<string, number>>(
+  const statusCounts = (Object.keys(SEO_KW_STATUS_LABEL) as SeoKeywordStatus[]).reduce<Record<string, number>>(
     (acc, s) => { acc[s] = keywords.filter((k) => k.status === s).length; return acc },
     {},
   )
@@ -173,13 +129,13 @@ function KeywordsTab({ brandId }: { brandId: string }) {
           >
             All · {keywords.length}
           </button>
-          {(Object.keys(KW_STATUS_LABELS) as SeoKeywordStatus[]).map((s) => (
+          {(Object.keys(SEO_KW_STATUS_LABEL) as SeoKeywordStatus[]).map((s) => (
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
               className={cn('text-xs px-3 py-1.5 rounded-full font-medium transition-colors border', filterStatus === s ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:text-foreground')}
             >
-              {KW_STATUS_LABELS[s]} · {statusCounts[s] ?? 0}
+              {SEO_KW_STATUS_LABEL[s]} · {statusCounts[s] ?? 0}
             </button>
           ))}
         </div>
@@ -327,19 +283,19 @@ function KeywordRow({ kw, onUpdate, onDelete }: { kw: SeoKeyword; onUpdate: (p: 
         </td>
         <td className="px-3 py-3 text-center text-muted-foreground font-mono text-xs">{kw.volume?.toLocaleString() ?? '—'}</td>
         <td className="px-3 py-3 text-center">
-          {kw.difficulty && <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize', DIFF_STYLES[kw.difficulty])}>{kw.difficulty}</span>}
+          {kw.difficulty && <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize', SEO_DIFFICULTY_CHIP[kw.difficulty])}>{kw.difficulty}</span>}
         </td>
         <td className="px-3 py-3 text-center">
-          {kw.intent && <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize', INTENT_STYLES[kw.intent])}>{kw.intent}</span>}
+          {kw.intent && <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize', SEO_INTENT_CHIP[kw.intent])}>{kw.intent}</span>}
         </td>
         <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
           <Select value={kw.status} onValueChange={(v) => onUpdate({ status: v as SeoKeywordStatus })}>
             <SelectTrigger className="h-7 text-xs w-[120px]">
-              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', KW_STATUS_STYLES[kw.status])}>{KW_STATUS_LABELS[kw.status]}</span>
+              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', SEO_KW_STATUS_CHIP[kw.status])}>{SEO_KW_STATUS_LABEL[kw.status]}</span>
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(KW_STATUS_LABELS) as SeoKeywordStatus[]).map((s) => (
-                <SelectItem key={s} value={s}>{KW_STATUS_LABELS[s]}</SelectItem>
+              {(Object.keys(SEO_KW_STATUS_LABEL) as SeoKeywordStatus[]).map((s) => (
+                <SelectItem key={s} value={s}>{SEO_KW_STATUS_LABEL[s]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -838,7 +794,7 @@ function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: {
           </Button>
           <Select value={post.status} onValueChange={(v) => onUpdate({ status: v as BlogPostStatus })}>
             <SelectTrigger className="h-7 w-[110px] text-xs">
-              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium capitalize', BLOG_STATUS_STYLES[post.status])}>{post.status}</span>
+              <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium capitalize', BLOG_STATUS_CHIP[post.status])}>{post.status}</span>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="idea">Idea</SelectItem>
@@ -1053,7 +1009,7 @@ function AuditTab({ brandId }: { brandId: string }) {
         if (catItems.length === 0) return null
         return (
           <div key={cat}>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{AUDIT_CATEGORY_LABELS[cat]}</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{SEO_AUDIT_CATEGORY_LABEL[cat]}</h3>
             <div className="space-y-1.5">
               {catItems.map((item) => (
                 <AuditItemRow
@@ -1096,7 +1052,7 @@ function AuditItemRow({ item, onStatusChange, onDelete }: { item: SeoAuditItem; 
         {AUDIT_STATUS_ICON[item.status]}
       </button>
       <span className={cn('flex-1 text-sm', item.status === 'done' && 'line-through')}>{item.issue}</span>
-      <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', PRIORITY_STYLES[item.priority])}>{PRIORITY_LABELS[item.priority]}</span>
+      <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', SEO_AUDIT_PRIORITY_CHIP[item.priority])}>{SEO_AUDIT_PRIORITY_LABEL[item.priority]}</span>
       <button onClick={onDelete} className="text-muted-foreground hover:text-destructive transition-colors shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
     </div>
   )

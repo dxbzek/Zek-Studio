@@ -1,17 +1,11 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
+import { fmtCompact } from '@/lib/formatting'
 import type { PostMetric } from '@/types'
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function fmt(n: number | null | undefined): string {
-  if (n == null) return '—'
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return String(n)
-}
 
 function engagementRate(m: PostMetric): string {
   const eng = (m.likes ?? 0) + (m.comments ?? 0) + (m.shares ?? 0) + (m.saves ?? 0)
@@ -128,8 +122,8 @@ export default function PublicReportPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Total Posts', value: String(totalPosts) },
-            { label: 'Total Views', value: fmt(totalViews) },
-            { label: 'Total Likes', value: fmt(totalLikes) },
+            { label: 'Total Views', value: fmtCompact(totalViews) },
+            { label: 'Total Likes', value: fmtCompact(totalLikes) },
             { label: 'Avg Engagement', value: avgEngRate },
           ].map(({ label, value }) => (
             <div key={label} className="rounded-xl border border-border bg-card p-4">
@@ -159,10 +153,10 @@ export default function PublicReportPage() {
                       <td className="px-4 py-2.5 font-medium capitalize">{platform}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-xs">{s.count}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-xs">
-                        {fmt(Math.round(s.views / s.count))}
+                        {fmtCompact(Math.round(s.views / s.count))}
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-xs">
-                        {fmt(Math.round(s.likes / s.count))}
+                        {fmtCompact(Math.round(s.likes / s.count))}
                       </td>
                     </tr>
                   ))}
@@ -195,8 +189,8 @@ export default function PublicReportPage() {
                         {m.posted_at ? format(parseISO(m.posted_at), 'MMM d, yyyy') : '—'}
                       </td>
                       <td className="px-4 py-2.5 text-xs capitalize">{m.platform}</td>
-                      <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmt(m.views)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmt(m.likes)}</td>
+                      <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmtCompact(m.views)}</td>
+                      <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmtCompact(m.likes)}</td>
                       <td className="px-4 py-2.5 text-xs text-right tabular-nums">{engagementRate(m)}</td>
                       <td className="px-4 py-2.5 text-xs max-w-[120px]">
                         {m.post_url ? (
