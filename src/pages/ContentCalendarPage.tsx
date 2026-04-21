@@ -281,12 +281,14 @@ function RolePicker({
   onChange,
   members,
   dotColor,
+  showAgents = false,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   members: { id: string; email: string }[]
   dotColor: string
+  showAgents?: boolean
 }) {
   return (
     <div className="space-y-1">
@@ -300,7 +302,7 @@ function RolePicker({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">Unassigned</SelectItem>
-          {AGENTS.map((name) => (
+          {showAgents && AGENTS.map((name) => (
             <SelectItem key={name} value={name}>{name}</SelectItem>
           ))}
           {members.filter((m) => !AGENTS.includes(m.email)).map((m) => (
@@ -1108,52 +1110,8 @@ export function ContentCalendarPage() {
                   onChange={setFormTalent}
                   members={teamMembers}
                   dotColor="bg-violet-400"
+                  showAgents
                 />
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
-                    Character / Model
-                    <span className="text-muted-foreground/50 font-normal">(optional)</span>
-                  </label>
-                  <Select
-                    value={formCharacter || '__none__'}
-                    onValueChange={(v) => setFormCharacter(v === '__none__' ? '' : v)}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="None" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {CHARACTERS.map((name) => (
-                        <SelectItem key={name} value={name}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {/* Assign to (task owner for workload tracking) */}
-            {teamMembers.length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">
-                  Assign to{' '}
-                  <span className="text-muted-foreground font-normal text-xs">(task owner)</span>
-                </label>
-                <Select
-                  value={formAssigneeEmail || '__none__'}
-                  onValueChange={(v) => setFormAssigneeEmail(v === '__none__' ? '' : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Unassigned</SelectItem>
-                    {teamMembers.map((m) => (
-                      <SelectItem key={m.id} value={m.email}>{m.email}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             )}
 
