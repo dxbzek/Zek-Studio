@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MoonStar, Sun, LogOut, LayoutList, CalendarDays } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { useSpecialistBrand } from '@/hooks/useTeam'
 import { useActiveBrand } from '@/stores/activeBrand'
-import TaskBoardPage from '@/pages/TaskBoardPage'
-import { ContentCalendarPage } from '@/pages/ContentCalendarPage'
+
+const TaskBoardPage       = lazy(() => import('@/pages/TaskBoardPage'))
+const ContentCalendarPage = lazy(() => import('@/pages/ContentCalendarPage').then(m => ({ default: m.ContentCalendarPage })))
 
 type Page = 'tasks' | 'calendar'
 
@@ -77,8 +78,16 @@ export function SpecialistShell() {
         </div>
       </header>
       <main className="flex-1 overflow-y-auto">
-        {page === 'tasks'    && <TaskBoardPage isSpecialist />}
-        {page === 'calendar' && <ContentCalendarPage />}
+        <Suspense
+          fallback={
+            <div className="flex min-h-[40vh] items-center justify-center">
+              <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden />
+            </div>
+          }
+        >
+          {page === 'tasks'    && <TaskBoardPage isSpecialist />}
+          {page === 'calendar' && <ContentCalendarPage />}
+        </Suspense>
       </main>
     </div>
   )
