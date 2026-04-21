@@ -61,6 +61,7 @@ import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
 import { PLATFORMS, CONTENT_THEMES } from '@/types'
+import { PlatformBadge, PlatformPill, PLATFORM_BRAND } from '@/lib/platformBrand'
 import type {
   CalendarEntry,
   CalendarEntryInsert,
@@ -73,15 +74,6 @@ import type {
 } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const PLATFORM_CHIP_COLORS: Record<Platform, string> = {
-  instagram: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  tiktok:    'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  facebook:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  linkedin:  'bg-blue-800/10 text-blue-800 dark:text-blue-300',
-  youtube:   'bg-red-500/10 text-red-600 dark:text-red-400',
-  twitter:   'bg-sky-500/10 text-sky-600 dark:text-sky-400',
-}
 
 const STATUS_COLORS: Record<CalendarStatus, string> = {
   draft:     'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
@@ -146,15 +138,6 @@ function groupEntries(entries: CalendarEntry[]): EntryGroup[] {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-const PLATFORM_SHORT: Record<Platform, string> = {
-  instagram: 'IG',
-  facebook:  'FB',
-  tiktok:    'TT',
-  linkedin:  'LI',
-  youtube:   'YT',
-  twitter:   'X',
-}
-
 function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void }) {
   const { representative: rep } = group
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -171,9 +154,7 @@ function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void 
     >
       <div className="flex items-center gap-1 flex-wrap">
         {group.platforms.map((p) => (
-          <span key={p} className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${PLATFORM_CHIP_COLORS[p]}`}>
-            {PLATFORM_SHORT[p]}
-          </span>
+          <PlatformBadge key={p} platform={p} size="xs" />
         ))}
         {rep.approval_status === 'pending_review' && (
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 ml-auto" />
@@ -199,9 +180,7 @@ function EntryCardOverlay({ group }: { group: EntryGroup }) {
     <div className={`rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-2 py-1 text-xs shadow-lg`}>
       <div className="flex gap-1 flex-wrap mb-0.5">
         {group.platforms.map((p) => (
-          <span key={p} className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${PLATFORM_CHIP_COLORS[p]}`}>
-            {PLATFORM_SHORT[p]}
-          </span>
+          <PlatformBadge key={p} platform={p} size="xs" />
         ))}
       </div>
       <span className="text-foreground line-clamp-1">{rep.title}</span>
@@ -276,7 +255,7 @@ function GeneratedContentPreview({ id }: { id: string }) {
         <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
           {data.type}
         </span>
-        <span className={`text-[11px] px-1.5 py-0.5 rounded ${PLATFORM_CHIP_COLORS[data.platform as Platform]}`}>
+        <span className={`text-[11px] px-1.5 py-0.5 rounded ${PLATFORM_BRAND[data.platform as Platform].chip}`}>
           {data.platform}
         </span>
       </div>
@@ -710,13 +689,9 @@ export function ContentCalendarPage() {
                   : [...prev, p.value],
               )
             }
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-              filterPlatforms.includes(p.value)
-                ? `${PLATFORM_CHIP_COLORS[p.value]} border-transparent`
-                : 'border-border text-muted-foreground hover:text-foreground'
-            }`}
+            className="rounded-full border border-transparent hover:opacity-90 transition-opacity"
           >
-            {p.label}
+            <PlatformPill platform={p.value} label={p.label} active={filterPlatforms.includes(p.value)} />
           </button>
         ))}
         <div className="w-px h-4 bg-border mx-1" />
@@ -937,13 +912,9 @@ export function ContentCalendarPage() {
                           : [...prev, p.value],
                       )
                     }}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      formPlatforms.includes(p.value)
-                        ? `${PLATFORM_CHIP_COLORS[p.value]} border-transparent`
-                        : 'border-border text-muted-foreground hover:text-foreground'
-                    }`}
+                    className="rounded-full hover:opacity-90 transition-opacity"
                   >
-                    {p.label}
+                    <PlatformPill platform={p.value} label={p.label} active={formPlatforms.includes(p.value)} />
                   </button>
                 ))}
               </div>
