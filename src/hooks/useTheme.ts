@@ -5,7 +5,7 @@ type Theme = 'light' | 'dark'
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem('zek-theme') as Theme | null
   if (stored) return stored
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'light'
 }
 
 export function useTheme() {

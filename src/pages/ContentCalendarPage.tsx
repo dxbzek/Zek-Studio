@@ -122,94 +122,108 @@ function emailHandle(email: string) {
   return email.split('@')[0]
 }
 
+// ─── Entry grouping ───────────────────────────────────────────────────────────
+
+type EntryGroup = {
+  id: string               // representative entry id (used as DnD id)
+  representative: CalendarEntry
+  entries: CalendarEntry[]
+  platforms: Platform[]
+}
+
+function groupEntries(entries: CalendarEntry[]): EntryGroup[] {
+  const map = new Map<string, CalendarEntry[]>()
+  for (const e of entries) {
+    const key = `${e.title.toLowerCase().trim()}__${e.scheduled_date}`
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(e)
+  }
+  return Array.from(map.values()).map((grp) => ({
+    id: grp[0].id,
+    representative: grp[0],
+    entries: grp,
+    platforms: grp.map((e) => e.platform),
+  }))
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function EntryCard({
-  entry,
-  onClick,
-}: {
-  entry: CalendarEntry
-  onClick: () => void
-}) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: entry.id })
+const PLATFORM_SHORT: Record<Platform, string> = {
+  instagram: 'IG',
+  facebook:  'FB',
+  tiktok:    'TT',
+  linkedin:  'LI',
+  youtube:   'YT',
+  twitter:   'X',
+}
 
-  const assignedRoles = PRODUCTION_ROLES.filter(
-    (r) => entry[r.key as RoleKey],
-  )
+function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void }) {
+  const { representative: rep } = group
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({ id: group.id })
 
   return (
     <div
       ref={setNodeRef}
-      style={{
-        transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.4 : 1,
-      }}
+      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1 }}
       {...listeners}
       {...attributes}
       onClick={onClick}
-      className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[entry.status]} bg-card px-2 py-1 text-xs hover:bg-accent transition-colors select-none`}
+      className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-2 py-1 text-xs hover:bg-accent transition-colors select-none`}
     >
       <div className="flex items-center gap-1 flex-wrap">
-        <span
-          className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${PLATFORM_CHIP_COLORS[entry.platform]}`}
-        >
-          {entry.platform}
-        </span>
-        {entry.approval_status === 'pending_review' && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-        )}
-        {entry.approval_status === 'approved' && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-        )}
-        {entry.approval_status === 'rejected' && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-        )}
-        {assignedRoles.length > 0 && (
-          <span className="flex gap-0.5 items-center ml-auto shrink-0">
-            {assignedRoles.map((r) => (
-              <span
-                key={r.key}
-                title={`${r.label}: ${emailHandle(entry[r.key as RoleKey] ?? '')}`}
-                className={`inline-block w-1.5 h-1.5 rounded-full ${r.dot}`}
-              />
-            ))}
+        {group.platforms.map((p) => (
+          <span key={p} className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${PLATFORM_CHIP_COLORS[p]}`}>
+            {PLATFORM_SHORT[p]}
           </span>
+        ))}
+        {rep.approval_status === 'pending_review' && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 ml-auto" />
+        )}
+        {rep.approval_status === 'approved' && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ml-auto" />
+        )}
+        {rep.approval_status === 'rejected' && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 ml-auto" />
+        )}
+        {rep.assigned_talent && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0 ml-auto" />
         )}
       </div>
-      <span className="text-foreground line-clamp-1 mt-0.5">{entry.title}</span>
+      <span className="text-foreground line-clamp-1 mt-0.5">{rep.title}</span>
     </div>
   )
 }
 
-function EntryCardOverlay({ entry }: { entry: CalendarEntry }) {
+function EntryCardOverlay({ group }: { group: EntryGroup }) {
+  const { representative: rep } = group
   return (
-    <div
-      className={`rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[entry.status]} bg-card px-2 py-1 text-xs shadow-lg`}
-    >
-      <span
-        className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium mr-1 ${PLATFORM_CHIP_COLORS[entry.platform]}`}
-      >
-        {entry.platform}
-      </span>
-      <span className="text-foreground line-clamp-1">{entry.title}</span>
+    <div className={`rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-2 py-1 text-xs shadow-lg`}>
+      <div className="flex gap-1 flex-wrap mb-0.5">
+        {group.platforms.map((p) => (
+          <span key={p} className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium ${PLATFORM_CHIP_COLORS[p]}`}>
+            {PLATFORM_SHORT[p]}
+          </span>
+        ))}
+      </div>
+      <span className="text-foreground line-clamp-1">{rep.title}</span>
     </div>
   )
 }
 
 function DayCell({
   day,
-  entries,
+  groups,
   isCurrentMonth,
   tall,
-  onCardClick,
+  onGroupClick,
   onAddClick,
 }: {
   day: Date
-  entries: CalendarEntry[]
+  groups: EntryGroup[]
   isCurrentMonth: boolean
   tall?: boolean
-  onCardClick: (entry: CalendarEntry) => void
+  onGroupClick: (group: EntryGroup) => void
   onAddClick: () => void
 }) {
   const dateStr = format(day, 'yyyy-MM-dd')
@@ -238,12 +252,12 @@ function DayCell({
           </button>
         )}
       </div>
-      {entries.slice(0, MAX_VISIBLE).map((entry) => (
-        <EntryCard key={entry.id} entry={entry} onClick={() => onCardClick(entry)} />
+      {groups.slice(0, MAX_VISIBLE).map((grp) => (
+        <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
       ))}
-      {entries.length > MAX_VISIBLE && (
+      {groups.length > MAX_VISIBLE && (
         <span className="text-[10px] text-muted-foreground px-1">
-          +{entries.length - MAX_VISIBLE} more
+          +{groups.length - MAX_VISIBLE} more
         </span>
       )}
     </div>
@@ -372,8 +386,9 @@ export function ContentCalendarPage() {
     return result
   }, [entries.data, filterPlatforms, filterStatus, search])
 
-  const entriesForDay = (day: Date) =>
-    filteredEntries.filter((e) => e.scheduled_date === format(day, 'yyyy-MM-dd'))
+  const allGroups = useMemo(() => groupEntries(filteredEntries), [filteredEntries])
+  const groupsForDay = (day: Date) =>
+    allGroups.filter((g) => g.representative.scheduled_date === format(day, 'yyyy-MM-dd'))
 
   // ── Grid ──────────────────────────────────────────────────────────────────
   const firstDay  = startOfMonth(new Date(viewYear, viewMonth))
@@ -404,34 +419,32 @@ export function ContentCalendarPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   )
-  const [draggingEntry, setDraggingEntry] = useState<CalendarEntry | null>(null)
+  const [draggingGroup, setDraggingGroup] = useState<EntryGroup | null>(null)
 
   function handleDragStart(event: DragStartEvent) {
-    setDraggingEntry(
-      (entries.data ?? []).find((e) => e.id === event.active.id) ?? null,
-    )
+    setDraggingGroup(allGroups.find((g) => g.id === event.active.id) ?? null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    setDraggingEntry(null)
+    setDraggingGroup(null)
     const { active, over } = event
     if (!over) return
     const targetDate = over.id as string
-    const entry = (entries.data ?? []).find((e) => e.id === active.id)
-    if (!entry || entry.scheduled_date === targetDate) return
-    updateEntry.mutate(
-      { id: entry.id, patch: { scheduled_date: targetDate } },
-      {
-        onSuccess: () => toast.success('Entry rescheduled'),
-        onError: (err) => toast.error('Failed to reschedule', { description: (err as Error).message }),
-      },
+    const group = allGroups.find((g) => g.id === active.id)
+    if (!group || group.representative.scheduled_date === targetDate) return
+    Promise.all(
+      group.entries.map((e) =>
+        updateEntry.mutateAsync({ id: e.id, patch: { scheduled_date: targetDate } }),
+      ),
     )
+      .then(() => toast.success('Entry rescheduled'))
+      .catch((err) => toast.error('Failed to reschedule', { description: (err as Error).message }))
   }
 
   // ── Entry drawer ─────────────────────────────────────────────────────────
   const [drawerOpen, setDrawerOpen]           = useState(false)
   const [drawerMode, setDrawerMode]           = useState<'create' | 'edit'>('create')
-  const [editingEntry, setEditingEntry]       = useState<CalendarEntry | null>(null)
+  const [editingGroup, setEditingGroup]       = useState<EntryGroup | null>(null)
   const [formTitle, setFormTitle]             = useState('')
   const [formBody, setFormBody]               = useState('')
   const [formDate, setFormDate]               = useState('')
@@ -456,29 +469,29 @@ export function ContentCalendarPage() {
   }
 
   function openCreate(date?: string) {
-    setDrawerMode('create'); setEditingEntry(null)
+    setDrawerMode('create'); setEditingGroup(null)
     resetForm()
     if (date) setFormDate(date)
     setDrawerOpen(true)
   }
 
-  function openEdit(entry: CalendarEntry) {
-    setDrawerMode('edit'); setEditingEntry(entry)
-    setFormTitle(entry.title); setFormBody(entry.body ?? '')
-    setFormDate(entry.scheduled_date); setFormPlatforms([entry.platform])
-    setFormContentType((entry.content_type as ContentTheme) ?? 'property_tour'); setFormStatus(entry.status)
-    setFormCampaignId(entry.campaign_id ?? null)
-    setFormPillarId(entry.pillar_id ?? null)
-    setFormApprovalStatus(entry.approval_status ?? null)
-    setFormApprovalNote(entry.approval_note ?? '')
-    setFormTalent(entry.assigned_talent ?? '')
-    setFormCharacter(entry.character ?? '')
+  function openEdit(group: EntryGroup) {
+    const rep = group.representative
+    setDrawerMode('edit'); setEditingGroup(group)
+    setFormTitle(rep.title); setFormBody(rep.body ?? '')
+    setFormDate(rep.scheduled_date); setFormPlatforms(group.platforms)
+    setFormContentType((rep.content_type as ContentTheme) ?? 'property_tour'); setFormStatus(rep.status)
+    setFormCampaignId(rep.campaign_id ?? null)
+    setFormPillarId(rep.pillar_id ?? null)
+    setFormApprovalStatus(rep.approval_status ?? null)
+    setFormApprovalNote(rep.approval_note ?? '')
+    setFormTalent(rep.assigned_talent ?? '')
+    setFormCharacter(rep.character ?? '')
     setDrawerOpen(true)
   }
 
-  function buildEntryPayload() {
+  function buildCommonPayload() {
     return {
-      platform: formPlatforms[0] ?? 'instagram' as Platform,
       content_type: formContentType as ContentType,
       title: formTitle.trim(),
       body: formBody.trim() || null,
@@ -509,40 +522,61 @@ export function ContentCalendarPage() {
 
       if (drawerMode === 'create') {
         const platforms = formPlatforms.length > 0 ? formPlatforms : ['instagram' as Platform]
+        let firstEntry: CalendarEntry | null = null
 
         for (const plat of platforms) {
           const entry = await createEntry.mutateAsync({
             brand_id: activeBrand!.id,
-            ...buildEntryPayload(),
+            ...buildCommonPayload(),
             platform: plat,
             generated_content_id: null,
           } as CalendarEntryInsert)
+          if (!firstEntry) firstEntry = entry
+        }
 
-          if (specialist && entry) {
-            await createTask.mutateAsync({
-              brand_id: activeBrand!.id,
-              title: formTitle.trim(),
-              description: null,
-              type: 'content',
-              status: 'todo',
-              priority: 'medium',
-              assignee_id: specialistId,
-              assignee_email: specialist,
-              calendar_entry_id: entry.id,
-              due_date: formDate,
-              created_by: null,
-            })
-          }
+        if (specialist && firstEntry) {
+          await createTask.mutateAsync({
+            brand_id: activeBrand!.id,
+            title: formTitle.trim(),
+            description: null,
+            type: 'content',
+            status: 'todo',
+            priority: 'medium',
+            assignee_id: specialistId,
+            assignee_email: specialist,
+            calendar_entry_id: firstEntry.id,
+            due_date: formDate,
+            created_by: null,
+          })
         }
 
         toast.success(platforms.length > 1 ? `${platforms.length} entries created` : 'Entry created')
       } else {
-        await updateEntry.mutateAsync({
-          id: editingEntry!.id,
-          patch: buildEntryPayload(),
-        })
+        const group = editingGroup!
+        const currentPlatforms = group.platforms
+        const toUpdate = formPlatforms.filter((p) => currentPlatforms.includes(p))
+        const toAdd    = formPlatforms.filter((p) => !currentPlatforms.includes(p))
+        const toRemove = currentPlatforms.filter((p) => !formPlatforms.includes(p))
 
-        const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === editingEntry!.id)
+        for (const plat of toUpdate) {
+          const e = group.entries.find((e) => e.platform === plat)
+          if (e) await updateEntry.mutateAsync({ id: e.id, patch: buildCommonPayload() })
+        }
+        for (const plat of toAdd) {
+          await createEntry.mutateAsync({
+            brand_id: activeBrand!.id,
+            ...buildCommonPayload(),
+            platform: plat,
+            generated_content_id: group.representative.generated_content_id,
+          } as CalendarEntryInsert)
+        }
+        for (const plat of toRemove) {
+          const e = group.entries.find((e) => e.platform === plat)
+          if (e) await deleteEntry.mutateAsync(e.id)
+        }
+
+        const repId = group.representative.id
+        const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === repId)
         if (specialist) {
           if (existingTask) {
             await updateTask.mutateAsync({
@@ -559,7 +593,7 @@ export function ContentCalendarPage() {
               priority: 'medium',
               assignee_id: specialistId,
               assignee_email: specialist,
-              calendar_entry_id: editingEntry!.id,
+              calendar_entry_id: repId,
               due_date: formDate,
               created_by: null,
             })
@@ -581,7 +615,7 @@ export function ContentCalendarPage() {
 
   async function handleDelete() {
     try {
-      await deleteEntry.mutateAsync(editingEntry!.id)
+      await Promise.all(editingGroup!.entries.map((e) => deleteEntry.mutateAsync(e.id)))
       toast.success('Entry deleted')
       setDrawerOpen(false)
     } catch (err) {
@@ -595,26 +629,28 @@ export function ContentCalendarPage() {
   }
 
   async function handleDuplicate() {
-    if (!editingEntry || !activeBrand) return
+    if (!editingGroup || !activeBrand) return
     try {
-      await createEntry.mutateAsync({
-        brand_id: activeBrand.id,
-        platform: editingEntry.platform,
-        content_type: editingEntry.content_type,
-        title: `${editingEntry.title} (copy)`,
-        body: editingEntry.body,
-        scheduled_date: editingEntry.scheduled_date,
-        status: 'draft',
-        generated_content_id: null,
-        campaign_id: editingEntry.campaign_id,
-        pillar_id: editingEntry.pillar_id,
-        approval_status: null,
-        approval_note: null,
-        assigned_editor: editingEntry.assigned_editor,
-        assigned_shooter: editingEntry.assigned_shooter,
-        assigned_talent: editingEntry.assigned_talent,
-        character: editingEntry.character,
-      } as CalendarEntryInsert)
+      for (const e of editingGroup.entries) {
+        await createEntry.mutateAsync({
+          brand_id: activeBrand.id,
+          platform: e.platform,
+          content_type: e.content_type,
+          title: `${e.title} (copy)`,
+          body: e.body,
+          scheduled_date: e.scheduled_date,
+          status: 'draft',
+          generated_content_id: null,
+          campaign_id: e.campaign_id,
+          pillar_id: e.pillar_id,
+          approval_status: null,
+          approval_note: null,
+          assigned_editor: null,
+          assigned_shooter: null,
+          assigned_talent: e.assigned_talent,
+          character: e.character,
+        } as CalendarEntryInsert)
+      }
       toast.success('Entry duplicated')
       setDrawerOpen(false)
     } catch (err) {
@@ -823,16 +859,16 @@ export function ContentCalendarPage() {
               <DayCell
                 key={format(day, 'yyyy-MM-dd')}
                 day={day}
-                entries={entriesForDay(day)}
+                groups={groupsForDay(day)}
                 isCurrentMonth={isSameMonth(day, new Date(viewYear, viewMonth))}
                 tall={viewMode === 'week'}
-                onCardClick={openEdit}
+                onGroupClick={openEdit}
                 onAddClick={() => openCreate(format(day, 'yyyy-MM-dd'))}
               />
             ))}
           </div>
           <DragOverlay>
-            {draggingEntry && <EntryCardOverlay entry={draggingEntry} />}
+            {draggingGroup && <EntryCardOverlay group={draggingGroup} />}
           </DragOverlay>
         </DndContext>
       </div>
@@ -1089,8 +1125,8 @@ export function ContentCalendarPage() {
               />
             </div>
 
-            {drawerMode === 'edit' && editingEntry?.generated_content_id && (
-              <GeneratedContentPreview id={editingEntry.generated_content_id} />
+            {drawerMode === 'edit' && editingGroup?.representative.generated_content_id && (
+              <GeneratedContentPreview id={editingGroup.representative.generated_content_id} />
             )}
           </div>
 
