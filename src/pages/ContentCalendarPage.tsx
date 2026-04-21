@@ -520,16 +520,21 @@ export function ContentCalendarPage() {
           if (!firstEntry) firstEntry = entry
         }
 
-        if (specialist && firstEntry) {
+        // Every calendar entry gets a linked task — assignee optional
+        if (firstEntry) {
+          const taskStatus: 'todo' | 'in_progress' | 'done' =
+            formStatus === 'published' ? 'done'
+            : formStatus === 'scheduled' ? 'in_progress'
+            : 'todo'
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
             title: formTitle.trim(),
             description: null,
             type: 'content',
-            status: 'todo',
+            status: taskStatus,
             priority: 'medium',
             assignee_id: specialistId,
-            assignee_email: specialist,
+            assignee_email: specialist || null,
             calendar_entry_id: firstEntry.id,
             due_date: formDate,
             created_by: null,
