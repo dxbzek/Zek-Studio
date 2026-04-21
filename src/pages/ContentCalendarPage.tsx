@@ -101,8 +101,6 @@ const PILLAR_COLORS = [
   '#0ea5e9', '#3b82f6', '#64748b', '#0f172a',
 ]
 
-const AGENTS = ['Edna', 'Nikhil', 'Imran', 'Khuram', 'Ibrahim', 'Elliot', 'Keeley']
-
 function emailHandle(email: string) {
   return email.split('@')[0]
 }
@@ -284,14 +282,12 @@ function RolePicker({
   onChange,
   members,
   dotColor,
-  showAgents = false,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   members: { id: string; email: string }[]
   dotColor: string
-  showAgents?: boolean
 }) {
   return (
     <div className="space-y-1">
@@ -305,10 +301,12 @@ function RolePicker({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__">Unassigned</SelectItem>
-          {showAgents && AGENTS.map((name) => (
-            <SelectItem key={name} value={name}>{name}</SelectItem>
-          ))}
-          {members.filter((m) => !AGENTS.includes(m.email)).map((m) => (
+          {members.length === 0 && (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              No team members yet — invite someone in Team.
+            </div>
+          )}
+          {members.map((m) => (
             <SelectItem key={m.id} value={m.email}>
               {emailHandle(m.email)}
               <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
@@ -1111,7 +1109,6 @@ export function ContentCalendarPage() {
                 onChange={setFormTalent}
                 members={teamMembers}
                 dotColor="bg-violet-400"
-                showAgents
               />
             </div>
 

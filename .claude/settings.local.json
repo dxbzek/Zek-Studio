@@ -53,7 +53,8 @@
       "mcp__claude_ai_Supabase__execute_sql",
       "WebSearch",
       "Bash(ffmpeg -version)",
-      "Bash(winget install *)"
+      "Bash(winget install *)",
+      "Bash(git rm *)"
     ]
   }
 }
