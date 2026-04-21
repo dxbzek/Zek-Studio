@@ -113,9 +113,7 @@ const AGENTS = ['Edna', 'Nikhil', 'Imran', 'Khuram', 'Ibrahim', 'Elliot', 'Keele
 
 // Production roles shown on entry cards and in the drawer
 const PRODUCTION_ROLES = [
-  { key: 'assigned_editor',  label: 'Editor',                dot: 'bg-teal-400',   badge: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',   letter: 'E' },
-  { key: 'assigned_shooter', label: 'Shooter / Videographer', dot: 'bg-blue-400',   badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',   letter: 'S' },
-  { key: 'assigned_talent',  label: 'Talent / Spokesperson',  dot: 'bg-violet-400', badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', letter: 'T' },
+  { key: 'assigned_talent', label: 'Assigned Specialist', dot: 'bg-violet-400', badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', letter: 'S' },
 ] as const
 
 type RoleKey = typeof PRODUCTION_ROLES[number]['key']
@@ -440,14 +438,11 @@ export function ContentCalendarPage() {
   const [formPlatforms, setFormPlatforms]     = useState<Platform[]>(['instagram'])
   const [formContentType, setFormContentType] = useState<ContentTheme>('property_tour')
   const [formStatus, setFormStatus]           = useState<CalendarStatus>('draft')
-  const [formAssigneeEmail, setFormAssigneeEmail] = useState('')
   const [formCampaignId, setFormCampaignId]   = useState<string | null>(null)
   const [formPillarId, setFormPillarId]       = useState<string | null>(null)
   const [formApprovalStatus, setFormApprovalStatus] = useState<ApprovalStatus | null>(null)
   const [formApprovalNote, setFormApprovalNote]     = useState('')
-  // Production roles
-  const [formEditor, setFormEditor]     = useState('')
-  const [formShooter, setFormShooter]   = useState('')
+  // Assigned specialist
   const [formTalent, setFormTalent]     = useState('')
   const [formCharacter, setFormCharacter] = useState<string>('')
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
@@ -456,8 +451,8 @@ export function ContentCalendarPage() {
     setFormTitle(''); setFormBody('')
     setFormDate(format(new Date(), 'yyyy-MM-dd'))
     setFormPlatforms(['instagram']); setFormContentType('property_tour'); setFormStatus('draft')
-    setFormAssigneeEmail(''); setFormCampaignId(null); setFormPillarId(null); setFormApprovalStatus(null); setFormApprovalNote('')
-    setFormEditor(''); setFormShooter(''); setFormTalent(''); setFormCharacter('')
+    setFormCampaignId(null); setFormPillarId(null); setFormApprovalStatus(null); setFormApprovalNote('')
+    setFormTalent(''); setFormCharacter('')
   }
 
   function openCreate(date?: string) {
@@ -472,14 +467,10 @@ export function ContentCalendarPage() {
     setFormTitle(entry.title); setFormBody(entry.body ?? '')
     setFormDate(entry.scheduled_date); setFormPlatforms([entry.platform])
     setFormContentType((entry.content_type as ContentTheme) ?? 'property_tour'); setFormStatus(entry.status)
-    const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === entry.id)
-    setFormAssigneeEmail(existingTask?.assignee_email ?? '')
     setFormCampaignId(entry.campaign_id ?? null)
     setFormPillarId(entry.pillar_id ?? null)
     setFormApprovalStatus(entry.approval_status ?? null)
     setFormApprovalNote(entry.approval_note ?? '')
-    setFormEditor(entry.assigned_editor ?? '')
-    setFormShooter(entry.assigned_shooter ?? '')
     setFormTalent(entry.assigned_talent ?? '')
     setFormCharacter(entry.character ?? '')
     setDrawerOpen(true)
@@ -497,8 +488,8 @@ export function ContentCalendarPage() {
       pillar_id: formPillarId,
       approval_status: formApprovalStatus,
       approval_note: formApprovalNote.trim() || null,
-      assigned_editor: formEditor || null,
-      assigned_shooter: formShooter || null,
+      assigned_editor: null,
+      assigned_shooter: null,
       assigned_talent: formTalent || null,
       character: formCharacter || null,
     }
@@ -510,11 +501,14 @@ export function ContentCalendarPage() {
       return
     }
     try {
+      // Resolve assignee — formTalent may be an agent name or a team-member email
+      const specialist = formTalent || ''
+      const specialistId = specialist
+        ? teamMembers.find((m) => m.email === specialist)?.user_id ?? null
+        : null
+
       if (drawerMode === 'create') {
         const platforms = formPlatforms.length > 0 ? formPlatforms : ['instagram' as Platform]
-        const assigneeId = formAssigneeEmail
-          ? teamMembers.find((m) => m.email === formAssigneeEmail)?.user_id ?? null
-          : null
 
         for (const plat of platforms) {
           const entry = await createEntry.mutateAsync({
@@ -524,7 +518,7 @@ export function ContentCalendarPage() {
             generated_content_id: null,
           } as CalendarEntryInsert)
 
-          if (formAssigneeEmail && entry) {
+          if (specialist && entry) {
             await createTask.mutateAsync({
               brand_id: activeBrand!.id,
               title: formTitle.trim(),
@@ -532,8 +526,8 @@ export function ContentCalendarPage() {
               type: 'content',
               status: 'todo',
               priority: 'medium',
-              assignee_id: assigneeId,
-              assignee_email: formAssigneeEmail,
+              assignee_id: specialistId,
+              assignee_email: specialist,
               calendar_entry_id: entry.id,
               due_date: formDate,
               created_by: null,
@@ -549,12 +543,11 @@ export function ContentCalendarPage() {
         })
 
         const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === editingEntry!.id)
-        if (formAssigneeEmail) {
-          const assigneeId = teamMembers.find((m) => m.email === formAssigneeEmail)?.user_id ?? null
+        if (specialist) {
           if (existingTask) {
             await updateTask.mutateAsync({
               id: existingTask.id,
-              patch: { assignee_id: assigneeId, assignee_email: formAssigneeEmail, due_date: formDate },
+              patch: { assignee_id: specialistId, assignee_email: specialist, due_date: formDate },
             })
           } else {
             await createTask.mutateAsync({
@@ -564,8 +557,8 @@ export function ContentCalendarPage() {
               type: 'content',
               status: 'todo',
               priority: 'medium',
-              assignee_id: assigneeId,
-              assignee_email: formAssigneeEmail,
+              assignee_id: specialistId,
+              assignee_email: specialist,
               calendar_entry_id: editingEntry!.id,
               due_date: formDate,
               created_by: null,
@@ -1080,37 +1073,21 @@ export function ContentCalendarPage() {
               </div>
             )}
 
-            {/* Production Roles — only shown if team members exist */}
-            {teamMembers.length > 0 && (
-              <div className="space-y-3 rounded-lg border border-border p-3">
-                <div>
-                  <p className="text-sm font-medium">Production Roles</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Assign team members to specific production roles. All optional.</p>
-                </div>
-                <RolePicker
-                  label="Editor"
-                  value={formEditor}
-                  onChange={setFormEditor}
-                  members={teamMembers}
-                  dotColor="bg-teal-400"
-                />
-                <RolePicker
-                  label="Shooter / Videographer"
-                  value={formShooter}
-                  onChange={setFormShooter}
-                  members={teamMembers}
-                  dotColor="bg-blue-400"
-                />
-                <RolePicker
-                  label="Talent / Spokesperson"
-                  value={formTalent}
-                  onChange={setFormTalent}
-                  members={teamMembers}
-                  dotColor="bg-violet-400"
-                  showAgents
-                />
-              </div>
-            )}
+            {/* Assigned Specialist */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Assigned Specialist{' '}
+                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+              </label>
+              <RolePicker
+                label=""
+                value={formTalent}
+                onChange={setFormTalent}
+                members={teamMembers}
+                dotColor="bg-violet-400"
+                showAgents
+              />
+            </div>
 
             {drawerMode === 'edit' && editingEntry?.generated_content_id && (
               <GeneratedContentPreview id={editingEntry.generated_content_id} />
