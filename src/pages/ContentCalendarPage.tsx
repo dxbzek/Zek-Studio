@@ -514,9 +514,9 @@ export function ContentCalendarPage() {
 
         // Every calendar entry gets a linked task — assignee optional
         if (firstEntry) {
-          const taskStatus: 'todo' | 'in_progress' | 'done' =
+          const taskStatus: 'todo' | 'in_progress' | 'scheduled' | 'done' =
             formStatus === 'published' ? 'done'
-            : formStatus === 'scheduled' ? 'in_progress'
+            : formStatus === 'scheduled' ? 'scheduled'
             : 'todo'
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,

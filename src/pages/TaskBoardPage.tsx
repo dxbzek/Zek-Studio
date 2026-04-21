@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
-import { useTasks, useMyTasks } from '@/hooks/useTasks'
+import { useTasks } from '@/hooks/useTasks'
 import { useTeam } from '@/hooks/useTeam'
 import type { Task, TaskStatus, TaskType, TaskPriority, TaskInsert } from '@/types'
 
@@ -28,6 +28,7 @@ import type { Task, TaskStatus, TaskType, TaskPriority, TaskInsert } from '@/typ
 const COLUMNS: { id: TaskStatus; label: string }[] = [
   { id: 'todo',        label: 'To Do' },
   { id: 'in_progress', label: 'In Progress' },
+  { id: 'scheduled',   label: 'Scheduled' },
   { id: 'done',        label: 'Done' },
 ]
 
@@ -196,13 +197,11 @@ interface TaskBoardPageProps {
 export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPageProps) {
   const { activeBrand } = useActiveBrand()
 
-  // Owner uses useTasks, specialist uses useMyTasks
-  const ownerHook = useTasks(isSpecialist ? null : (activeBrand?.id ?? null))
-  const specialistHook = useMyTasks()
-  const { tasks: rawTasks, updateTask } = isSpecialist ? specialistHook : ownerHook
-  const { createTask, deleteTask } = ownerHook
+  // Both owner & specialist operate on the active brand's tasks.
+  // RLS (migration 019) scopes specialists to brands they're team_members of.
+  const { tasks: rawTasks, createTask, updateTask, deleteTask } = useTasks(activeBrand?.id ?? null)
 
-  const { members } = useTeam(isSpecialist ? null : (activeBrand?.id ?? null))
+  const { members } = useTeam(activeBrand?.id ?? null)
 
   // Filters (owner only)
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
@@ -289,7 +288,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
         await createTask.mutateAsync(payload)
         toast.success('Task created')
       } else {
-        await (ownerHook as ReturnType<typeof useTasks>).updateTask.mutateAsync({
+        await updateTask.mutateAsync({
           id: editingTask!.id,
           patch: {
             title: formTitle.trim(),
@@ -355,8 +354,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
     updateTask.mutate({ id: task.id, patch: { status: targetStatus } })
   }
 
-  // Specialist has no brand, guard differently
-  if (!isSpecialist && !activeBrand) return <NoBrandSelected />
+  if (!activeBrand) return <NoBrandSelected />
 
   return (
     <div className="flex flex-col h-full">
@@ -416,7 +414,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           onDragEnd={handleDragEnd}
         >
           <div className="overflow-x-auto pb-1">
-          <div className="grid grid-cols-3 gap-4 min-w-[600px]">
+          <div className="grid grid-cols-4 gap-4 min-w-[820px]">
             {COLUMNS.map((col) => (
               <TaskColumn
                 key={col.id}
@@ -590,9 +588,9 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
               <Button
                 size="sm"
                 onClick={handleSave}
-                disabled={createTask.isPending || (ownerHook as ReturnType<typeof useTasks>).updateTask.isPending}
+                disabled={createTask.isPending || updateTask.isPending}
               >
-                {createTask.isPending || (ownerHook as ReturnType<typeof useTasks>).updateTask.isPending ? 'Saving…' : 'Save'}
+                {createTask.isPending || updateTask.isPending ? 'Saving…' : 'Save'}
               </Button>
             )}
           </SheetFooter>

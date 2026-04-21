@@ -29,7 +29,7 @@ SELECT
   'content',
   CASE r.status
     WHEN 'published' THEN 'done'
-    WHEN 'scheduled' THEN 'in_progress'
+    WHEN 'scheduled' THEN 'scheduled'
     ELSE 'todo'
   END,
   'medium',

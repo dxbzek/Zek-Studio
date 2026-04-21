@@ -232,7 +232,7 @@ export interface TeamMember {
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 
 export type TaskType     = 'content' | 'shoot' | 'approval' | 'backup' | 'other'
-export type TaskStatus   = 'todo' | 'in_progress' | 'done'
+export type TaskStatus   = 'todo' | 'in_progress' | 'scheduled' | 'done'
 export type TaskPriority = 'low' | 'medium' | 'high'
 
 export interface Task {
