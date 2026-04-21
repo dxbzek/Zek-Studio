@@ -2,14 +2,14 @@
 
 4-slide TikTok / IG carousel modelled on the Sarwa "If you invested $X in 2020 you'd have $Y today" format, applied to Palm Jumeirah Signature Villas.
 
-**Numbers sourced:** Arabian Business / Knight Frank Prime Residential Index / Property Monitor (2025). Palm Jumeirah villas are up **146%** since January 2020. Average Palm villa price today sits around AED 44.6M; Signature Villa averages around AED 47M. Implied 2020 benchmark for a Signature Villa ≈ AED 19M. (Team to plug in exact per-segment numbers from ERE's Property Monitor access before publish.)
+**Numbers sourced:** Arabian Business (April 2026 property market report, citing Knight Frank). Palm Jumeirah villas are up **146%** since January 2020. Average Palm villa price today sits around AED 44.6M; Signature Villa averages around AED 47M. Implied 2020 benchmark for a Signature Villa ≈ AED 19M. (Team to plug in exact per-segment numbers from ERE's Property Monitor access before publish.)
 
 ---
 
 ## Slide 1 — Ranking
 
 **Headline:** Palm Jumeirah is **lapping** everyone
-**Source line:** Source: Knight Frank · Property Monitor · April 2026
+**Source line:** Source: Arabian Business · April 2026
 
 | # | Segment | Code | 2020 → 2026 |
 |---|---|---|---|
@@ -21,7 +21,7 @@
 
 **Breaking tag:**
 > **Breaking — April 2026**
-> Palm Jumeirah villas are up 146% since January 2020 — outpacing every other Dubai luxury enclave. Average villa price now sits at AED 44.6M (Knight Frank).
+> Palm Jumeirah villas are up 146% since January 2020 — outpacing every other Dubai luxury enclave. Average villa price now sits at AED 44.6M (Arabian Business).
 
 **Headline A/B:** "The Palm just broke Dubai's luxury ceiling" · "No Dubai address has run harder than Palm"
 
@@ -47,7 +47,7 @@
 >
 > How much higher can Palm go?
 
-**Micro-disclaimer (bottom oval):** ERE Homes is a RERA-registered brokerage in Dubai. Figures reflect average Palm Jumeirah villa prices per Knight Frank / Property Monitor (Jan 2020 – Apr 2026). Past performance does not guarantee future results. Not investment advice.
+**Micro-disclaimer (bottom oval):** ERE Homes is a RERA-registered brokerage in Dubai. Figures reflect average Palm Jumeirah villa prices per Arabian Business (Jan 2020 – Apr 2026). Past performance does not guarantee future results. Not investment advice.
 
 **Headline A/B:** "Still think you missed the Palm?" · "The next 5 years of Palm start now."
 
@@ -67,13 +67,13 @@
 
 > Imagine telling your friends you sold your Palm villa before the boom 🥲
 >
-> Palm Jumeirah villas are up 146% since 2020 (Knight Frank). DM "PALM" for the full report.
+> Palm Jumeirah villas are up 146% since 2020 (Arabian Business). DM "PALM" for the full report.
 
 ## Caption — Instagram
 
 > You didn't miss the Palm. You're early on the next five years.
 >
-> Palm Jumeirah villas are up **146%** since January 2020 — the highest appreciation of any Dubai luxury enclave (Knight Frank · Property Monitor). The average Palm villa now trades around AED 44.6M.
+> Palm Jumeirah villas are up **146%** since January 2020 — the highest appreciation of any Dubai luxury enclave (Arabian Business, April 2026). The average Palm villa now trades around AED 44.6M.
 >
 > AED 19M in 2020 → AED 47M today. Same villa.
 >
@@ -83,7 +83,7 @@
 
 ## Caption — LinkedIn
 
-> Palm Jumeirah villas have delivered 146% appreciation from January 2020 to April 2026 — the highest of any Dubai luxury segment per Knight Frank and Property Monitor. For international buyers evaluating Dubai prime residential, the Palm continues to compress supply against accelerating demand. Happy to share the segment-level report — comment or DM "PALM".
+> Palm Jumeirah villas have delivered 146% appreciation from January 2020 to April 2026 — the highest of any Dubai luxury segment (Arabian Business, April 2026). For international buyers evaluating Dubai prime residential, the Palm continues to compress supply against accelerating demand. Happy to share the segment-level report — comment or DM "PALM".
 >
 > ERE Homes · RERA-registered · Palm specialists.
 
@@ -103,9 +103,9 @@
 
 > **Team — short brief for the Palm carousel.**
 >
-> We're mirroring the Sarwa SanDisk "If you'd invested $35k you'd have $1M" carousel — same four-slide arc, but for Palm Jumeirah villas. The hook lands because Palm is genuinely up 146% since 2020 per Knight Frank. We don't need to invent anything; we just need to present the number with Sarwa's visual confidence.
+> We're mirroring the Sarwa SanDisk "If you'd invested $35k you'd have $1M" carousel — same four-slide arc, but for Palm Jumeirah villas. The hook lands because Palm is genuinely up 146% since 2020 per Arabian Business's April 2026 property report. We don't need to invent anything; we just need to present the number with Sarwa's visual confidence.
 >
-> **Editors:** copy is in the slides above, real numbers already in. Keep the AED figures as-is, don't round them further. Sources must stay visible on Slide 1 and Slide 3 (Knight Frank · Property Monitor) — this is a regulated market and we cite or we don't ship. Tone is confident, not salesy; no "guaranteed returns" anywhere.
+> **Editors:** copy is in the slides above, real numbers already in. Keep the AED figures as-is, don't round them further. Sources must stay visible on Slide 1 and Slide 3 (Arabian Business, April 2026) — this is a regulated market and we cite or we don't ship. Tone is confident, not salesy; no "guaranteed returns" anywhere.
 >
 > **Designer — format:** 4 slides, 1080 × 1350 px for IG, duplicate to 1080 × 1920 for TikTok.
 >
