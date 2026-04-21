@@ -103,11 +103,6 @@ const PILLAR_COLORS = [
 
 const AGENTS = ['Edna', 'Nikhil', 'Imran', 'Khuram', 'Ibrahim', 'Elliot', 'Keeley']
 
-// Production roles shown on entry cards and in the drawer
-const PRODUCTION_ROLES = [
-  { key: 'assigned_talent', label: 'Assigned Specialist', dot: 'bg-violet-400', badge: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', letter: 'S' },
-] as const
-
 function emailHandle(email: string) {
   return email.split('@')[0]
 }
