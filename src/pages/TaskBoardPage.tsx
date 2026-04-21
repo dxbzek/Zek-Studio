@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  closestCenter, useDroppable, useDraggable,
+  pointerWithin, rectIntersection, useDroppable, useDraggable,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -587,7 +587,17 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          // pointerWithin: drop target = whichever column the pointer is inside.
+          // Fall back to rectIntersection so a card whose cursor sits in the
+          // inter-column gap still resolves to the nearest overlapping column
+          // (otherwise the drop is a no-op). Avoid closestCenter — a long Done
+          // column shifts its "center" far from the drop point and hijacks all
+          // drops to whichever column has the topmost center.
+          collisionDetection={(args) => {
+            const within = pointerWithin(args)
+            if (within.length > 0) return within
+            return rectIntersection(args)
+          }}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
