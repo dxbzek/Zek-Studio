@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { format, parseISO, differenceInHours, isPast, startOfWeek } from 'date-fns'
 import {
   Plus, AlertCircle, Circle, Loader2, Clock, CheckCircle2, Link2,
+  FileText, Camera, CheckCheck, LifeBuoy, MoreHorizontal,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -63,6 +64,12 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   high:   'bg-rose-500',
 }
 
+const PRIORITY_CHIP: Record<TaskPriority, string> = {
+  low:    'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
+  medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  high:   'bg-rose-500/10 text-rose-600 dark:text-rose-400',
+}
+
 const PRIORITY_LABELS: Record<TaskPriority, string> = {
   low:    'Low priority',
   medium: 'Medium priority',
@@ -87,12 +94,12 @@ function assigneeInitial(email: string): string {
   return (email.split('@')[0][0] ?? '?').toUpperCase()
 }
 
-const TASK_TYPES: { value: TaskType; label: string }[] = [
-  { value: 'content',  label: 'Content' },
-  { value: 'shoot',    label: 'Photo/Video Shoot' },
-  { value: 'approval', label: 'Approval' },
-  { value: 'backup',   label: 'Backup Plan' },
-  { value: 'other',    label: 'Other' },
+const TASK_TYPES: { value: TaskType; label: string; icon: typeof Circle }[] = [
+  { value: 'content',  label: 'Content',          icon: FileText },
+  { value: 'shoot',    label: 'Photo/Video Shoot', icon: Camera },
+  { value: 'approval', label: 'Approval',         icon: CheckCheck },
+  { value: 'backup',   label: 'Backup Plan',      icon: LifeBuoy },
+  { value: 'other',    label: 'Other',            icon: MoreHorizontal },
 ]
 
 const PRIORITIES: { value: TaskPriority; label: string }[] = [
@@ -419,6 +426,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   function openEdit(task: Task) {
     setDrawerMode('edit')
     setEditingTask(task)
+    setDefaultStatus(task.status)
     setFormTitle(task.title)
     setFormDesc(task.description ?? '')
     setFormType(task.type)
@@ -458,6 +466,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
             title: formTitle.trim(),
             description: formDesc.trim() || null,
             type: formType,
+            status: defaultStatus,
             priority: formPriority,
             assignee_id: assigneeId,
             assignee_email: formAssigneeEmail || null,
@@ -661,7 +670,16 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
 
       {/* Drawer */}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
+        <SheetContent
+          side="right"
+          className="flex flex-col gap-0 p-0 sm:max-w-md"
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !isSpecialist && formTitle.trim()) {
+              e.preventDefault()
+              handleSave()
+            }
+          }}
+        >
           <SheetHeader className="border-b border-border px-6 py-4">
             <SheetTitle>{drawerMode === 'create' ? 'New Task' : 'Edit Task'}</SheetTitle>
           </SheetHeader>
@@ -688,24 +706,55 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                 disabled={isSpecialist}
               />
             </div>
+            {!isSpecialist && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Status</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {COLUMNS.map((col) => {
+                    const Icon = col.icon
+                    const active = defaultStatus === col.id
+                    return (
+                      <button
+                        key={col.id}
+                        type="button"
+                        onClick={() => setDefaultStatus(col.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                          active
+                            ? `${TASK_STATUS_CHIP[col.id]} border-transparent`
+                            : 'border-border text-muted-foreground'
+                        }`}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {col.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Type</label>
               <div className="flex flex-wrap gap-1.5">
-                {TASK_TYPES.map((tt) => (
-                  <button
-                    key={tt.value}
-                    type="button"
-                    disabled={isSpecialist}
-                    onClick={() => setFormType(tt.value)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      formType === tt.value
-                        ? `${TYPE_COLORS[tt.value]} border-transparent`
-                        : 'border-border text-muted-foreground'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {tt.label}
-                  </button>
-                ))}
+                {TASK_TYPES.map((tt) => {
+                  const Icon = tt.icon
+                  const active = formType === tt.value
+                  return (
+                    <button
+                      key={tt.value}
+                      type="button"
+                      disabled={isSpecialist}
+                      onClick={() => setFormType(tt.value)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                        active
+                          ? `${TYPE_COLORS[tt.value]} border-transparent`
+                          : 'border-border text-muted-foreground'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {tt.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div className="space-y-1.5">
@@ -719,7 +768,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                     onClick={() => setFormPriority(p.value)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                       formPriority === p.value
-                        ? 'bg-primary text-primary-foreground border-primary'
+                        ? `${PRIORITY_CHIP[p.value]} border-transparent`
                         : 'border-border text-muted-foreground'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
@@ -730,12 +779,11 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Due date</label>
-              <input
+              <Input
                 type="date"
                 value={formDue}
                 onChange={(e) => setFormDue(e.target.value)}
                 disabled={isSpecialist}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
             {!isSpecialist && (
@@ -797,7 +845,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
               <Button
                 size="sm"
                 onClick={handleSave}
-                disabled={createTask.isPending || updateTask.isPending}
+                disabled={!formTitle.trim() || createTask.isPending || updateTask.isPending}
               >
                 {createTask.isPending || updateTask.isPending ? 'Saving…' : 'Save'}
               </Button>
