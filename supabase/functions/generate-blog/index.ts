@@ -1,6 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireUser } from '../_shared/auth.ts'
+
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')!
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
@@ -30,6 +35,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
 
   try {
+    const sb = createClient(SUPABASE_URL, SERVICE_KEY)
+    const authResult = await requireUser(req, sb, CORS_HEADERS)
+    if (authResult.error) return authResult.error
+
     const { mode, brandName, niche, title, targetKeyword } = await req.json()
 
     if (mode === 'ideas') {

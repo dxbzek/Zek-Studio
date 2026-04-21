@@ -89,6 +89,13 @@ Deno.serve(async (req) => {
         })
       }
 
+      if (tokenRow.expires_at && new Date(tokenRow.expires_at) < new Date()) {
+        return new Response(JSON.stringify({ error: 'Link expired' }), {
+          status: 410,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        })
+      }
+
       const { data: entry } = await sb
         .from('calendar_entries')
         .select('brand_id')

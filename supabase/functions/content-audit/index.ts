@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireUser, requireBrandAccess } from '../_shared/auth.ts'
 
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -34,23 +35,18 @@ Deno.serve(async (req) => {
 
   try {
     const sb = createClient(SUPABASE_URL, SERVICE_KEY)
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const { data: { user } } = await sb.auth.getUser(authHeader.replace('Bearer ', ''))
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
-    }
+    const authResult = await requireUser(req, sb, CORS)
+    if (authResult.error) return authResult.error
 
     const { brand_id, date_from, date_to, platform } = await req.json()
+    if (!brand_id) {
+      return new Response(JSON.stringify({ error: 'Missing required field: brand_id' }), {
+        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const accessResult = await requireBrandAccess(sb, brand_id, authResult.user.id, authResult.user.email, CORS)
+    if (accessResult.error) return accessResult.error
 
     let metricsQuery = sb
       .from('post_metrics')

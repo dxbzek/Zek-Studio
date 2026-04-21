@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireUser, requireBrandAccess } from '../_shared/auth.ts'
 
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -268,6 +269,11 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    const authResult = await requireUser(req, supabase, CORS_HEADERS)
+    if (authResult.error) return authResult.error
+    const accessResult = await requireBrandAccess(supabase, brand_id, authResult.user.id, authResult.user.email, CORS_HEADERS)
+    if (accessResult.error) return accessResult.error
 
     const [brandRes, hooksRes, kwRes, compRes] = await Promise.all([
       supabase.from('brand_profiles').select('name, niche, target_location').eq('id', brand_id).single(),

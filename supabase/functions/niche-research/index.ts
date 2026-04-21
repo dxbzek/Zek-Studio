@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireUser, requireBrandAccess } from '../_shared/auth.ts'
 
 const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY')
 const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN')
@@ -264,6 +265,12 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    const authResult = await requireUser(req, supabase, CORS_HEADERS)
+    if (authResult.error) return authResult.error
+    const accessResult = await requireBrandAccess(supabase, brand_id, authResult.user.id, authResult.user.email, CORS_HEADERS)
+    if (accessResult.error) return accessResult.error
+
     const loc = location?.trim() || null
     const cacheKey = `${niche.toLowerCase().trim()}${loc ? `:${loc.toLowerCase()}` : ''}`
 
