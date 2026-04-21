@@ -56,8 +56,8 @@ export function useGenerator(brandId: string | null) {
       }
       return data.record as GeneratedContent
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['generated-content', brandId] })
+    onSuccess: (record) => {
+      queryClient.invalidateQueries({ queryKey: ['generated-content', record.brand_id] })
     },
   })
 
@@ -95,6 +95,9 @@ export function useGenerator(brandId: string | null) {
         .single()
       if (error) throw error
       return data
+    },
+    onSuccess: (entry) => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-entries', entry.brand_id] })
     },
   })
 
