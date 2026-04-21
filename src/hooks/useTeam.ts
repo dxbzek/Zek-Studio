@@ -28,12 +28,16 @@ export function useTeam(brandId: string | null) {
         body: { email, brand_id: brandId },
       })
       if (error) {
+        // supabase-js surfaces non-2xx responses as FunctionsHttpError; the
+        // actual JSON body (with our explicit `error` field) is on .context.
+        // Parsing can throw on non-JSON responses — swallow and fall back.
+        let msg = error.message
         try {
           const body = await error.context?.json?.()
-          throw new Error(body?.error ?? body?.message ?? error.message)
-        } catch (inner) {
-          throw inner instanceof Error ? inner : error
-        }
+          if (body?.error) msg = body.error
+          else if (body?.message) msg = body.message
+        } catch { /* non-JSON body; keep default message */ }
+        throw new Error(msg)
       }
       return data.member as TeamMember
     },

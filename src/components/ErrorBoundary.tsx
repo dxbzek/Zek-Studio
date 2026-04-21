@@ -9,6 +9,18 @@ import { Button } from '@/components/ui/button'
 interface Props { children: ReactNode }
 interface State { error: Error | null }
 
+// After a deploy, clients still running the old index.html will 404 on the
+// new hashed chunks. Vite/webpack surface this as a ChunkLoadError (or a
+// plain Error with a matching message). We detect it so the UI can prompt a
+// hard reload instead of a generic "something went wrong".
+function isChunkLoadError(err: Error): boolean {
+  if (err.name === 'ChunkLoadError') return true
+  const msg = err.message ?? ''
+  return /Loading chunk [\d]+ failed/i.test(msg)
+    || /Failed to fetch dynamically imported module/i.test(msg)
+    || /Importing a module script failed/i.test(msg)
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null }
 
@@ -27,23 +39,31 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.error) return this.props.children
 
+    const chunkFail = isChunkLoadError(this.state.error)
+
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
           <AlertCircle className="h-6 w-6 text-destructive" aria-hidden />
         </div>
         <div className="space-y-1 max-w-sm">
-          <h2 className="text-lg font-semibold">Something went wrong</h2>
+          <h2 className="text-lg font-semibold">
+            {chunkFail ? 'A new version is available' : 'Something went wrong'}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            {this.state.error.message || 'An unexpected error occurred rendering this page.'}
+            {chunkFail
+              ? 'The app has been updated since you opened this tab. Reload to get the latest version.'
+              : (this.state.error.message || 'An unexpected error occurred rendering this page.')}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={this.reset}>
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Try again
-          </Button>
+          {!chunkFail && (
+            <Button size="sm" variant="outline" onClick={this.reset}>
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Try again
+            </Button>
+          )}
           <Button size="sm" onClick={() => window.location.reload()}>
-            Reload page
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Reload page
           </Button>
         </div>
       </div>
