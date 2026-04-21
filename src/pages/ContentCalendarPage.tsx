@@ -91,6 +91,15 @@ const STATUSES: { value: CalendarStatus; label: string }[] = [
   { value: 'published', label: 'Published' },
 ]
 
+// Map calendar entry status → task status for the linked auto-task.
+function deriveTaskStatus(
+  calendarStatus: CalendarStatus,
+): 'todo' | 'in_progress' | 'scheduled' | 'done' {
+  if (calendarStatus === 'published') return 'done'
+  if (calendarStatus === 'scheduled') return 'scheduled'
+  return 'todo'
+}
+
 const PILLAR_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
   '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -346,7 +355,7 @@ export function ContentCalendarPage() {
     viewMonth,
   )
   const { members } = useTeam(activeBrand?.id ?? null)
-  const { tasks, createTask, updateTask } = useTasks(activeBrand?.id ?? null)
+  const { tasks, createTask, updateTask, deleteTask } = useTasks(activeBrand?.id ?? null)
   const { campaigns } = useCampaigns(activeBrand?.id ?? null)
   const { pillars, createPillar, deletePillar } = useContentPillars(activeBrand?.id ?? null)
 
@@ -524,16 +533,12 @@ export function ContentCalendarPage() {
 
         // Every calendar entry gets a linked task — assignee optional
         if (firstEntry) {
-          const taskStatus: 'todo' | 'in_progress' | 'scheduled' | 'done' =
-            formStatus === 'published' ? 'done'
-            : formStatus === 'scheduled' ? 'scheduled'
-            : 'todo'
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
             title: formTitle.trim(),
             description: null,
             type: 'content',
-            status: taskStatus,
+            status: deriveTaskStatus(formStatus),
             priority: 'medium',
             assignee_id: specialistId,
             assignee_email: specialist || null,
@@ -570,11 +575,18 @@ export function ContentCalendarPage() {
 
         const repId = group.representative.id
         const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === repId)
+        const derivedStatus = deriveTaskStatus(formStatus)
         if (specialist) {
           if (existingTask) {
             await updateTask.mutateAsync({
               id: existingTask.id,
-              patch: { assignee_id: specialistId, assignee_email: specialist, due_date: formDate },
+              patch: {
+                title: formTitle.trim(),
+                status: derivedStatus,
+                assignee_id: specialistId,
+                assignee_email: specialist,
+                due_date: formDate,
+              },
             })
           } else {
             await createTask.mutateAsync({
@@ -582,7 +594,7 @@ export function ContentCalendarPage() {
               title: formTitle.trim(),
               description: null,
               type: 'content',
-              status: 'todo',
+              status: derivedStatus,
               priority: 'medium',
               assignee_id: specialistId,
               assignee_email: specialist,
@@ -592,10 +604,8 @@ export function ContentCalendarPage() {
             })
           }
         } else if (existingTask) {
-          await updateTask.mutateAsync({
-            id: existingTask.id,
-            patch: { assignee_id: null, assignee_email: null },
-          })
+          // Specialist cleared — remove the orphaned task rather than leaving it headless.
+          await deleteTask.mutateAsync(existingTask.id)
         }
 
         toast.success('Entry saved')
@@ -624,8 +634,9 @@ export function ContentCalendarPage() {
   async function handleDuplicate() {
     if (!editingGroup || !activeBrand) return
     try {
+      let firstCopy: CalendarEntry | null = null
       for (const e of editingGroup.entries) {
-        await createEntry.mutateAsync({
+        const copy = await createEntry.mutateAsync({
           brand_id: activeBrand.id,
           platform: e.platform,
           content_type: e.content_type,
@@ -643,7 +654,35 @@ export function ContentCalendarPage() {
           assigned_talent: e.assigned_talent,
           character: e.character,
         } as CalendarEntryInsert)
+        if (!firstCopy) firstCopy = copy
       }
+
+      // Mirror the source's linked task (if any) onto the duplicate so the
+      // board stays in parity with the calendar.
+      if (firstCopy) {
+        const sourceRepId = editingGroup.representative.id
+        const sourceTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === sourceRepId)
+        const assignedEmail = firstCopy.assigned_talent ?? null
+        const assignedId = assignedEmail
+          ? teamMembers.find((m) => m.email === assignedEmail)?.user_id ?? null
+          : null
+        if (sourceTask || assignedEmail) {
+          await createTask.mutateAsync({
+            brand_id: activeBrand.id,
+            title: firstCopy.title,
+            description: null,
+            type: 'content',
+            status: deriveTaskStatus('draft'),
+            priority: 'medium',
+            assignee_id: assignedId,
+            assignee_email: assignedEmail,
+            calendar_entry_id: firstCopy.id,
+            due_date: firstCopy.scheduled_date,
+            created_by: null,
+          })
+        }
+      }
+
       toast.success('Entry duplicated')
       setDrawerOpen(false)
     } catch (err) {
@@ -676,7 +715,12 @@ export function ContentCalendarPage() {
   // ── Guard ─────────────────────────────────────────────────────────────────
   if (!activeBrand) return <NoBrandSelected />
 
-  const saving = createEntry.isPending || updateEntry.isPending
+  const saving =
+    createEntry.isPending ||
+    updateEntry.isPending ||
+    createTask.isPending ||
+    updateTask.isPending ||
+    deleteTask.isPending
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (

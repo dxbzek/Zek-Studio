@@ -8,9 +8,10 @@ import { CSS } from '@dnd-kit/utilities'
 import { format, parseISO, differenceInHours, isPast, startOfWeek } from 'date-fns'
 import {
   Plus, AlertCircle, Circle, Loader2, Clock, CheckCircle2, Link2,
-  FileText, Camera, CheckCheck, LifeBuoy, MoreHorizontal,
+  FileText, Camera, CheckCheck, LifeBuoy, MoreHorizontal, Search, X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -326,6 +327,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   // Filters (owner only)
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
 
   // Drag
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
@@ -382,8 +384,15 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
     let result = allTasks
     if (filterAssignee !== 'all') result = result.filter((t) => t.assignee_email === filterAssignee)
     if (filterType !== 'all') result = result.filter((t) => t.type === filterType)
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      result = result.filter((t) =>
+        t.title.toLowerCase().includes(q) ||
+        (t.description ?? '').toLowerCase().includes(q),
+      )
+    }
     return result
-  }, [allTasks, filterAssignee, filterType])
+  }, [allTasks, filterAssignee, filterType, searchQuery])
 
   function tasksForColumn(status: TaskStatus) {
     return filteredTasks.filter((t) => t.status === status)
@@ -517,14 +526,20 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
     setDraggingTask(allTasks.find((t) => t.id === event.active.id) ?? null)
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     setDraggingTask(null)
     const { active, over } = event
     if (!over) return
     const targetStatus = over.id as TaskStatus
     const task = allTasks.find((t) => t.id === active.id)
     if (!task || task.status === targetStatus) return
-    updateTask.mutate({ id: task.id, patch: { status: targetStatus } })
+    const targetLabel = COLUMNS.find((c) => c.id === targetStatus)?.label ?? targetStatus
+    try {
+      await updateTask.mutateAsync({ id: task.id, patch: { status: targetStatus } })
+      toast.success(`Moved to ${targetLabel}`)
+    } catch (err) {
+      toast.error('Move failed', { description: (err as Error).message })
+    }
   }
 
   if (!activeBrand) return <NoBrandSelected />
@@ -589,6 +604,25 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
               ))}
             </SelectContent>
           </Select>
+          <div className="relative ml-auto w-full sm:w-56">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks…"
+              className="h-7 text-xs pl-7 pr-7"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -658,7 +692,18 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
         {rawTasks.isLoading && (
           <p className="text-sm text-muted-foreground mt-4">Loading tasks...</p>
         )}
-        {!rawTasks.isLoading && allTasks.length === 0 && (
+        {!rawTasks.isLoading && rawTasks.isError && (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Couldn't load tasks. {(rawTasks.error as Error | null)?.message ?? 'Unknown error.'}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => rawTasks.refetch()}>
+              Retry
+            </Button>
+          </div>
+        )}
+        {!rawTasks.isLoading && !rawTasks.isError && allTasks.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">
@@ -730,6 +775,18 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                     )
                   })}
                 </div>
+                {defaultStatus === 'scheduled' && (
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Scheduled tasks don't appear on the calendar.{' '}
+                    <Link
+                      to="/calendar"
+                      className="underline underline-offset-2 hover:text-foreground"
+                      onClick={() => setDrawerOpen(false)}
+                    >
+                      Add a calendar entry →
+                    </Link>
+                  </p>
+                )}
               </div>
             )}
             <div className="space-y-1.5">
@@ -804,6 +861,29 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                 </Select>
               </div>
             )}
+            {/* Linked calendar entry — read-only context for specialists */}
+            {isSpecialist && drawerMode === 'edit' && editingTask?.calendar_entry_id && (() => {
+              const linked = entryById.get(editingTask.calendar_entry_id)
+              if (!linked) return null
+              return (
+                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 flex items-center gap-2">
+                  <PlatformBadge platform={linked.platform} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-muted-foreground leading-tight">Linked calendar entry</p>
+                    <p className="text-xs text-foreground truncate">
+                      {format(parseISO(linked.scheduled_date), 'MMM d')} · {linked.platform}
+                    </p>
+                  </div>
+                  <Link
+                    to="/calendar"
+                    onClick={() => setDrawerOpen(false)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
+                  >
+                    View →
+                  </Link>
+                </div>
+              )
+            })()}
             {/* Show status selector for specialist (they can change status) */}
             {isSpecialist && drawerMode === 'edit' && editingTask && (
               <div className="space-y-1.5">
@@ -813,7 +893,15 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                     <button
                       key={col.id}
                       type="button"
-                      onClick={() => updateTask.mutate({ id: editingTask.id, patch: { status: col.id } })}
+                      onClick={async () => {
+                        if (editingTask.status === col.id) return
+                        try {
+                          await updateTask.mutateAsync({ id: editingTask.id, patch: { status: col.id } })
+                          toast.success(`Status: ${col.label}`)
+                        } catch (err) {
+                          toast.error('Update failed', { description: (err as Error).message })
+                        }
+                      }}
                       className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                         editingTask.status === col.id
                           ? `${TASK_STATUS_CHIP[col.id]} border-transparent`
