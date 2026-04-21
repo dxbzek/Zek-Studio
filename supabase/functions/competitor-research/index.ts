@@ -1,6 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN')
@@ -156,7 +155,7 @@ async function storeThumbnail(
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }

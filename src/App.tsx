@@ -14,7 +14,6 @@ import TeamPage from '@/pages/TeamPage'
 import TaskBoardPage from '@/pages/TaskBoardPage'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import CampaignsPage from '@/pages/CampaignsPage'
-import ReplyTemplatesPage from '@/pages/ReplyTemplatesPage'
 import { SeoPage } from '@/pages/SeoPage'
 import { ResearchShell }  from '@/pages/shells/ResearchShell'
 import { ContentShell }   from '@/pages/shells/ContentShell'
@@ -55,7 +54,6 @@ export default function App() {
               <Route path="/content" element={<ContentShell />}>
                 <Route index element={<Navigate to="generator" replace />} />
                 <Route path="generator" element={<ContentGeneratorPage />} />
-                <Route path="templates" element={<ReplyTemplatesPage />} />
               </Route>
 
               {/* Workspace */}
