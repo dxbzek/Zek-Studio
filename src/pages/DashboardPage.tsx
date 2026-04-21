@@ -9,7 +9,7 @@ import { useBrands } from '@/hooks/useBrands'
 import { usePostMetrics } from '@/hooks/usePostMetrics'
 import { useSeoKeywords, useBlogPosts } from '@/hooks/useSeo'
 import { supabase } from '@/lib/supabase'
-import { fmtCompact } from '@/lib/formatting'
+import { fmtCompact, isInMonth } from '@/lib/formatting'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -74,14 +74,8 @@ function useKpis(brandId: string | null) {
     const cm = now.getMonth(), cy = now.getFullYear()
     const lm = cm === 0 ? 11 : cm - 1, ly = cm === 0 ? cy - 1 : cy
 
-    const inMonth = (m: PostMetric, month: number, year: number) => {
-      if (!m.posted_at) return false
-      const d = new Date(m.posted_at + 'T00:00:00')
-      return d.getMonth() === month && d.getFullYear() === year
-    }
-
-    const thisMonth = all.filter((m) => inMonth(m, cm, cy))
-    const lastMonth = all.filter((m) => inMonth(m, lm, ly))
+    const thisMonth = all.filter((m) => isInMonth(m.posted_at, cm, cy))
+    const lastMonth = all.filter((m) => isInMonth(m.posted_at, lm, ly))
     const viewsThis = thisMonth.reduce((s, m) => s + (m.views ?? 0), 0)
     const viewsLast = lastMonth.reduce((s, m) => s + (m.views ?? 0), 0)
 
@@ -94,11 +88,9 @@ function useKpis(brandId: string | null) {
 
     const rankingKw = (keywords ?? []).filter((k) => k.status === 'page_1_2').length
     const totalKw = (keywords ?? []).length
-    const blogPublished = (blogPosts ?? []).filter((p) => {
-      if (p.status !== 'published' || !p.publish_date) return false
-      const d = new Date(p.publish_date + 'T00:00:00')
-      return d.getMonth() === cm && d.getFullYear() === cy
-    }).length
+    const blogPublished = (blogPosts ?? []).filter(
+      (p) => p.status === 'published' && isInMonth(p.publish_date, cm, cy),
+    ).length
 
     return { postsThis: thisMonth.length, postsLast: lastMonth.length, viewsThis, viewsLast, avgEng, rankingKw, totalKw, blogPublished }
   }, [metrics.data, keywords, blogPosts])
@@ -258,7 +250,7 @@ export function DashboardPage() {
 
           {/* KPI tiles */}
           {activeBrand && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4 gap-3">
               <KpiTile
                 label="Reach this month"
                 value={fmtCompact(kpis.viewsThis)}
@@ -300,19 +292,19 @@ export function DashboardPage() {
                   </Button>
                 </div>
                 <div className="p-4">
-                  {hasAnyTarget ? (
+                  {hasAnyTarget && kpiGoal ? (
                     <div className="space-y-4">
-                      {kpiGoal!.posts_target != null && (
-                        <GoalBar label="Posts" actual={kpis.postsThis} target={kpiGoal!.posts_target} fmtFn={String} />
+                      {kpiGoal.posts_target != null && (
+                        <GoalBar label="Posts" actual={kpis.postsThis} target={kpiGoal.posts_target} fmtFn={String} />
                       )}
-                      {kpiGoal!.views_target != null && (
-                        <GoalBar label="Reach" actual={kpis.viewsThis} target={kpiGoal!.views_target} fmtFn={fmtCompact} />
+                      {kpiGoal.views_target != null && (
+                        <GoalBar label="Reach" actual={kpis.viewsThis} target={kpiGoal.views_target} fmtFn={fmtCompact} />
                       )}
-                      {kpiGoal!.engagement_target != null && kpis.avgEng != null && (
-                        <GoalBar label="Engagement rate" actual={kpis.avgEng} target={kpiGoal!.engagement_target} fmtFn={(n) => `${n.toFixed(1)}%`} />
+                      {kpiGoal.engagement_target != null && kpis.avgEng != null && (
+                        <GoalBar label="Engagement rate" actual={kpis.avgEng} target={kpiGoal.engagement_target} fmtFn={(n) => `${n.toFixed(1)}%`} />
                       )}
-                      {kpiGoal!.keywords_target != null && (
-                        <GoalBar label="Keywords (page 1–2)" actual={kpis.rankingKw} target={kpiGoal!.keywords_target} fmtFn={String} />
+                      {kpiGoal.keywords_target != null && (
+                        <GoalBar label="Keywords (page 1–2)" actual={kpis.rankingKw} target={kpiGoal.keywords_target} fmtFn={String} />
                       )}
                     </div>
                   ) : (
@@ -327,7 +319,7 @@ export function DashboardPage() {
               </div>
 
               {/* Quick Actions */}
-              <div className="rounded-xl ring-1 ring-border bg-card overflow-hidden">
+              <nav aria-label="Quick actions" className="rounded-xl ring-1 ring-border bg-card overflow-hidden">
                 <div className="px-4 py-3 border-b border-border">
                   <div className="eyebrow">Quick actions</div>
                 </div>
@@ -338,13 +330,13 @@ export function DashboardPage() {
                       to={to}
                       className="flex items-center gap-3 px-4 h-[38px] text-[12.5px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
                     >
-                      <Icon className="h-[14px] w-[14px] shrink-0" />
+                      <Icon className="h-[14px] w-[14px] shrink-0" aria-hidden />
                       <span className="flex-1">{label}</span>
-                      <ArrowRight className="h-[11px] w-[11px] text-muted-foreground/40" />
+                      <ArrowRight className="h-[11px] w-[11px] text-muted-foreground/40" aria-hidden />
                     </Link>
                   ))}
                 </div>
-              </div>
+              </nav>
             </div>
           )}
         </div>

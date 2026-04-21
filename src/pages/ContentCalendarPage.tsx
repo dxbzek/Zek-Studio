@@ -306,25 +306,27 @@ function RolePicker({
   members: { id: string; email: string }[]
 }) {
   return (
-    <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
-      <SelectTrigger className="h-9 text-sm">
-        <SelectValue placeholder="Unassigned" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">Unassigned</SelectItem>
-        {members.length === 0 && (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-            No team members yet — invite someone in Team.
-          </div>
-        )}
-        {members.map((m) => (
-          <SelectItem key={m.id} value={m.email}>
-            {emailHandle(m.email)}
-            <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="space-y-1">
+      <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
+        <SelectTrigger className="h-9 text-sm">
+          <SelectValue placeholder="Unassigned" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Unassigned</SelectItem>
+          {members.map((m) => (
+            <SelectItem key={m.id} value={m.email}>
+              {emailHandle(m.email)}
+              <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {members.length === 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          No team members yet — invite someone in Team.
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -768,8 +770,9 @@ export function ContentCalendarPage() {
         </div>
       </div>
 
-      {/* Filter bar */}
-      <div className="px-4 sm:px-6 pb-3 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+      {/* Filter bar — right fade hints at horizontal scroll on narrow viewports */}
+      <div
+        className="relative px-4 sm:px-6 pb-3 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] sm:[mask-image:none]">
         <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Platforms</span>
         {PLATFORMS.map((p) => (
           <button
@@ -856,9 +859,10 @@ export function ContentCalendarPage() {
         <button
           type="button"
           onClick={prevMonth}
+          aria-label="Previous month"
           className="p-1 rounded hover:bg-accent transition-colors"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-4 w-4" aria-hidden />
         </button>
         <span className="font-heading text-[15px] sm:text-base font-medium tracking-tight min-w-[110px] sm:min-w-[140px] text-center">
           {format(new Date(viewYear, viewMonth), 'MMMM yyyy')}
@@ -866,9 +870,10 @@ export function ContentCalendarPage() {
         <button
           type="button"
           onClick={nextMonth}
+          aria-label="Next month"
           className="p-1 rounded hover:bg-accent transition-colors"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" aria-hidden />
         </button>
         <button
           type="button"
@@ -1024,6 +1029,8 @@ export function ContentCalendarPage() {
                     key={ct.value}
                     type="button"
                     title={ct.desc}
+                    aria-label={`${ct.label} — ${ct.desc}`}
+                    aria-pressed={formContentType === ct.value}
                     onClick={() => setFormContentType(ct.value as ContentTheme)}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                       formContentType === ct.value

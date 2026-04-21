@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { errorMessage } from '@/lib/formatting'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -463,7 +464,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       }
       setDrawerOpen(false)
     } catch (err) {
-      toast.error('Failed to save task', { description: (err as Error).message })
+      toast.error('Failed to save task', { description: errorMessage(err) })
     }
   }
 
@@ -485,7 +486,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       })
       toast.success('Task added')
     } catch (err) {
-      toast.error('Failed to add task', { description: (err as Error).message })
+      toast.error('Failed to add task', { description: errorMessage(err) })
     }
   }
 
@@ -495,7 +496,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       toast.success('Task deleted')
       setDrawerOpen(false)
     } catch (err) {
-      toast.error('Failed to delete', { description: (err as Error).message })
+      toast.error('Failed to delete', { description: errorMessage(err) })
     }
   }
 
@@ -515,7 +516,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       await updateTask.mutateAsync({ id: task.id, patch: { status: targetStatus } })
       toast.success(`Moved to ${targetLabel}`)
     } catch (err) {
-      toast.error('Move failed', { description: (err as Error).message })
+      toast.error('Move failed', { description: errorMessage(err) })
     }
   }
 
@@ -678,7 +679,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
             <AlertCircle className="h-8 w-8 text-red-500" />
             <p className="text-sm text-muted-foreground max-w-sm">
-              Couldn't load tasks. {(rawTasks.error as Error | null)?.message ?? 'Unknown error.'}
+              Couldn't load tasks. {errorMessage(rawTasks.error, 'Unknown error.')}
             </p>
             <Button size="sm" variant="outline" onClick={() => rawTasks.refetch()}>
               Retry
@@ -899,7 +900,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                           await updateTask.mutateAsync({ id: editingTask.id, patch: { status: col.id } })
                           toast.success(`Status: ${col.label}`)
                         } catch (err) {
-                          toast.error('Update failed', { description: (err as Error).message })
+                          toast.error('Update failed', { description: errorMessage(err) })
                         }
                       }}
                       className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${

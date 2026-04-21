@@ -30,6 +30,10 @@ export default function PublicReportPage() {
       }
     },
     enabled: tokenValid,
+    // Public reports are read-only snapshots — refresh on tab focus so stale
+    // data doesn't linger when a client leaves the tab open overnight.
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
   })
 
   if (!tokenValid) {
@@ -48,8 +52,8 @@ export default function PublicReportPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-2">
-          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <div role="status" aria-live="polite" className="text-center space-y-2">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" aria-hidden />
           <p className="text-sm text-muted-foreground">Loading report…</p>
         </div>
       </div>

@@ -74,7 +74,7 @@ function ApprovalCard({
         </span>
         {localStatus && (
           <span
-            className={`ml-auto text-xs font-medium px-2 py-0.5 rounded ${
+            className={`ml-auto inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded ${
               localStatus === 'approved'
                 ? 'bg-emerald-500/10 text-emerald-600'
                 : localStatus === 'rejected'
@@ -82,6 +82,9 @@ function ApprovalCard({
                 : 'bg-amber-500/10 text-amber-600'
             }`}
           >
+            <span aria-hidden>
+              {localStatus === 'approved' ? '✓' : localStatus === 'rejected' ? '✕' : '•'}
+            </span>
             {localStatus === 'pending_review'
               ? 'Pending review'
               : localStatus.charAt(0).toUpperCase() + localStatus.slice(1)}
@@ -113,7 +116,12 @@ function ApprovalCard({
           <div className="pt-1 space-y-2">
             {showReject ? (
               <div className="space-y-2">
+                <label htmlFor={`reject-note-${entry.id}`} className="sr-only">
+                  Optional note for the team
+                </label>
                 <textarea
+                  id={`reject-note-${entry.id}`}
+                  name="rejection_note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Optional note for the team…"
@@ -184,6 +192,10 @@ export default function PublicApprovalPage() {
       }
     },
     enabled: tokenValid,
+    // Refetch on focus so a reviewer who leaves the tab open sees fresh
+    // entries when the team publishes more content for review.
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   })
 
   if (!tokenValid) {
@@ -214,8 +226,8 @@ export default function PublicApprovalPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-2">
-          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <div role="status" aria-live="polite" className="text-center space-y-2">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" aria-hidden />
           <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       </div>

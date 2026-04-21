@@ -202,16 +202,18 @@ export default function CampaignsPage() {
                       <button
                         type="button"
                         onClick={() => openEdit(campaign)}
+                        aria-label={`Edit ${campaign.name}`}
                         className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-3.5 w-3.5" aria-hidden />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(campaign.id)}
+                        aria-label={`Delete ${campaign.name}`}
                         className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
                       </button>
                     </div>
                   </div>

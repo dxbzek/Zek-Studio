@@ -72,7 +72,8 @@
       "Bash(curl -sL -A \"Mozilla/5.0\" \"https://cdn.simpleicons.org/facebook/1877F2\")",
       "Bash(curl -sL -A \"Mozilla/5.0\" \"https://cdn.simpleicons.org/linkedin/0A66C2\" -w \"HTTP:%{http_code} SIZE:%{size_download}\\\\n\" -o /tmp/li.svg)",
       "Bash(curl -sL -A \"Mozilla/5.0\" \"https://simpleicons.org/?q=linkedin\" -o /tmp/si.html -w \"%{http_code}\\\\n\")",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(node -e ' *)"
     ]
   }
 }
