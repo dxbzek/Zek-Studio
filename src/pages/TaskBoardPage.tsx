@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   closestCenter, useDroppable, useDraggable,
@@ -106,17 +106,53 @@ function DraggableTask({ task, onClick }: { task: Task; onClick: () => void }) {
   )
 }
 
+function QuickAddTask({
+  onAdd,
+  disabled,
+}: {
+  onAdd: (title: string) => void
+  disabled?: boolean
+}) {
+  const [title, setTitle] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <div className="flex items-center gap-1.5 rounded border border-dashed border-border bg-background/40 px-1.5 py-1 focus-within:border-primary/60 focus-within:bg-background transition-colors">
+      <Plus className="h-3 w-3 text-muted-foreground shrink-0" />
+      <input
+        ref={inputRef}
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && title.trim()) {
+            onAdd(title.trim())
+            setTitle('')
+          } else if (e.key === 'Escape') {
+            setTitle('')
+            inputRef.current?.blur()
+          }
+        }}
+        placeholder="Add task…"
+        disabled={disabled}
+        className="flex-1 min-w-0 bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none py-0.5 disabled:opacity-50"
+      />
+    </div>
+  )
+}
+
 function TaskColumn({
   column,
   tasks,
   onCardClick,
   onAddClick,
+  onQuickAdd,
   isSpecialist,
 }: {
   column: { id: TaskStatus; label: string }
   tasks: Task[]
   onCardClick: (t: Task) => void
   onAddClick: () => void
+  onQuickAdd: (title: string) => void
   isSpecialist: boolean
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: column.id })
@@ -133,6 +169,7 @@ function TaskColumn({
           {tasks.length}
         </span>
       </div>
+      {!isSpecialist && <QuickAddTask onAdd={onQuickAdd} />}
       {tasks.map((task) => (
         <DraggableTask key={task.id} task={task} onClick={() => onCardClick(task)} />
       ))}
@@ -140,10 +177,10 @@ function TaskColumn({
         <button
           type="button"
           onClick={onAddClick}
-          className="mt-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground py-1 px-1 rounded hover:bg-accent transition-colors"
+          className="mt-auto flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground py-1 px-1 rounded hover:bg-accent transition-colors"
         >
-          <Plus className="h-3.5 w-3.5" />
-          Add task
+          <Plus className="h-3 w-3" />
+          With details…
         </button>
       )}
     </div>
@@ -272,6 +309,28 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
     }
   }
 
+  async function handleQuickAdd(status: TaskStatus, title: string) {
+    if (!activeBrand) return
+    try {
+      await createTask.mutateAsync({
+        brand_id: activeBrand.id,
+        title,
+        description: null,
+        type: 'content',
+        status,
+        priority: 'medium',
+        assignee_id: null,
+        assignee_email: null,
+        calendar_entry_id: null,
+        due_date: null,
+        created_by: null,
+      })
+      toast.success('Task added')
+    } catch (err) {
+      toast.error('Failed to add task', { description: (err as Error).message })
+    }
+  }
+
   async function handleDelete() {
     try {
       await deleteTask.mutateAsync(editingTask!.id)
@@ -365,6 +424,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                 tasks={tasksForColumn(col.id)}
                 onCardClick={isSpecialist ? openEdit : openEdit}
                 onAddClick={() => openCreate(col.id)}
+                onQuickAdd={(title) => handleQuickAdd(col.id, title)}
                 isSpecialist={isSpecialist}
               />
             ))}

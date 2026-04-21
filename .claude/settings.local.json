@@ -33,7 +33,27 @@
       "Read(//c/Temp/obsidian-skills/**)",
       "Read(//c/Temp/obsidian-skills/skills/**)",
       "Bash(mkdir -p \"C:/ascendbyzek/Ascend/.claude/skills\")",
-      "Bash(cp -r \"C:/Temp/obsidian-skills/skills/\"* \"C:/ascendbyzek/Ascend/.claude/skills/\")"
+      "Bash(cp -r \"C:/Temp/obsidian-skills/skills/\"* \"C:/ascendbyzek/Ascend/.claude/skills/\")",
+      "Bash(xargs cat *)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git stash *)",
+      "Bash(git pull *)",
+      "Bash(git commit *)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(cp \"C:\\\\Users\\\\Zek\\\\.claude\\\\projects\\\\c--Zek-Studio\\\\3b9ee12a-7ed3-4f4e-ad52-5f52fd67f9db\\\\tool-results\\\\webfetch-1776633147835-k5uh2g.bin\" /tmp/design.gz)",
+      "Bash(gunzip -f /tmp/design.gz)",
+      "Read(//tmp/**)",
+      "Bash(tar -tf /tmp/design)",
+      "Bash(tar -xf /tmp/design -C /tmp/)",
+      "WebFetch(domain:supabase.com)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "WebSearch",
+      "Bash(ffmpeg -version)",
+      "Bash(winget install *)"
     ]
   }
 }

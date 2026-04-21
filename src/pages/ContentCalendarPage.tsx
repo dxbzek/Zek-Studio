@@ -171,7 +171,7 @@ function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void 
       style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1 }}
       {...listeners}
       {...attributes}
-      onClick={onClick}
+      onClick={(e) => { e.stopPropagation(); onClick() }}
       className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs hover:bg-accent transition-colors select-none`}
     >
       <div className="flex items-center gap-1.5">
@@ -219,7 +219,8 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
-      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : ''} ${isOver ? 'bg-primary/5' : ''}`}
+      onClick={() => { if (isCurrentMonth) onAddClick() }}
+      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : 'cursor-pointer hover:bg-accent/30'} ${isOver ? 'bg-primary/5' : ''}`}
     >
       <div className="flex items-center justify-between">
         <span
@@ -242,7 +243,10 @@ function DayCell({
         <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
       ))}
       {groups.length > MAX_VISIBLE && (
-        <span className="text-[10px] text-muted-foreground px-1 font-mono tabular-nums">
+        <span
+          onClick={(e) => e.stopPropagation()}
+          className="text-[10px] text-muted-foreground px-1 font-mono tabular-nums"
+        >
           +{groups.length - MAX_VISIBLE} more
         </span>
       )}
