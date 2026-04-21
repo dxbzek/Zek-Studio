@@ -5,8 +5,8 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { format, parseISO } from 'date-fns'
-import { Plus, CalendarDays, AlertCircle } from 'lucide-react'
+import { format, parseISO, differenceInHours, isPast } from 'date-fns'
+import { Plus, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,7 @@ import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTasks } from '@/hooks/useTasks'
 import { useTeam } from '@/hooks/useTeam'
+import { TASK_STATUS_BORDER, TASK_STATUS_CHIP } from '@/lib/statusTokens'
 import type { Task, TaskStatus, TaskType, TaskPriority, TaskInsert } from '@/types'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -46,6 +47,30 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   high:   'bg-rose-500',
 }
 
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  low:    'Low priority',
+  medium: 'Medium priority',
+  high:   'High priority',
+}
+
+function dueMeta(due: string | null): { label: string; tone: string } | null {
+  if (!due) return null
+  try {
+    const d = parseISO(due)
+    const hours = differenceInHours(d, new Date())
+    const label = format(d, 'MMM d')
+    if (isPast(d) && hours < 0) return { label, tone: 'text-red-600 dark:text-red-400' }
+    if (hours <= 48) return { label, tone: 'text-amber-600 dark:text-amber-400' }
+    return { label, tone: 'text-muted-foreground' }
+  } catch {
+    return null
+  }
+}
+
+function assigneeInitial(email: string): string {
+  return (email.split('@')[0][0] ?? '?').toUpperCase()
+}
+
 const TASK_TYPES: { value: TaskType; label: string }[] = [
   { value: 'content',  label: 'Content' },
   { value: 'shoot',    label: 'Photo/Video Shoot' },
@@ -63,27 +88,35 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function TaskChip({ task }: { task: Task }) {
+  const due = dueMeta(task.due_date)
+  const handle = task.assignee_email ? task.assignee_email.split('@')[0] : null
   return (
-    <div className={`rounded border border-border bg-card px-2 py-1.5 space-y-1.5`}>
-      <div className="flex items-start justify-between gap-1">
+    <div className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} bg-card px-2 py-1.5 space-y-1.5`}>
+      <div className="flex items-start justify-between gap-1.5">
         <span className="text-xs text-foreground leading-snug line-clamp-2 flex-1">
           {task.title}
         </span>
-        <span className={`h-2 w-2 rounded-full mt-0.5 shrink-0 ${PRIORITY_COLORS[task.priority]}`} />
+        <span
+          aria-label={PRIORITY_LABELS[task.priority]}
+          title={PRIORITY_LABELS[task.priority]}
+          className={`h-2 w-2 rounded-full mt-0.5 shrink-0 ${PRIORITY_COLORS[task.priority]}`}
+        />
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1.5">
         <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLORS[task.type]}`}>
           {task.type}
         </span>
-        {task.assignee_email && (
-          <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
-            {task.assignee_email.split('@')[0]}
+        {due && (
+          <span className={`text-[10.5px] font-mono tabular-nums ${due.tone}`}>
+            {due.label}
           </span>
         )}
-        {task.due_date && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-            <CalendarDays className="h-2.5 w-2.5" />
-            {format(parseISO(task.due_date), 'MMM d')}
+        {handle && (
+          <span className="ml-auto flex items-center gap-1 min-w-0" title={task.assignee_email ?? ''}>
+            <span className="h-4 w-4 shrink-0 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[9px] font-semibold">
+              {assigneeInitial(task.assignee_email!)}
+            </span>
+            <span className="text-[10.5px] text-muted-foreground truncate">{handle}</span>
           </span>
         )}
       </div>
@@ -363,11 +396,8 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
         <div>
           <div className="eyebrow mb-1.5">Collaborate</div>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Tasks</h1>
-          {!isSpecialist && activeBrand && (
+          {activeBrand && (
             <p className="text-[13px] text-muted-foreground mt-1">{activeBrand.name}</p>
-          )}
-          {isSpecialist && (
-            <p className="text-[13px] text-muted-foreground mt-1">Your assigned tasks</p>
           )}
         </div>
         {!isSpecialist && (
@@ -559,7 +589,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                       onClick={() => updateTask.mutate({ id: editingTask.id, patch: { status: col.id } })}
                       className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                         editingTask.status === col.id
-                          ? 'bg-primary text-primary-foreground border-primary'
+                          ? `${TASK_STATUS_CHIP[col.id]} border-transparent`
                           : 'border-border text-muted-foreground'
                       }`}
                     >

@@ -62,6 +62,11 @@ import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
 import { PLATFORMS, CONTENT_THEMES } from '@/types'
 import { PlatformBadge, PlatformPill, PLATFORM_BRAND } from '@/lib/platformBrand'
+import {
+  CALENDAR_STATUS_BORDER,
+  CALENDAR_STATUS_CHIP,
+  CALENDAR_STATUS_DOT,
+} from '@/lib/statusTokens'
 import type {
   CalendarEntry,
   CalendarEntryInsert,
@@ -75,17 +80,8 @@ import type {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STATUS_COLORS: Record<CalendarStatus, string> = {
-  draft:     'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
-  scheduled: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  published: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-}
-
-const STATUS_BORDER_COLORS: Record<CalendarStatus, string> = {
-  draft:     'border-l-zinc-400',
-  scheduled: 'border-l-amber-400',
-  published: 'border-l-emerald-500',
-}
+const STATUS_COLORS = CALENDAR_STATUS_CHIP
+const STATUS_BORDER_COLORS = CALENDAR_STATUS_BORDER
 
 const CONTENT_TYPES = CONTENT_THEMES
 
@@ -172,14 +168,22 @@ function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void 
       onClick={(e) => { e.stopPropagation(); onClick() }}
       className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs hover:bg-accent transition-colors select-none`}
     >
-      <div className="flex items-center gap-1.5">
-        <PlatformStack platforms={group.platforms} />
-        <span className="ml-auto flex items-center gap-1 shrink-0">
-          {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
-          {approvalDot && <span className={`h-1.5 w-1.5 rounded-full ${approvalDot}`} />}
-        </span>
+      {/* Mobile: single row — status dot + title */}
+      <div className="flex items-center gap-1.5 sm:hidden">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${CALENDAR_STATUS_DOT[rep.status]}`} />
+        <span className="text-foreground line-clamp-1 text-[11px] leading-tight flex-1">{rep.title}</span>
       </div>
-      <span className="block text-foreground line-clamp-1 mt-0.5 text-[11px] sm:text-xs leading-tight">{rep.title}</span>
+      {/* Desktop: platform stack + metadata dots + title */}
+      <div className="hidden sm:block">
+        <div className="flex items-center gap-1.5">
+          <PlatformStack platforms={group.platforms} />
+          <span className="ml-auto flex items-center gap-1 shrink-0">
+            {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
+            {approvalDot && <span className={`h-1.5 w-1.5 rounded-full ${approvalDot}`} />}
+          </span>
+        </div>
+        <span className="block text-foreground line-clamp-1 mt-0.5 text-xs leading-tight">{rep.title}</span>
+      </div>
     </div>
   )
 }
@@ -188,8 +192,14 @@ function EntryCardOverlay({ group }: { group: EntryGroup }) {
   const { representative: rep } = group
   return (
     <div className={`rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs shadow-lg`}>
-      <PlatformStack platforms={group.platforms} />
-      <span className="block text-foreground line-clamp-1 mt-0.5 text-[11px] sm:text-xs leading-tight">{rep.title}</span>
+      <div className="flex items-center gap-1.5 sm:hidden">
+        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${CALENDAR_STATUS_DOT[rep.status]}`} />
+        <span className="text-foreground line-clamp-1 text-[11px] leading-tight flex-1">{rep.title}</span>
+      </div>
+      <div className="hidden sm:block">
+        <PlatformStack platforms={group.platforms} />
+        <span className="block text-foreground line-clamp-1 mt-0.5 text-xs leading-tight">{rep.title}</span>
+      </div>
     </div>
   )
 }
