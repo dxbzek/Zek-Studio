@@ -30,17 +30,28 @@ interface MemberWorkload {
   overdue: number
 }
 
-function computeWorkload(memberEmail: string, tasks: Task[]): MemberWorkload {
+// Bucket every task by assignee in a single pass. Called from a memo so the
+// grid renders O(n + m) instead of O(n × m) per render.
+function computeWorkloads(tasks: Task[]): Map<string, MemberWorkload> {
   const today = new Date().toISOString().slice(0, 10)
-  const memberTasks = tasks.filter((t) => t.assignee_email === memberEmail)
-  return {
-    total:      memberTasks.length,
-    done:       memberTasks.filter((t) => t.status === 'done').length,
-    inProgress: memberTasks.filter((t) => t.status === 'in_progress').length,
-    todo:       memberTasks.filter((t) => t.status === 'todo').length,
-    overdue:    memberTasks.filter((t) => t.status !== 'done' && t.due_date && t.due_date < today).length,
+  const map = new Map<string, MemberWorkload>()
+  for (const t of tasks) {
+    if (!t.assignee_email) continue
+    let w = map.get(t.assignee_email)
+    if (!w) {
+      w = { total: 0, done: 0, inProgress: 0, todo: 0, overdue: 0 }
+      map.set(t.assignee_email, w)
+    }
+    w.total++
+    if (t.status === 'done') w.done++
+    else if (t.status === 'in_progress') w.inProgress++
+    else if (t.status === 'todo') w.todo++
+    if (t.status !== 'done' && t.due_date && t.due_date < today) w.overdue++
   }
+  return map
 }
+
+const EMPTY_WORKLOAD: MemberWorkload = { total: 0, done: 0, inProgress: 0, todo: 0, overdue: 0 }
 
 function WorkloadBar({ workload }: { workload: MemberWorkload }) {
   if (workload.total === 0) return null
@@ -93,7 +104,7 @@ function MemberRow({
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card">
-      <div className="h-[34px] w-[34px] rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: '#D4C2A8', color: '#111' }}>
+      <div className="h-[34px] w-[34px] rounded-full bg-muted text-foreground flex items-center justify-center text-[11px] font-semibold shrink-0">
         {initials(member.email)}
       </div>
       <div className="flex-1 min-w-0">
@@ -143,12 +154,16 @@ export default function TeamPage() {
   const teamStats = useMemo(() => {
     if (allTasks.length === 0) return { totalTasks: 0, totalDone: 0, totalOverdue: 0 }
     const today = new Date().toISOString().slice(0, 10)
-    return {
-      totalTasks:   allTasks.length,
-      totalDone:    allTasks.filter((t) => t.status === 'done').length,
-      totalOverdue: allTasks.filter((t) => t.status !== 'done' && t.due_date && t.due_date < today).length,
+    let totalDone = 0
+    let totalOverdue = 0
+    for (const t of allTasks) {
+      if (t.status === 'done') totalDone++
+      else if (t.due_date && t.due_date < today) totalOverdue++
     }
+    return { totalTasks: allTasks.length, totalDone, totalOverdue }
   }, [allTasks])
+
+  const workloadByEmail = useMemo(() => computeWorkloads(allTasks), [allTasks])
 
   if (!activeBrand) return <NoBrandSelected />
 
@@ -251,7 +266,7 @@ export default function TeamPage() {
               <MemberRow
                 key={member.id}
                 member={member}
-                workload={computeWorkload(member.email, allTasks)}
+                workload={workloadByEmail.get(member.email) ?? EMPTY_WORKLOAD}
                 onRemove={() => setConfirmRemove(member)}
                 onReassign={() => { setReassignMember(member); setReassignBrandId(member.brand_id) }}
               />

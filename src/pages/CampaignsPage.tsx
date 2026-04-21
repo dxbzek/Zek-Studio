@@ -25,20 +25,29 @@ const CAMPAIGN_COLORS = [
   '#0ea5e9', '#3b82f6', '#64748b', '#0f172a',
 ]
 
-function CampaignEntryCount({ campaignId }: { campaignId: string }) {
-  const { data: count } = useQuery({
-    queryKey: ['campaign-entry-count', campaignId],
+// Fetches one row per calendar entry that belongs to any campaign in this
+// brand, then buckets them by campaign_id in memory. One query instead of
+// N — keeps the grid from firing a request per card.
+function useCampaignEntryCounts(brandId: string | null) {
+  return useQuery({
+    queryKey: ['campaign-entry-counts', brandId],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count: c, error } = await supabase
+      if (!brandId) return {} as Record<string, number>
+      const { data, error } = await supabase
         .from('calendar_entries')
-        .select('id', { count: 'exact', head: true })
-        .eq('campaign_id', campaignId)
+        .select('campaign_id')
+        .eq('brand_id', brandId)
+        .not('campaign_id', 'is', null)
       if (error) throw error
-      return c ?? 0
+      const counts: Record<string, number> = {}
+      for (const row of data ?? []) {
+        const cid = row.campaign_id as string | null
+        if (cid) counts[cid] = (counts[cid] ?? 0) + 1
+      }
+      return counts
     },
+    enabled: !!brandId,
   })
-  return <span className="text-xs text-muted-foreground">{count ?? '…'} entries</span>
 }
 
 export default function CampaignsPage() {
@@ -46,6 +55,7 @@ export default function CampaignsPage() {
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns(
     activeBrand?.id ?? null
   )
+  const entryCounts = useCampaignEntryCounts(activeBrand?.id ?? null)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -206,7 +216,9 @@ export default function CampaignsPage() {
                     </div>
                   </div>
                   <div className="mt-3 pt-2 border-t border-border">
-                    <CampaignEntryCount campaignId={campaign.id} />
+                    <span className="text-xs text-muted-foreground">
+                      {entryCounts.isLoading ? '…' : entryCounts.data?.[campaign.id] ?? 0} entries
+                    </span>
                   </div>
                 </div>
               </div>
