@@ -2,16 +2,12 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { requireUser, requireBrandAccess } from '../_shared/auth.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY')
 const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour
 const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000 // posts no older than 90 days
@@ -241,6 +237,7 @@ function extractCreator(result: any, platform: 'instagram' | 'tiktok' | 'youtube
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
+  const CORS_HEADERS = corsHeaders(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }

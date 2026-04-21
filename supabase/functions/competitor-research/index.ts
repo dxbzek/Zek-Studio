@@ -1,15 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const ACTORS: Record<string, string> = {
   instagram: 'apify/instagram-scraper',
@@ -18,18 +14,20 @@ const ACTORS: Record<string, string> = {
   youtube: 'apify/youtube-scraper',
 }
 
-/** Extract bare username from a handle or profile URL */
+/** Extract bare username from a handle or profile URL, stripped to a safe charset. */
 function extractUsername(input: string): string {
   const trimmed = input.trim()
+  let raw = trimmed
   try {
     if (trimmed.startsWith('http')) {
       const url = new URL(trimmed)
-      // pathname: /username or /@username or /channel/UCxxx — take first segment
       const parts = url.pathname.split('/').filter(Boolean)
-      if (parts.length > 0) return parts[0].replace(/^@/, '')
+      if (parts.length > 0) raw = parts[0]
     }
   } catch { /* not a URL */ }
-  return trimmed.replace(/^@/, '')
+  // Handles across IG/TikTok/FB/YouTube only permit [A-Za-z0-9._-]
+  // Strip anything else (prevents path traversal / query injection into Apify URLs).
+  return raw.replace(/^@/, '').replace(/[^A-Za-z0-9._-]/g, '')
 }
 
 function buildApifyInput(platform: string, handle: string): unknown {
@@ -156,6 +154,7 @@ async function storeThumbnail(
 }
 
 Deno.serve(async (req) => {
+  const CORS_HEADERS = corsHeaders(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
   }
@@ -291,8 +290,10 @@ Deno.serve(async (req) => {
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
+    const raw = (err as Error).message ?? 'Research failed'
+    const clean = APIFY_TOKEN ? raw.split(APIFY_TOKEN).join('[redacted]') : raw
     return new Response(
-      JSON.stringify({ error: (err as Error).message }),
+      JSON.stringify({ error: clean }),
       { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
     )
   }

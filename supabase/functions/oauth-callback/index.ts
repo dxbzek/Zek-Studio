@@ -56,8 +56,11 @@ Deno.serve(async (req) => {
       return redirectError(`Unsupported platform: ${platform}`)
     }
   } catch (err) {
+    // Keep the detail server-side; don't echo upstream token-exchange bodies
+    // (may contain codes, hashed client secrets, or short-lived tokens) into
+    // the redirect URL, which lands in the user's browser history + server logs.
     console.error(`oauth-callback [${platform}] error:`, err)
-    return redirectError((err as Error).message)
+    return redirectError('oauth_failed')
   }
 
   return Response.redirect(`${APP_URL}/analytics?connected=${platform}`, 302)

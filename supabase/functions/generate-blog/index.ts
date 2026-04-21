@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { requireUser } from '../_shared/auth.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -10,10 +11,6 @@ const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 async function groq(prompt: string, maxTokens = 2048): Promise<string> {
   const res = await fetch(GROQ_URL, {
@@ -32,6 +29,7 @@ async function groq(prompt: string, maxTokens = 2048): Promise<string> {
 }
 
 Deno.serve(async (req) => {
+  const CORS_HEADERS = corsHeaders(req)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
 
   try {
@@ -85,20 +83,26 @@ METADATA:{"slug":"url-friendly-slug-here","meta_title":"SEO meta title under 60 
           .replace(/```[\s\S]*?```/g, '')
       }
 
-      // Split content from metadata
-      const metaMatch = raw.match(/METADATA:(\{.*\})\s*$/s)
+      // Split content from metadata. Cap the JSON block at 8KB so a runaway
+      // model response can't blow up the parse or the insert downstream.
+      const META_MAX_BYTES = 8 * 1024
+      const metaMatch = raw.match(/METADATA:(\{[\s\S]*?\})\s*$/)
       let content = sanitizeToHtml(raw)
       let slug: string | null = null
       let meta_title: string | null = null
       let meta_description: string | null = null
 
-      if (metaMatch) {
+      if (metaMatch && metaMatch[1].length <= META_MAX_BYTES) {
         content = sanitizeToHtml(raw.slice(0, metaMatch.index).trim())
         try {
           const meta = JSON.parse(metaMatch[1])
-          slug = meta.slug ?? null
-          meta_title = meta.meta_title ?? null
-          meta_description = meta.meta_description ?? null
+          if (meta && typeof meta === 'object') {
+            slug = typeof meta.slug === 'string' ? meta.slug.slice(0, 200) : null
+            meta_title = typeof meta.meta_title === 'string' ? meta.meta_title.slice(0, 200) : null
+            meta_description = typeof meta.meta_description === 'string'
+              ? meta.meta_description.slice(0, 400)
+              : null
+          }
         } catch { /* ignore parse errors */ }
       }
 

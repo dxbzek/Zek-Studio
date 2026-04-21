@@ -1,15 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const APIFY_TOKEN = Deno.env.get('APIFY_API_TOKEN')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
 
 const ACTORS: Record<string, string> = {
   instagram: 'apify/instagram-scraper',
@@ -178,6 +174,7 @@ function normalizeToMetric(
 }
 
 Deno.serve(async (req) => {
+  const CORS_HEADERS = corsHeaders(req)
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
 
   try {
@@ -314,7 +311,11 @@ Deno.serve(async (req) => {
     })
   } catch (err) {
     console.error('sync-brand-analytics error:', err)
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    // Scrub the Apify token before surfacing the message — upstream error bodies
+    // can echo the URL we called, token and all.
+    const raw = (err as Error).message ?? 'Sync failed'
+    const clean = APIFY_TOKEN ? raw.split(APIFY_TOKEN).join('[redacted]') : raw
+    return new Response(JSON.stringify({ error: clean }), {
       status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     })
   }

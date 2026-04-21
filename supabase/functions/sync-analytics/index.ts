@@ -1,15 +1,24 @@
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders as buildCorsHeaders } from '../_shared/cors.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+const FETCH_TIMEOUT_MS = 30_000
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS)
+  try {
+    return await fetch(input, { ...init, signal: ctrl.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -155,7 +164,7 @@ async function refreshToken(
     // Meta: exchange current long-lived token for a new one
     const appId = Deno.env.get('META_APP_ID')!
     const appSecret = Deno.env.get('META_APP_SECRET')!
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/oauth/access_token?` +
       `grant_type=fb_exchange_token&client_id=${appId}` +
       `&client_secret=${appSecret}&fb_exchange_token=${conn.access_token}`,
@@ -167,7 +176,7 @@ async function refreshToken(
       ? new Date(Date.now() + data.expires_in * 1000).toISOString()
       : null
   } else if (platform === 'tiktok') {
-    const res = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+    const res = await fetchWithTimeout('https://open.tiktokapis.com/v2/oauth/token/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -185,7 +194,7 @@ async function refreshToken(
       ? new Date(Date.now() + data.expires_in * 1000).toISOString()
       : null
   } else if (platform === 'youtube') {
-    const res = await fetch('https://oauth2.googleapis.com/token', {
+    const res = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -230,7 +239,7 @@ async function syncInstagram(
   const sinceParam = since ? `&since=${Math.floor(new Date(since).getTime() / 1000)}` : ''
   const untilParam = until ? `&until=${Math.floor(new Date(until + 'T23:59:59').getTime() / 1000)}` : ''
   // Fetch recent media
-  const mediaRes = await fetch(
+  const mediaRes = await fetchWithTimeout(
     `https://graph.facebook.com/v21.0/${igAccountId}/media?` +
     `fields=id,timestamp,like_count,comments_count,media_url,permalink&limit=50` +
     `${sinceParam}${untilParam}&access_token=${accessToken}`,
@@ -241,7 +250,7 @@ async function syncInstagram(
   let synced = 0
   for (const post of mediaData.data) {
     // Fetch insights for this post
-    const insightsRes = await fetch(
+    const insightsRes = await fetchWithTimeout(
       `https://graph.facebook.com/v21.0/${post.id}/insights?` +
       `metric=impressions,reach,saved,shares&access_token=${accessToken}`,
     )
@@ -283,7 +292,7 @@ async function syncFacebook(
   until?: string,
 ): Promise<number> {
   // Fetch page fan_count to use as engagement denominator
-  const pageRes = await fetch(
+  const pageRes = await fetchWithTimeout(
     `https://graph.facebook.com/v21.0/${pageId}?fields=fan_count&access_token=${accessToken}`,
   )
   const pageData = await pageRes.json()
@@ -291,7 +300,7 @@ async function syncFacebook(
 
   const sinceParam = since ? `&since=${Math.floor(new Date(since).getTime() / 1000)}` : ''
   const untilParam = until ? `&until=${Math.floor(new Date(until + 'T23:59:59').getTime() / 1000)}` : ''
-  const postsRes = await fetch(
+  const postsRes = await fetchWithTimeout(
     `https://graph.facebook.com/v21.0/${pageId}/posts?` +
     `fields=id,created_time,story,permalink_url,likes.summary(true),comments.summary(true),shares&limit=50` +
     `${sinceParam}${untilParam}&access_token=${accessToken}`,
@@ -328,7 +337,7 @@ async function syncTikTok(
   since?: string,
   until?: string,
 ): Promise<number> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     'https://open.tiktokapis.com/v2/video/list/?fields=id,title,like_count,comment_count,share_count,view_count,create_time,share_url',
     {
       method: 'POST',
@@ -380,7 +389,7 @@ async function syncYouTube(
   until?: string,
 ): Promise<number> {
   // Fetch recent uploads from the uploads playlist
-  const channelRes = await fetch(
+  const channelRes = await fetchWithTimeout(
     `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   )
@@ -388,7 +397,7 @@ async function syncYouTube(
   const uploadsPlaylistId = channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads
   if (!uploadsPlaylistId) throw new Error('Could not find YouTube uploads playlist')
 
-  const playlistRes = await fetch(
+  const playlistRes = await fetchWithTimeout(
     `https://www.googleapis.com/youtube/v3/playlistItems?` +
     `part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=50`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -404,7 +413,7 @@ async function syncYouTube(
   if (!videoIds) return 0
 
   // Fetch video statistics
-  const statsRes = await fetch(
+  const statsRes = await fetchWithTimeout(
     `https://www.googleapis.com/youtube/v3/videos?` +
     `part=statistics,snippet&id=${videoIds}`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
