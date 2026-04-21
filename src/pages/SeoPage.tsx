@@ -40,7 +40,7 @@ import {
 import type {
   BrandProfile,
   SeoKeyword, SeoKeywordDifficulty, SeoKeywordIntent, SeoKeywordStatus,
-  BlogPost,
+  BlogPost, BlogPostStatus,
   SeoAuditItem, SeoAuditCategory, SeoAuditStatus,
 } from '@/types'
 
