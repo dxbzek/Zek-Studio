@@ -133,10 +133,37 @@ function groupEntries(entries: CalendarEntry[]): EntryGroup[] {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+const MAX_PLATFORM_BADGES = 3
+
+function PlatformStack({ platforms }: { platforms: Platform[] }) {
+  const visible = platforms.slice(0, MAX_PLATFORM_BADGES)
+  const overflow = platforms.length - visible.length
+  return (
+    <div className="flex items-center">
+      {visible.map((p, i) => (
+        <div key={p} className={i > 0 ? '-ml-1 ring-1 ring-card rounded-sm' : ''}>
+          <PlatformBadge platform={p} size="xs" />
+        </div>
+      ))}
+      {overflow > 0 && (
+        <span className="ml-1 font-mono text-[9px] font-medium text-muted-foreground tabular-nums">
+          +{overflow}
+        </span>
+      )}
+    </div>
+  )
+}
+
 function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void }) {
   const { representative: rep } = group
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: group.id })
+
+  const approvalDot =
+    rep.approval_status === 'pending_review' ? 'bg-amber-400'
+    : rep.approval_status === 'approved'     ? 'bg-emerald-500'
+    : rep.approval_status === 'rejected'     ? 'bg-red-500'
+    : null
 
   return (
     <div
@@ -145,26 +172,16 @@ function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void 
       {...listeners}
       {...attributes}
       onClick={onClick}
-      className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-2 py-1 text-xs hover:bg-accent transition-colors select-none`}
+      className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs hover:bg-accent transition-colors select-none`}
     >
-      <div className="flex items-center gap-1 flex-wrap">
-        {group.platforms.map((p) => (
-          <PlatformBadge key={p} platform={p} size="xs" />
-        ))}
-        {rep.approval_status === 'pending_review' && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0 ml-auto" />
-        )}
-        {rep.approval_status === 'approved' && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 ml-auto" />
-        )}
-        {rep.approval_status === 'rejected' && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 ml-auto" />
-        )}
-        {rep.assigned_talent && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0 ml-auto" />
-        )}
+      <div className="flex items-center gap-1.5">
+        <PlatformStack platforms={group.platforms} />
+        <span className="ml-auto flex items-center gap-1 shrink-0">
+          {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
+          {approvalDot && <span className={`h-1.5 w-1.5 rounded-full ${approvalDot}`} />}
+        </span>
       </div>
-      <span className="text-foreground line-clamp-1 mt-0.5">{rep.title}</span>
+      <span className="block text-foreground line-clamp-1 mt-0.5 text-[11px] sm:text-xs leading-tight">{rep.title}</span>
     </div>
   )
 }
@@ -172,13 +189,9 @@ function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void 
 function EntryCardOverlay({ group }: { group: EntryGroup }) {
   const { representative: rep } = group
   return (
-    <div className={`rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-2 py-1 text-xs shadow-lg`}>
-      <div className="flex gap-1 flex-wrap mb-0.5">
-        {group.platforms.map((p) => (
-          <PlatformBadge key={p} platform={p} size="xs" />
-        ))}
-      </div>
-      <span className="text-foreground line-clamp-1">{rep.title}</span>
+    <div className={`rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs shadow-lg`}>
+      <PlatformStack platforms={group.platforms} />
+      <span className="block text-foreground line-clamp-1 mt-0.5 text-[11px] sm:text-xs leading-tight">{rep.title}</span>
     </div>
   )
 }
@@ -206,11 +219,11 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
-      className={`group border-b border-r border-border p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[200px]' : 'min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : ''} ${isOver ? 'bg-primary/5' : ''}`}
+      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : ''} ${isOver ? 'bg-primary/5' : ''}`}
     >
       <div className="flex items-center justify-between">
         <span
-          className={`text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full ${todayFlag ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+          className={`font-mono text-[11px] sm:text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full tabular-nums ${todayFlag ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
         >
           {format(day, 'd')}
         </span>
@@ -218,7 +231,8 @@ function DayCell({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onAddClick() }}
-            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground text-sm leading-none px-1 rounded hover:bg-accent transition-opacity"
+            className="sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-foreground text-sm leading-none h-5 w-5 flex items-center justify-center rounded hover:bg-accent transition-opacity"
+            aria-label="Add entry"
           >
             +
           </button>
@@ -228,7 +242,7 @@ function DayCell({
         <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
       ))}
       {groups.length > MAX_VISIBLE && (
-        <span className="text-[10px] text-muted-foreground px-1">
+        <span className="text-[10px] text-muted-foreground px-1 font-mono tabular-nums">
           +{groups.length - MAX_VISIBLE} more
         </span>
       )}
@@ -661,18 +675,20 @@ export function ContentCalendarPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
-        <div>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 flex items-start justify-between gap-3 shrink-0">
+        <div className="min-w-0">
           <div className="eyebrow mb-1.5">Create</div>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Content Calendar</h1>
-          <p className="text-[13px] text-muted-foreground mt-1">{activeBrand.name}</p>
+          <h1 className="font-heading font-medium leading-[1.05] tracking-tight text-[22px] sm:text-[30px] truncate">Content Calendar</h1>
+          <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-1 truncate">{activeBrand.name}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate('/campaigns')}>Campaigns</Button>
-        <Button size="sm" onClick={() => openCreate()}>New Entry</Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => navigate('/campaigns')}>Campaigns</Button>
+          <Button size="sm" onClick={() => openCreate()}>New</Button>
+        </div>
       </div>
 
       {/* Filter bar */}
-      <div className="px-6 pb-3 flex items-center gap-2 flex-wrap border-b border-border shrink-0">
+      <div className="px-4 sm:px-6 pb-3 flex items-center gap-2 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
         {PLATFORMS.map((p) => (
           <button
             key={p.value}
@@ -684,18 +700,18 @@ export function ContentCalendarPage() {
                   : [...prev, p.value],
               )
             }
-            className="rounded-full border border-transparent hover:opacity-90 transition-opacity"
+            className="rounded-full border border-transparent hover:opacity-90 transition-opacity shrink-0"
           >
             <PlatformPill platform={p.value} label={p.label} active={filterPlatforms.includes(p.value)} />
           </button>
         ))}
-        <div className="w-px h-4 bg-border mx-1" />
+        <div className="w-px h-4 bg-border mx-1 shrink-0" />
         {(['all', 'draft', 'scheduled', 'published'] as const).map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
               filterStatus === s
                 ? s === 'all'
                   ? 'bg-foreground text-background border-transparent'
@@ -703,16 +719,16 @@ export function ContentCalendarPage() {
                 : 'border-border text-muted-foreground hover:text-foreground'
             }`}
           >
-            {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
+            {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
-        <div className="ml-auto relative">
+        <div className="sm:ml-auto relative shrink-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search entries…"
-            className="h-7 pl-8 pr-7 w-full sm:w-44 text-xs"
+            placeholder="Search…"
+            className="h-7 pl-8 pr-7 w-36 sm:w-44 text-xs"
           />
           {search && (
             <button
@@ -728,7 +744,7 @@ export function ContentCalendarPage() {
 
       {/* Pillar distribution bar */}
       {pillarDist.length > 0 && (
-        <div className="px-6 py-2 border-b border-border bg-muted/20 shrink-0">
+        <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center gap-4 flex-wrap">
             <span className="text-xs text-muted-foreground font-medium">Pillars:</span>
             {pillarDist.map((p) => (
@@ -753,7 +769,7 @@ export function ContentCalendarPage() {
       )}
 
       {/* Calendar nav + view toggle */}
-      <div className="px-6 py-3 flex items-center gap-2 shrink-0">
+      <div className="px-4 sm:px-6 py-2.5 sm:py-3 flex items-center gap-2 shrink-0">
         <button
           type="button"
           onClick={prevMonth}
@@ -761,7 +777,7 @@ export function ContentCalendarPage() {
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="text-sm font-semibold min-w-[140px] text-center">
+        <span className="font-heading text-[15px] sm:text-base font-medium tracking-tight min-w-[110px] sm:min-w-[140px] text-center">
           {format(new Date(viewYear, viewMonth), 'MMMM yyyy')}
         </span>
         <button
@@ -806,16 +822,17 @@ export function ContentCalendarPage() {
       </div>
 
       {/* Day name headers */}
-      <div className="grid grid-cols-7 border-b border-border px-6 shrink-0">
+      <div className="grid grid-cols-7 border-b border-border px-4 sm:px-6 shrink-0">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-          <div key={d} className="py-2 text-xs font-medium text-muted-foreground text-center">
-            {d}
+          <div key={d} className="py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground text-center">
+            <span className="sm:hidden">{d.slice(0,1)}</span>
+            <span className="hidden sm:inline">{d}</span>
           </div>
         ))}
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
