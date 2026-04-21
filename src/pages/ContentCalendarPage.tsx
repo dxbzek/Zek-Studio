@@ -277,44 +277,34 @@ function GeneratedContentPreview({ id }: { id: string }) {
 // ─── Role picker helper ───────────────────────────────────────────────────────
 
 function RolePicker({
-  label,
   value,
   onChange,
   members,
-  dotColor,
 }: {
-  label: string
   value: string
   onChange: (v: string) => void
   members: { id: string; email: string }[]
-  dotColor: string
 }) {
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1.5">
-        <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
-        <label className="text-xs text-muted-foreground">{label}</label>
-      </div>
-      <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
-        <SelectTrigger className="h-8 text-sm">
-          <SelectValue placeholder="Unassigned" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__none__">Unassigned</SelectItem>
-          {members.length === 0 && (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              No team members yet — invite someone in Team.
-            </div>
-          )}
-          {members.map((m) => (
-            <SelectItem key={m.id} value={m.email}>
-              {emailHandle(m.email)}
-              <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
+      <SelectTrigger className="h-9 text-sm">
+        <SelectValue placeholder="Unassigned" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">Unassigned</SelectItem>
+        {members.length === 0 && (
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+            No team members yet — invite someone in Team.
+          </div>
+        )}
+        {members.map((m) => (
+          <SelectItem key={m.id} value={m.email}>
+            {emailHandle(m.email)}
+            <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -689,13 +679,24 @@ export function ContentCalendarPage() {
           <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-1 truncate">{activeBrand.name}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {pillarDist.length === 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex text-muted-foreground hover:text-foreground"
+              onClick={() => setPillarDrawerOpen(true)}
+            >
+              Configure pillars
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => navigate('/campaigns')}>Campaigns</Button>
           <Button size="sm" onClick={() => openCreate()}>New</Button>
         </div>
       </div>
 
       {/* Filter bar */}
-      <div className="px-4 sm:px-6 pb-3 flex items-center gap-2 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+      <div className="px-4 sm:px-6 pb-3 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+        <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Platforms</span>
         {PLATFORMS.map((p) => (
           <button
             key={p.value}
@@ -712,7 +713,8 @@ export function ContentCalendarPage() {
             <PlatformPill platform={p.value} label={p.label} active={filterPlatforms.includes(p.value)} />
           </button>
         ))}
-        <div className="w-px h-4 bg-border mx-1 shrink-0" />
+        <div className="w-px h-4 bg-border mx-2 shrink-0" />
+        <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Status</span>
         {(['all', 'draft', 'scheduled', 'published'] as const).map((s) => (
           <button
             key={s}
@@ -801,15 +803,6 @@ export function ContentCalendarPage() {
         >
           Today
         </button>
-        {pillarDist.length === 0 && (
-          <button
-            type="button"
-            onClick={() => setPillarDrawerOpen(true)}
-            className="ml-2 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded px-2 py-0.5 transition-colors"
-          >
-            + Configure Pillars
-          </button>
-        )}
         <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5">
           {(['month', 'week'] as const).map((m) => (
             <button
@@ -868,13 +861,22 @@ export function ContentCalendarPage() {
       {/* Entry drawer */}
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
-          <SheetHeader className="border-b border-border px-6 py-4">
-            <SheetTitle>
-              {drawerMode === 'create' ? 'New Entry' : 'Edit Entry'}
+          <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
+            <div className="eyebrow">
+              {drawerMode === 'create'
+                ? 'New entry'
+                : formDate
+                ? format(parseISO(formDate), 'EEE · MMM d, yyyy')
+                : 'Edit entry'}
+            </div>
+            <SheetTitle className="font-heading font-medium tracking-tight text-[22px] leading-tight truncate">
+              {drawerMode === 'create'
+                ? 'Draft a post'
+                : formTitle.trim() || 'Untitled entry'}
             </SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
             {/* Title */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Title</label>
@@ -1004,7 +1006,7 @@ export function ContentCalendarPage() {
                           ? 'bg-red-500 text-white border-red-500'
                           : s === 'pending_review'
                           ? 'bg-amber-500 text-white border-amber-500'
-                          : 'bg-foreground text-background border-foreground'
+                          : 'bg-muted text-foreground border-border'
                         : 'border-border text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -1104,11 +1106,9 @@ export function ContentCalendarPage() {
                 <span className="text-muted-foreground font-normal text-xs">(optional)</span>
               </label>
               <RolePicker
-                label=""
                 value={formTalent}
                 onChange={setFormTalent}
                 members={teamMembers}
-                dotColor="bg-violet-400"
               />
             </div>
 
