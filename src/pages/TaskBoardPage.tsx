@@ -444,19 +444,20 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           onDragEnd={handleDragEnd}
         >
           <div className="overflow-x-auto pb-1">
-          <div className="grid grid-cols-4 gap-4 min-w-[820px]">
-            {COLUMNS.map((col) => (
-              <TaskColumn
-                key={col.id}
-                column={col}
-                tasks={tasksForColumn(col.id)}
-                onCardClick={isSpecialist ? openEdit : openEdit}
-                onAddClick={() => openCreate(col.id)}
-                onQuickAdd={(title) => handleQuickAdd(col.id, title)}
-                isSpecialist={isSpecialist}
-              />
-            ))}
-          </div>
+            <div className="flex gap-4">
+              {COLUMNS.map((col) => (
+                <div key={col.id} className="w-[280px] shrink-0">
+                  <TaskColumn
+                    column={col}
+                    tasks={tasksForColumn(col.id)}
+                    onCardClick={isSpecialist ? openEdit : openEdit}
+                    onAddClick={() => openCreate(col.id)}
+                    onQuickAdd={(title) => handleQuickAdd(col.id, title)}
+                    isSpecialist={isSpecialist}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <DragOverlay>
             {draggingTask && (

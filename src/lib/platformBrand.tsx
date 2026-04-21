@@ -5,6 +5,7 @@ type BrandInfo = {
   chip: string          // subtle tinted chip background (for inactive pills)
   text: string          // brand-tinted text (for tables / trend columns)
   slug: string          // simple-icons slug
+  hex: string           // brand color without '#', used for Simple Icons CDN
 }
 
 export const PLATFORM_BRAND: Record<Platform, BrandInfo> = {
@@ -13,36 +14,42 @@ export const PLATFORM_BRAND: Record<Platform, BrandInfo> = {
     chip: 'bg-gradient-to-br from-[#833AB4]/15 via-[#E1306C]/15 to-[#F77737]/15 text-[#C13584] dark:text-[#F77737]',
     text: 'text-[#E1306C] dark:text-[#F77737]',
     slug: 'instagram',
+    hex:  'E1306C',
   },
   facebook: {
     bg:   'bg-[#1877F2]',
     chip: 'bg-[#1877F2]/10 text-[#1877F2]',
     text: 'text-[#1877F2]',
     slug: 'facebook',
+    hex:  '1877F2',
   },
   tiktok: {
     bg:   'bg-black',
     chip: 'bg-zinc-900/10 text-zinc-900 dark:bg-white/10 dark:text-zinc-100',
     text: 'text-zinc-900 dark:text-zinc-100',
     slug: 'tiktok',
+    hex:  '000000',
   },
   linkedin: {
     bg:   'bg-[#0A66C2]',
     chip: 'bg-[#0A66C2]/10 text-[#0A66C2]',
     text: 'text-[#0A66C2]',
     slug: 'linkedin',
+    hex:  '0A66C2',
   },
   youtube: {
     bg:   'bg-[#FF0000]',
     chip: 'bg-[#FF0000]/10 text-[#FF0000]',
     text: 'text-[#FF0000]',
     slug: 'youtube',
+    hex:  'FF0000',
   },
   twitter: {
     bg:   'bg-black',
     chip: 'bg-zinc-900/10 text-zinc-900 dark:bg-white/10 dark:text-zinc-100',
     text: 'text-zinc-900 dark:text-zinc-100',
     slug: 'x',
+    hex:  '000000',
   },
 }
 
@@ -101,18 +108,18 @@ export function PlatformPill({
   label: string
   active?: boolean
 }) {
-  const { bg, chip, slug } = PLATFORM_BRAND[platform]
-  const logoColor = active ? 'white' : slug === 'tiktok' || slug === 'x' ? '000000' : slug
+  const { bg, chip, hex } = PLATFORM_BRAND[platform]
+  const logoColor = active ? 'white' : hex
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium leading-none transition-colors ${
         active ? `${bg} text-white` : chip
       }`}
     >
       <PlatformLogo
         platform={platform}
         color={logoColor}
-        className="h-3 w-3"
+        className="h-3 w-3 shrink-0"
       />
       {label}
     </span>
