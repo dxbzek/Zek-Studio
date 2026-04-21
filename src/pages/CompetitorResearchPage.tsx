@@ -26,7 +26,7 @@ import type { Platform, CompetitorPost } from '@/types'
 
 const addSchema = z.object({
   handle: z.string().min(1, 'Handle is required'),
-  platform: z.enum(['instagram', 'tiktok', 'facebook', 'youtube']),
+  platform: z.enum(['instagram', 'tiktok', 'facebook', 'youtube', 'twitter']),
 })
 
 type AddForm = z.infer<typeof addSchema>
@@ -59,8 +59,8 @@ function sortPosts(posts: CompetitorPost[], key: SortKey): CompetitorPost[] {
   })
 }
 
-// LinkedIn is excluded — scrapers are unreliable and frequently broken
-const SUPPORTED_PLATFORMS = PLATFORMS.filter((p) => p.value !== 'linkedin')
+// LinkedIn and Twitter excluded — scrapers not supported
+const SUPPORTED_PLATFORMS = PLATFORMS.filter((p) => p.value !== 'linkedin' && p.value !== 'twitter')
 
 /** Strip profile URLs down to bare username so @nike and instagram.com/nike both work */
 function extractUsername(input: string): string {

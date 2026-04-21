@@ -14,6 +14,7 @@ export type Platform =
   | 'tiktok'
   | 'linkedin'
   | 'youtube'
+  | 'twitter'
 
 export const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
@@ -21,6 +22,7 @@ export const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'tiktok',    label: 'TikTok'    },
   { value: 'linkedin',  label: 'LinkedIn'  },
   { value: 'youtube',   label: 'YouTube'   },
+  { value: 'twitter',   label: 'X'         },
 ]
 
 // Generator-specific platform list — merges Instagram + Facebook into Meta

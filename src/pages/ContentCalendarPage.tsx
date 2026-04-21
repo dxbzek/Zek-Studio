@@ -60,7 +60,7 @@ import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
-import { PLATFORMS, CONTENT_THEMES, CHARACTERS } from '@/types'
+import { PLATFORMS, CONTENT_THEMES } from '@/types'
 import type {
   CalendarEntry,
   CalendarEntryInsert,
@@ -80,6 +80,7 @@ const PLATFORM_CHIP_COLORS: Record<Platform, string> = {
   facebook:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   linkedin:  'bg-blue-800/10 text-blue-800 dark:text-blue-300',
   youtube:   'bg-red-500/10 text-red-600 dark:text-red-400',
+  twitter:   'bg-sky-500/10 text-sky-600 dark:text-sky-400',
 }
 
 const STATUS_COLORS: Record<CalendarStatus, string> = {
@@ -903,15 +904,11 @@ export function ContentCalendarPage() {
                     key={p.value}
                     type="button"
                     onClick={() => {
-                      if (drawerMode === 'edit') {
-                        setFormPlatforms([p.value])
-                      } else {
-                        setFormPlatforms((prev) =>
-                          prev.includes(p.value)
-                            ? prev.length > 1 ? prev.filter((x) => x !== p.value) : prev
-                            : [...prev, p.value],
-                        )
-                      }
+                      setFormPlatforms((prev) =>
+                        prev.includes(p.value)
+                          ? prev.length > 1 ? prev.filter((x) => x !== p.value) : prev
+                          : [...prev, p.value],
+                      )
                     }}
                     className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                       formPlatforms.includes(p.value)

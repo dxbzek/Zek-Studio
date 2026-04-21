@@ -109,6 +109,7 @@ const PLATFORM_CHIP_COLORS: Record<Platform, string> = {
   facebook:  'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   linkedin:  'bg-blue-800/10 text-blue-800 dark:text-blue-300',
   youtube:   'bg-red-500/10 text-red-600 dark:text-red-400',
+  twitter:   'bg-sky-500/10 text-sky-600 dark:text-sky-400',
 }
 
 // ─── Log/Edit form defaults ───────────────────────────────────────────────────
