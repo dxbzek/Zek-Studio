@@ -864,23 +864,41 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
             {/* Linked calendar entry — read-only context for specialists */}
             {isSpecialist && drawerMode === 'edit' && editingTask?.calendar_entry_id && (() => {
               const linked = entryById.get(editingTask.calendar_entry_id)
-              if (!linked) return null
-              return (
-                <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 flex items-center gap-2">
-                  <PlatformBadge platform={linked.platform} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-muted-foreground leading-tight">Linked calendar entry</p>
-                    <p className="text-xs text-foreground truncate">
-                      {format(parseISO(linked.scheduled_date), 'MMM d')} · {linked.platform}
-                    </p>
+              if (linked) {
+                return (
+                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 flex items-center gap-2">
+                    <PlatformBadge platform={linked.platform} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] text-muted-foreground leading-tight">Linked calendar entry</p>
+                      <p className="text-xs text-foreground truncate">
+                        {format(parseISO(linked.scheduled_date), 'MMM d')} · {linked.platform}
+                      </p>
+                    </div>
+                    <Link
+                      to="/calendar"
+                      onClick={() => setDrawerOpen(false)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
+                    >
+                      View →
+                    </Link>
                   </div>
-                  <Link
-                    to="/calendar"
-                    onClick={() => setDrawerOpen(false)}
-                    className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
-                  >
-                    View →
-                  </Link>
+                )
+              }
+              if (linkedEntries.isLoading) {
+                return (
+                  <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 flex items-center gap-2">
+                    <div className="h-5 w-5 rounded bg-muted animate-pulse shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="h-2.5 w-24 rounded bg-muted animate-pulse" />
+                      <div className="h-2.5 w-32 rounded bg-muted animate-pulse" />
+                    </div>
+                  </div>
+                )
+              }
+              return (
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2">
+                  <p className="text-[11px] text-muted-foreground leading-tight">Linked calendar entry</p>
+                  <p className="text-xs text-muted-foreground">This entry is no longer available.</p>
                 </div>
               )
             })()}

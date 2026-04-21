@@ -186,7 +186,7 @@ export function DashboardPage() {
     kpiGoal.engagement_target != null || kpiGoal.keywords_target != null
   )
 
-  const firstName = activeBrand?.name?.split(' ')[0] ?? 'there'
+  const firstName = activeBrand?.name?.split(' ')[0] || 'there'
   const weekRange = `${format(new Date(), 'MMM d')} – ${format(new Date(Date.now() + 6 * 86400000), 'MMM d')}`
 
   if (isLoading) {

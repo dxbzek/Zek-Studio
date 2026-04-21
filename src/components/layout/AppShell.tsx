@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
-import { Menu, Bell, Plus } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { SpecialistShell } from './SpecialistShell'
 import { ThemeToggle } from './ThemeToggle'
@@ -56,25 +56,7 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
 
       {/* Right actions */}
       <div className="flex items-center gap-1.5">
-        {/* Search pill — hidden on very small screens */}
-        <div className="hidden sm:flex h-[30px] min-w-[180px] items-center gap-2 px-3 border border-border rounded-lg bg-card text-[12px] text-muted-foreground cursor-pointer hover:border-border/80 transition-colors">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-          </svg>
-          <span className="flex-1">Search</span>
-          <kbd className="text-[10px] bg-muted border border-border rounded px-1 py-0.5 font-mono">⌘K</kbd>
-        </div>
-
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-          <Bell className="h-4 w-4" />
-        </Button>
-
         <ThemeToggle />
-
-        <Button size="sm" className="h-[30px] gap-1.5 px-3 text-[12px]">
-          <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">New</span>
-        </Button>
       </div>
     </header>
   )

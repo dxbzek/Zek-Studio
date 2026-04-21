@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
+import { toast } from 'sonner'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 
@@ -41,10 +44,17 @@ function ApprovalCard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, entry_id: entry.id, action, note: note || undefined }),
       })
-      if (res.ok) {
-        setLocalStatus(action)
-        onUpdate(entry.id, action)
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        throw new Error(json?.error ?? json?.message ?? `Server returned ${res.status}`)
       }
+      setLocalStatus(action)
+      onUpdate(entry.id, action)
+      toast.success(action === 'approved' ? 'Approved' : 'Changes requested')
+    } catch (err) {
+      toast.error('Could not submit', {
+        description: err instanceof Error ? err.message : 'Network error — please try again.',
+      })
     } finally {
       setSubmitting(false)
     }
@@ -160,19 +170,34 @@ export default function PublicApprovalPage() {
   const { token } = useParams<{ token: string }>()
   const queryClient = useQueryClient()
 
+  const tokenValid = !!token && UUID_RE.test(token)
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['public-approval', token],
     queryFn: async () => {
-      const res = await fetch(`${FUNCTIONS_URL}/submit-approval?token=${token}`)
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
+      const res = await fetch(`${FUNCTIONS_URL}/submit-approval?token=${encodeURIComponent(token!)}`)
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error ?? json?.message ?? `Server returned ${res.status}`)
       return json as {
         brand: { name: string; niche: string; color: string }
         entries: ApprovalEntry[]
       }
     },
-    enabled: !!token,
+    enabled: tokenValid,
   })
+
+  if (!tokenValid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-sm space-y-2 px-6">
+          <p className="text-lg font-semibold">Link unavailable</p>
+          <p className="text-sm text-muted-foreground">
+            This approval link is invalid or has expired.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   function handleUpdate(id: string, status: 'approved' | 'rejected') {
     queryClient.setQueryData(['public-approval', token], (old: typeof data) => {

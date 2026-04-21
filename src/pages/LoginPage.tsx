@@ -27,10 +27,10 @@ export function LoginPage() {
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/` },
     })
-    if (error) {
-      setError(error.message)
-      setGoogleLoading(false)
-    }
+    if (error) setError(error.message)
+    // The successful path redirects away and unmounts this page. Re-enable the
+    // button either way so a blocked/cancelled redirect doesn't strand the UI.
+    setGoogleLoading(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -147,12 +147,7 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)} required autoFocus />
             </div>
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-[11px] font-medium text-muted-foreground">Password</Label>
-                {mode === 'login' && (
-                  <a href="#" className="text-[11px] text-muted-foreground hover:text-foreground">Forgot?</a>
-                )}
-              </div>
+              <Label htmlFor="password" className="text-[11px] font-medium text-muted-foreground">Password</Label>
               <Input id="password" type="password"
                 placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
                 value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />

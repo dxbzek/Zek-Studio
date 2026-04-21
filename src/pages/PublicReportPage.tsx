@@ -4,6 +4,7 @@ import { format, parseISO } from 'date-fns'
 import type { PostMetric } from '@/types'
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
@@ -21,20 +22,34 @@ function engagementRate(m: PostMetric): string {
 
 export default function PublicReportPage() {
   const { token } = useParams<{ token: string }>()
+  const tokenValid = !!token && UUID_RE.test(token)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['public-report', token],
     queryFn: async () => {
-      const res = await fetch(`${FUNCTIONS_URL}/get-report-data?token=${token}`)
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
+      const res = await fetch(`${FUNCTIONS_URL}/get-report-data?token=${encodeURIComponent(token!)}`)
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error ?? json?.message ?? `Server returned ${res.status}`)
       return json as {
         brand: { name: string; niche: string; color: string }
         metrics: PostMetric[]
       }
     },
-    enabled: !!token,
+    enabled: tokenValid,
   })
+
+  if (!tokenValid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-sm space-y-2 px-6">
+          <p className="text-lg font-semibold">Report unavailable</p>
+          <p className="text-sm text-muted-foreground">
+            This report link is invalid or has expired.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
