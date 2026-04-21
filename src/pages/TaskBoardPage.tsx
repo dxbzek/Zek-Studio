@@ -5,9 +5,13 @@ import {
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { format, parseISO, differenceInHours, isPast } from 'date-fns'
-import { Plus, AlertCircle } from 'lucide-react'
+import { format, parseISO, differenceInHours, isPast, startOfWeek } from 'date-fns'
+import {
+  Plus, AlertCircle, Circle, Loader2, Clock, CheckCircle2, Link2,
+} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -18,19 +22,31 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
+import { PlatformBadge } from '@/lib/platformBrand'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTasks } from '@/hooks/useTasks'
 import { useTeam } from '@/hooks/useTeam'
-import { TASK_STATUS_BORDER, TASK_STATUS_CHIP } from '@/lib/statusTokens'
-import type { Task, TaskStatus, TaskType, TaskPriority, TaskInsert } from '@/types'
+import {
+  TASK_STATUS_BORDER, TASK_STATUS_CHIP,
+  TASK_STATUS_COLUMN_TINT, TASK_STATUS_ACCENT, TASK_STATUS_ICON_COLOR,
+  TASK_STATUS_DOT,
+} from '@/lib/statusTokens'
+import type {
+  Task, TaskStatus, TaskType, TaskPriority, TaskInsert, CalendarEntry,
+} from '@/types'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const COLUMNS: { id: TaskStatus; label: string }[] = [
-  { id: 'todo',        label: 'To Do' },
-  { id: 'in_progress', label: 'In Progress' },
-  { id: 'scheduled',   label: 'Scheduled' },
-  { id: 'done',        label: 'Done' },
+const COLUMNS: {
+  id: TaskStatus
+  label: string
+  icon: typeof Circle
+  empty: string
+}[] = [
+  { id: 'todo',        label: 'To Do',       icon: Circle,        empty: 'Nothing queued' },
+  { id: 'in_progress', label: 'In Progress', icon: Loader2,       empty: 'Pick something up →' },
+  { id: 'scheduled',   label: 'Scheduled',   icon: Clock,         empty: 'Drop here to schedule' },
+  { id: 'done',        label: 'Done',        icon: CheckCircle2,  empty: 'Ship something 🚀' },
 ]
 
 const TYPE_COLORS: Record<TaskType, string> = {
@@ -87,25 +103,58 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function TaskChip({ task }: { task: Task }) {
+function TaskChip({
+  task,
+  linkedEntry,
+}: {
+  task: Task
+  linkedEntry?: CalendarEntry
+}) {
   const due = dueMeta(task.due_date)
   const handle = task.assignee_email ? task.assignee_email.split('@')[0] : null
+  const isDone = task.status === 'done'
+  const isOverdue = due?.tone.includes('red')
+  const isDueSoon = due?.tone.includes('amber') && !isDone
+  const isHighPriority = task.priority === 'high' && !isDone
+
+  const urgencyTint = isOverdue
+    ? 'bg-red-500/[0.04]'
+    : isDueSoon
+    ? 'bg-amber-500/[0.04]'
+    : 'bg-card'
+
   return (
-    <div className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} bg-card px-2 py-1.5 space-y-1.5`}>
+    <div
+      className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} ${urgencyTint} px-2 py-1.5 space-y-1.5 transition-all hover:border-border/80 hover:shadow-sm ${
+        isDone ? 'opacity-75' : ''
+      }`}
+    >
       <div className="flex items-start justify-between gap-1.5">
-        <span className="text-xs text-foreground leading-snug line-clamp-2 flex-1">
+        <span className="text-xs text-foreground leading-snug line-clamp-2 flex-1 flex items-center gap-1">
+          {linkedEntry && (
+            <Link2
+              className="h-3 w-3 shrink-0 text-muted-foreground/70"
+              aria-label="Linked to calendar entry"
+            />
+          )}
           {task.title}
         </span>
         <span
           aria-label={PRIORITY_LABELS[task.priority]}
           title={PRIORITY_LABELS[task.priority]}
-          className={`h-2 w-2 rounded-full mt-0.5 shrink-0 ${PRIORITY_COLORS[task.priority]}`}
+          className={`h-2 w-2 rounded-full mt-0.5 shrink-0 ${PRIORITY_COLORS[task.priority]} ${
+            isHighPriority ? 'animate-pulse' : ''
+          }`}
         />
       </div>
       <div className="flex items-center gap-1.5">
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLORS[task.type]}`}>
-          {task.type}
-        </span>
+        {linkedEntry ? (
+          <PlatformBadge platform={linkedEntry.platform} size="xs" />
+        ) : (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${TYPE_COLORS[task.type]}`}>
+            {task.type}
+          </span>
+        )}
         {due && (
           <span className={`text-[10.5px] font-mono tabular-nums ${due.tone}`}>
             {due.label}
@@ -124,7 +173,15 @@ function TaskChip({ task }: { task: Task }) {
   )
 }
 
-function DraggableTask({ task, onClick }: { task: Task; onClick: () => void }) {
+function DraggableTask({
+  task,
+  linkedEntry,
+  onClick,
+}: {
+  task: Task
+  linkedEntry?: CalendarEntry
+  onClick: () => void
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
   return (
     <div
@@ -135,7 +192,7 @@ function DraggableTask({ task, onClick }: { task: Task; onClick: () => void }) {
       onClick={onClick}
       className="cursor-pointer"
     >
-      <TaskChip task={task} />
+      <TaskChip task={task} linkedEntry={linkedEntry} />
     </div>
   )
 }
@@ -177,36 +234,59 @@ function QuickAddTask({
 function TaskColumn({
   column,
   tasks,
+  entryById,
   onCardClick,
   onAddClick,
   onQuickAdd,
   isSpecialist,
 }: {
-  column: { id: TaskStatus; label: string }
+  column: { id: TaskStatus; label: string; icon: typeof Circle; empty: string }
   tasks: Task[]
+  entryById: Map<string, CalendarEntry>
   onCardClick: (t: Task) => void
   onAddClick: () => void
   onQuickAdd: (title: string) => void
   isSpecialist: boolean
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: column.id })
+  const Icon = column.icon
+  const isEmpty = tasks.length === 0
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col gap-2 min-h-[200px] p-3 rounded-xl border border-border transition-colors ${
-        isOver ? 'bg-primary/5 border-primary/30' : 'bg-muted/20'
+      className={`flex flex-col gap-2 min-h-[200px] p-3 rounded-xl border border-border border-t-2 ${TASK_STATUS_ACCENT[column.id]} transition-colors ${
+        isOver
+          ? 'bg-primary/5 border-primary/30'
+          : TASK_STATUS_COLUMN_TINT[column.id]
       }`}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-semibold text-foreground">{column.label}</span>
-        <span className="text-xs text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
+        <span className="flex items-center gap-1.5">
+          <Icon
+            className={`h-3.5 w-3.5 ${TASK_STATUS_ICON_COLOR[column.id]} ${
+              column.id === 'in_progress' ? 'animate-spin [animation-duration:4s]' : ''
+            }`}
+          />
+          <span className="text-sm font-semibold text-foreground">{column.label}</span>
+        </span>
+        <span className={`text-[11px] rounded-full px-1.5 py-0.5 font-medium tabular-nums ${TASK_STATUS_CHIP[column.id]}`}>
           {tasks.length}
         </span>
       </div>
       {!isSpecialist && <QuickAddTask onAdd={onQuickAdd} />}
       {tasks.map((task) => (
-        <DraggableTask key={task.id} task={task} onClick={() => onCardClick(task)} />
+        <DraggableTask
+          key={task.id}
+          task={task}
+          linkedEntry={task.calendar_entry_id ? entryById.get(task.calendar_entry_id) : undefined}
+          onClick={() => onCardClick(task)}
+        />
       ))}
+      {isEmpty && (
+        <div className="rounded border border-dashed border-border/60 px-2 py-3 text-[11px] text-muted-foreground/70 text-center leading-snug">
+          {column.empty}
+        </div>
+      )}
       {!isSpecialist && (
         <button
           type="button"
@@ -261,6 +341,36 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
 
   const allTasks = rawTasks.data ?? []
 
+  // Fetch the calendar entries linked to these tasks so the card can show
+  // platform badges. Scoped by ID list so it's a single cheap query regardless
+  // of how far back the Done column stretches.
+  const linkedEntryIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const t of allTasks) if (t.calendar_entry_id) ids.add(t.calendar_entry_id)
+    return Array.from(ids).sort()
+  }, [allTasks])
+
+  const linkedEntries = useQuery({
+    queryKey: ['task-linked-calendar', activeBrand?.id, linkedEntryIds],
+    queryFn: async () => {
+      if (linkedEntryIds.length === 0) return [] as CalendarEntry[]
+      const { data, error } = await supabase
+        .from('calendar_entries')
+        .select('*')
+        .in('id', linkedEntryIds)
+      if (error) throw error
+      return (data ?? []) as CalendarEntry[]
+    },
+    enabled: !!activeBrand && linkedEntryIds.length > 0,
+    staleTime: 60_000,
+  })
+
+  const entryById = useMemo(() => {
+    const map = new Map<string, CalendarEntry>()
+    for (const e of linkedEntries.data ?? []) map.set(e.id, e)
+    return map
+  }, [linkedEntries.data])
+
   const filteredTasks = useMemo(() => {
     let result = allTasks
     if (filterAssignee !== 'all') result = result.filter((t) => t.assignee_email === filterAssignee)
@@ -271,6 +381,27 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   function tasksForColumn(status: TaskStatus) {
     return filteredTasks.filter((t) => t.status === status)
   }
+
+  // Stats for the ribbon — counts per column + "shipped this week".
+  const statusCounts = useMemo(() => {
+    const counts: Record<TaskStatus, number> = { todo: 0, in_progress: 0, scheduled: 0, done: 0 }
+    for (const t of filteredTasks) counts[t.status]++
+    return counts
+  }, [filteredTasks])
+
+  const shippedThisWeek = useMemo(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+    return filteredTasks.filter((t) => {
+      if (t.status !== 'done') return false
+      const ref = t.due_date ?? null
+      if (!ref) return false
+      try {
+        return parseISO(ref) >= weekStart
+      } catch {
+        return false
+      }
+    }).length
+  }, [filteredTasks])
 
   function openCreate(status: TaskStatus = 'todo') {
     setDrawerMode('create')
@@ -407,6 +538,23 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
         )}
       </div>
 
+      {/* Stats ribbon — at-a-glance counts per column + shipped-this-week */}
+      <div className="px-6 pb-3 flex items-center gap-4 flex-wrap text-xs text-muted-foreground shrink-0">
+        {COLUMNS.map((c) => (
+          <span key={c.id} className="flex items-center gap-1.5">
+            <span className={`h-1.5 w-1.5 rounded-full ${TASK_STATUS_DOT[c.id]}`} />
+            <span className="tabular-nums font-medium text-foreground">{statusCounts[c.id]}</span>
+            <span>{c.label}</span>
+          </span>
+        ))}
+        <span className="ml-auto text-[11px]">
+          Shipped this week:{' '}
+          <span className="tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+            {shippedThisWeek}
+          </span>
+        </span>
+      </div>
+
       {/* Filter bar — owner only */}
       {!isSpecialist && (
         <div className="px-6 pb-3 flex items-center gap-2 flex-wrap border-b border-border shrink-0">
@@ -443,14 +591,27 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="overflow-x-auto pb-1">
-            <div className="flex gap-4">
+          <div className="overflow-x-auto pb-1 relative">
+            {/* Dotted-grid backdrop — holds the board together when columns are
+                empty; disappears behind dense content. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 text-foreground/40 dark:text-foreground/30"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle, currentColor 1px, transparent 1px)',
+                backgroundSize: '24px 24px',
+                opacity: 0.08,
+              }}
+            />
+            <div className="relative flex gap-4">
               {COLUMNS.map((col) => (
                 <div key={col.id} className="w-[280px] shrink-0">
                   <TaskColumn
                     column={col}
                     tasks={tasksForColumn(col.id)}
-                    onCardClick={isSpecialist ? openEdit : openEdit}
+                    entryById={entryById}
+                    onCardClick={openEdit}
                     onAddClick={() => openCreate(col.id)}
                     onQuickAdd={(title) => handleQuickAdd(col.id, title)}
                     isSpecialist={isSpecialist}
@@ -462,7 +623,14 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           <DragOverlay>
             {draggingTask && (
               <div className="shadow-lg rounded border border-border bg-card px-2 py-1.5">
-                <TaskChip task={draggingTask} />
+                <TaskChip
+                  task={draggingTask}
+                  linkedEntry={
+                    draggingTask.calendar_entry_id
+                      ? entryById.get(draggingTask.calendar_entry_id)
+                      : undefined
+                  }
+                />
               </div>
             )}
           </DragOverlay>
