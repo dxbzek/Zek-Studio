@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format } from 'date-fns'
 import type { CalendarEntry, CalendarEntryInsert, CalendarEntryUpdate } from '@/types'
@@ -27,6 +28,18 @@ export function useCalendar(brandId: string | null, year: number, month: number)
     },
     enabled: !!brandId,
   })
+
+  // Refetch when calendar_entries change out-of-band — e.g. the DB trigger
+  // tasks_sync_calendar_status rewrites ce.status when a task moves columns.
+  useEffect(() => {
+    if (!brandId) return
+    const channel = supabase
+      .channel(`calendar-entries:${brandId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_entries', filter: `brand_id=eq.${brandId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['calendar-entries', brandId] }))
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [brandId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const createEntry = useMutation({
     mutationFn: async (payload: CalendarEntryInsert) => {

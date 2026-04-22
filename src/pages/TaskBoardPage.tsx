@@ -396,7 +396,13 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   }, [allTasks, filterAssignee, filterType, searchQuery, sortBy])
 
   function tasksForColumn(status: TaskStatus) {
-    return filteredTasks.filter((t) => t.status === status)
+    const cols = filteredTasks.filter((t) => t.status === status)
+    // Done column: always most-recently-moved first so a just-dragged card
+    // lands at the top instead of disappearing mid-stack.
+    if (status === 'done') {
+      return [...cols].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
+    }
+    return cols
   }
 
   // Stats for the ribbon — counts per column + "shipped this week".
