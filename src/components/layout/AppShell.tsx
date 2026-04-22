@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { Sidebar } from './Sidebar'
@@ -7,6 +7,8 @@ import { ThemeToggle } from './ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
 import { useIsSpecialist } from '@/hooks/useTeam'
 import { Button } from '@/components/ui/button'
+
+const SIDEBAR_HIDDEN_KEY = 'zek-sidebar-hidden'
 
 const ROUTE_MAP: Record<string, [string, string]> = {
   '/':                   ['Workspace',     'Dashboard'],
@@ -36,12 +38,13 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         height: 'calc(52px + env(safe-area-inset-top))',
       }}
     >
-      {/* Hamburger — mobile only */}
+      {/* Hamburger — mobile drawer toggle + desktop sidebar collapse */}
       <Button
         variant="ghost"
         size="icon"
-        className="h-11 w-11 shrink-0 sm:hidden"
+        className="h-11 w-11 shrink-0"
         onClick={onMenuClick}
+        aria-label="Toggle sidebar"
       >
         <Menu className="h-4 w-4" />
       </Button>
@@ -74,6 +77,21 @@ export function AppShell() {
   const { user, loading: authLoading } = useAuth()
   const { data: isSpecialist, isLoading: roleLoading } = useIsSpecialist()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [desktopHidden, setDesktopHidden] = useState(
+    () => typeof window !== 'undefined' && localStorage.getItem(SIDEBAR_HIDDEN_KEY) === '1',
+  )
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_HIDDEN_KEY, desktopHidden ? '1' : '0')
+  }, [desktopHidden])
+
+  function handleMenuClick() {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches) {
+      setDesktopHidden((h) => !h)
+    } else {
+      setSidebarOpen(true)
+    }
+  }
 
   if (authLoading || (user && roleLoading)) {
     return (
@@ -99,9 +117,13 @@ export function AppShell() {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        desktopHidden={desktopHidden}
+      />
       <main className="flex flex-col flex-1 overflow-hidden">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <Topbar onMenuClick={handleMenuClick} />
         <div
           className="flex-1 overflow-y-auto"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

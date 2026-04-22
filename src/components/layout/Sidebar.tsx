@@ -74,9 +74,10 @@ const NAV_GROUPS = [
 interface SidebarProps {
   open: boolean
   onClose: () => void
+  desktopHidden?: boolean
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) {
   const navigate = useNavigate()
   const { activeBrand, setActiveBrand } = useActiveBrand()
   const { brands } = useBrands()
@@ -105,7 +106,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         'flex w-[232px] flex-col border-r border-border bg-sidebar',
         'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-200',
         open ? 'translate-x-0' : '-translate-x-full',
-        'sm:relative sm:translate-x-0',
+        desktopHidden ? 'sm:hidden' : 'sm:relative sm:translate-x-0',
       )}
       style={{
         paddingTop: 'env(safe-area-inset-top)',
