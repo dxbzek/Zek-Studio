@@ -109,7 +109,7 @@ function TaskChip({
 
   return (
     <div
-      className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} ${urgencyTint} px-2 py-1.5 space-y-1.5 transition-all hover:border-border/80 hover:shadow-sm ${
+      className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} ${urgencyTint} px-2 py-1.5 space-y-1.5 transition-all duration-150 hover:border-border/80 hover:shadow-sm hover:-translate-y-[1px] ${
         isDone ? 'opacity-75' : ''
       }`}
     >
@@ -174,7 +174,7 @@ function DraggableTask({
       {...listeners}
       {...attributes}
       onClick={onClick}
-      className="cursor-pointer"
+      className="cursor-pointer animate-in fade-in-0 slide-in-from-top-1 duration-200"
     >
       <TaskChip task={task} linkedEntry={linkedEntry} />
     </div>

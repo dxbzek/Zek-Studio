@@ -181,7 +181,7 @@ function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void 
       {...listeners}
       {...attributes}
       onClick={(e) => { e.stopPropagation(); onClick() }}
-      className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs hover:bg-accent transition-colors select-none`}
+      className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
     >
       {/* Mobile: single row — status dot + title */}
       <div className="flex items-center gap-1.5 sm:hidden">
