@@ -79,13 +79,14 @@ export function useGenerator(brandId: string | null) {
     }) => {
       if (!brandId) throw new Error('No brand selected')
       const contentType: ContentType = sectionContentType ?? THEME_TO_CONTENT_TYPE[theme] ?? 'caption'
-      const { data, error } = await supabase
+      const title = output.slice(0, 120)
+      const { data: entry, error } = await supabase
         .from('calendar_entries')
         .insert({
           brand_id: brandId,
           platform,
           content_type: contentType,
-          title: output.slice(0, 120),
+          title,
           body: output,
           scheduled_date: scheduledDate,
           status: 'draft',
@@ -94,10 +95,29 @@ export function useGenerator(brandId: string | null) {
         .select()
         .single()
       if (error) throw error
-      return data
+
+      // Mirror the Calendar drawer: every entry gets a linked task so it
+      // shows up on the Tasks board.
+      const { error: taskError } = await supabase.from('tasks').insert({
+        brand_id: brandId,
+        title,
+        description: null,
+        type: 'content',
+        status: 'todo',
+        priority: 'medium',
+        assignee_id: null,
+        assignee_email: null,
+        calendar_entry_id: entry.id,
+        due_date: scheduledDate,
+        created_by: null,
+      })
+      if (taskError) throw taskError
+
+      return entry
     },
     onSuccess: (entry) => {
       queryClient.invalidateQueries({ queryKey: ['calendar-entries', entry.brand_id] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', entry.brand_id] })
     },
   })
 

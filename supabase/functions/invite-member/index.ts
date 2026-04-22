@@ -77,18 +77,34 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Send Supabase invite email (creates auth account or resends if exists)
+    const redirectTo = `${req.headers.get('origin') ?? SUPABASE_URL}/tasks`
+
+    // Try to send Supabase invite email (creates auth account for new users)
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email.toLowerCase(),
       {
         data: { role: 'specialist', brand_id },
-        redirectTo: `${req.headers.get('origin') ?? SUPABASE_URL}/tasks`,
+        redirectTo,
       },
     )
 
+    // Track what we tell the client
+    let emailed = !inviteError
+    let actionLink: string | null = null
+    let alreadyRegistered = false
+
     if (inviteError) {
-      // If user already exists, still create the team_members row
-      if (!inviteError.message?.includes('already been registered')) {
+      if (inviteError.message?.includes('already been registered')) {
+        alreadyRegistered = true
+        // Existing user — inviteUserByEmail won't send, so generate a magic link
+        // the owner can share manually or our own mailer could use.
+        const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'magiclink',
+          email: email.toLowerCase(),
+          options: { redirectTo },
+        })
+        actionLink = linkData?.properties?.action_link ?? null
+      } else {
         throw new Error(inviteError.message)
       }
     }
@@ -124,7 +140,7 @@ Deno.serve(async (req) => {
     if (memberError) throw new Error(memberError.message)
 
     return new Response(
-      JSON.stringify({ member }),
+      JSON.stringify({ member, emailed, alreadyRegistered, actionLink }),
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
     )
   } catch (err) {

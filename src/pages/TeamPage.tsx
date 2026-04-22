@@ -180,7 +180,19 @@ export default function TeamPage() {
       })
       if (error) throw new Error((error as any).message)
       if (data?.error) throw new Error(data.error)
-      toast.success(`Invite sent to ${email}`)
+      if (data?.alreadyRegistered && data?.actionLink) {
+        await navigator.clipboard.writeText(data.actionLink).catch(() => {})
+        toast.success(`${email} already has an account — added to brand`, {
+          description: 'Sign-in link copied to clipboard. Share it directly since Supabase won\'t re-email existing users.',
+          duration: 10000,
+        })
+      } else if (data?.emailed) {
+        toast.success(`Invite emailed to ${email}`, {
+          description: 'Tell them to check spam if it doesn\'t arrive in a few minutes.',
+        })
+      } else {
+        toast.success(`${email} added to brand`)
+      }
       setEmailInput('')
       setInviteBrandId('')
       setInviteOpen(false)
