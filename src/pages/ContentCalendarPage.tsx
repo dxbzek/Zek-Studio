@@ -358,7 +358,7 @@ export function ContentCalendarPage() {
     viewMonth,
   )
   const { members } = useTeam(activeBrand?.id ?? null)
-  const { tasks, createTask, updateTask, deleteTask } = useTasks(activeBrand?.id ?? null)
+  const { tasks, createTask, updateTask } = useTasks(activeBrand?.id ?? null)
   const { campaigns } = useCampaigns(activeBrand?.id ?? null)
   const { pillars, createPillar, deletePillar } = useContentPillars(activeBrand?.id ?? null)
 
@@ -604,36 +604,34 @@ export function ContentCalendarPage() {
           t.calendar_entry_id ? groupEntryIds.has(t.calendar_entry_id) : false,
         )
         const derivedStatus = deriveTaskStatus(formStatus)
-        if (specialist) {
-          if (existingTask) {
-            await updateTask.mutateAsync({
-              id: existingTask.id,
-              patch: {
-                title: formTitle.trim(),
-                status: derivedStatus,
-                assignee_id: specialistId,
-                assignee_email: specialist,
-                due_date: formDate,
-              },
-            })
-          } else {
-            await createTask.mutateAsync({
-              brand_id: activeBrand!.id,
+        // Every group gets a task — specialist optional. Update if one already
+        // exists, otherwise create. Never delete on save: clearing the talent
+        // should leave the task unassigned, not yank it off the board.
+        if (existingTask) {
+          await updateTask.mutateAsync({
+            id: existingTask.id,
+            patch: {
               title: formTitle.trim(),
-              description: null,
-              type: 'content',
               status: derivedStatus,
-              priority: 'medium',
               assignee_id: specialistId,
-              assignee_email: specialist,
-              calendar_entry_id: repId,
+              assignee_email: specialist || null,
               due_date: formDate,
-              created_by: null,
-            })
-          }
-        } else if (existingTask) {
-          // Specialist cleared — remove the orphaned task rather than leaving it headless.
-          await deleteTask.mutateAsync(existingTask.id)
+            },
+          })
+        } else {
+          await createTask.mutateAsync({
+            brand_id: activeBrand!.id,
+            title: formTitle.trim(),
+            description: null,
+            type: 'content',
+            status: derivedStatus,
+            priority: 'medium',
+            assignee_id: specialistId,
+            assignee_email: specialist || null,
+            calendar_entry_id: repId,
+            due_date: formDate,
+            created_by: null,
+          })
         }
 
         toast.success('Entry saved')
@@ -757,8 +755,7 @@ export function ContentCalendarPage() {
     createEntry.isPending ||
     updateEntry.isPending ||
     createTask.isPending ||
-    updateTask.isPending ||
-    deleteTask.isPending
+    updateTask.isPending
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
