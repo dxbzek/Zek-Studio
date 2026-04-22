@@ -17,6 +17,7 @@ const DEFAULT_ORIGINS = [
 ]
 
 const VERCEL_PREVIEW = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i
+const LOCALHOST_ANY_PORT = /^http:\/\/localhost(:\d+)?$/i
 
 function parseAllowed(): string[] {
   const extra = Deno.env.get('ALLOWED_ORIGINS') ?? ''
@@ -27,7 +28,7 @@ function parseAllowed(): string[] {
 export function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? ''
   const allowed = parseAllowed()
-  const ok = allowed.includes(origin) || VERCEL_PREVIEW.test(origin)
+  const ok = allowed.includes(origin) || VERCEL_PREVIEW.test(origin) || LOCALHOST_ANY_PORT.test(origin)
   return {
     'Access-Control-Allow-Origin': ok ? origin : (allowed[0] ?? 'null'),
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
