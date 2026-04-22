@@ -1,17 +1,15 @@
-import { useState, useMemo } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   closestCenter,
-  useDraggable,
-  useDroppable,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
 import {
   startOfMonth,
   endOfMonth,
@@ -21,28 +19,12 @@ import {
   eachDayOfInterval,
   format,
   isSameMonth,
-  isSameDay,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Trash2, Copy, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from '@/components/ui/sheet'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,311 +35,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
-import { useCalendar, useGeneratedContent } from '@/hooks/useCalendar'
+import { useCalendar } from '@/hooks/useCalendar'
 import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
-import { PLATFORMS, CONTENT_THEMES } from '@/types'
-import { PlatformBadge, PlatformPill, PLATFORM_BRAND } from '@/lib/platformBrand'
+import { PLATFORMS } from '@/types'
+import { PlatformPill } from '@/lib/platformBrand'
 import {
-  CALENDAR_STATUS_BORDER,
   CALENDAR_STATUS_CHIP,
-  CALENDAR_STATUS_DOT,
-  APPROVAL_STATUS_DOT,
-  APPROVAL_STATUS_SOLID,
-  APPROVAL_STATUS_LABEL,
 } from '@/lib/statusTokens'
 import type {
   CalendarEntry,
   CalendarEntryInsert,
   CalendarStatus,
-  Platform,
-  ContentType,
-  ContentTheme,
-  ApprovalStatus,
   ContentPillar,
+  ContentType,
+  Platform,
 } from '@/types'
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STATUS_COLORS = CALENDAR_STATUS_CHIP
-const STATUS_BORDER_COLORS = CALENDAR_STATUS_BORDER
-
-const CONTENT_TYPES = CONTENT_THEMES
-
-const STATUSES: { value: CalendarStatus; label: string }[] = [
-  { value: 'draft',     label: 'Draft'     },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'published', label: 'Published' },
-]
-
-// Map calendar entry status → task status for the linked auto-task.
-function deriveTaskStatus(
-  calendarStatus: CalendarStatus,
-): 'todo' | 'in_progress' | 'scheduled' | 'done' {
-  if (calendarStatus === 'published') return 'done'
-  if (calendarStatus === 'scheduled') return 'scheduled'
-  return 'todo'
-}
-
-const PILLAR_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
-  '#f97316', '#eab308', '#22c55e', '#14b8a6',
-  '#0ea5e9', '#3b82f6', '#64748b', '#0f172a',
-]
-
-function emailHandle(email: string) {
-  return email.split('@')[0]
-}
-
-// ─── Entry grouping ───────────────────────────────────────────────────────────
-
-type EntryGroup = {
-  id: string               // representative entry id (used as DnD id)
-  representative: CalendarEntry
-  entries: CalendarEntry[]
-  platforms: Platform[]
-}
-
-function groupEntries(entries: CalendarEntry[]): EntryGroup[] {
-  const map = new Map<string, CalendarEntry[]>()
-  for (const e of entries) {
-    const key = `${e.title.toLowerCase().trim()}__${e.scheduled_date}`
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(e)
-  }
-  return Array.from(map.values()).map((grp) => ({
-    id: grp[0].id,
-    representative: grp[0],
-    entries: grp,
-    platforms: grp.map((e) => e.platform),
-  }))
-}
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-const MAX_PLATFORM_BADGES = 3
-
-function PlatformStack({ platforms }: { platforms: Platform[] }) {
-  const visible = platforms.slice(0, MAX_PLATFORM_BADGES)
-  const overflow = platforms.length - visible.length
-  return (
-    <div className="flex items-center">
-      {visible.map((p, i) => (
-        <div key={p} className={i > 0 ? '-ml-1 ring-1 ring-card rounded-sm' : ''}>
-          <PlatformBadge platform={p} size="xs" />
-        </div>
-      ))}
-      {overflow > 0 && (
-        <span className="ml-1 font-mono text-[9px] font-medium text-muted-foreground tabular-nums">
-          +{overflow}
-        </span>
-      )}
-    </div>
-  )
-}
-
-function EntryCard({ group, onClick }: { group: EntryGroup; onClick: () => void }) {
-  const { representative: rep } = group
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: group.id })
-
-  const approvalDot = rep.approval_status
-    ? APPROVAL_STATUS_DOT[rep.approval_status]
-    : null
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1 }}
-      {...listeners}
-      {...attributes}
-      onClick={(e) => { e.stopPropagation(); onClick() }}
-      className={`cursor-pointer rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
-    >
-      {/* Mobile: single row — status dot + title */}
-      <div className="flex items-center gap-1.5 sm:hidden">
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${CALENDAR_STATUS_DOT[rep.status]}`} />
-        <span className="text-foreground line-clamp-1 text-[11px] leading-tight flex-1">{rep.title}</span>
-      </div>
-      {/* Desktop: platform stack + metadata dots + title */}
-      <div className="hidden sm:block">
-        <div className="flex items-center gap-1.5">
-          <PlatformStack platforms={group.platforms} />
-          <span className="ml-auto flex items-center gap-1 shrink-0">
-            {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
-            {approvalDot && <span className={`h-1.5 w-1.5 rounded-full ${approvalDot}`} />}
-          </span>
-        </div>
-        <span className="block text-foreground line-clamp-1 mt-0.5 text-xs leading-tight">{rep.title}</span>
-      </div>
-    </div>
-  )
-}
-
-function EntryCardOverlay({ group }: { group: EntryGroup }) {
-  const { representative: rep } = group
-  return (
-    <div className={`rounded border border-border border-l-4 ${STATUS_BORDER_COLORS[rep.status]} bg-card px-1.5 py-1 text-xs shadow-lg`}>
-      <div className="flex items-center gap-1.5 sm:hidden">
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${CALENDAR_STATUS_DOT[rep.status]}`} />
-        <span className="text-foreground line-clamp-1 text-[11px] leading-tight flex-1">{rep.title}</span>
-      </div>
-      <div className="hidden sm:block">
-        <PlatformStack platforms={group.platforms} />
-        <span className="block text-foreground line-clamp-1 mt-0.5 text-xs leading-tight">{rep.title}</span>
-      </div>
-    </div>
-  )
-}
-
-function DayCell({
-  day,
-  groups,
-  isCurrentMonth,
-  tall,
-  onGroupClick,
-  onAddClick,
-}: {
-  day: Date
-  groups: EntryGroup[]
-  isCurrentMonth: boolean
-  tall?: boolean
-  onGroupClick: (group: EntryGroup) => void
-  onAddClick: () => void
-}) {
-  const dateStr = format(day, 'yyyy-MM-dd')
-  const { isOver, setNodeRef } = useDroppable({ id: dateStr })
-  const todayFlag = isSameDay(day, new Date())
-  const MAX_VISIBLE = 3
-
-  return (
-    <div
-      ref={setNodeRef}
-      onClick={() => { if (isCurrentMonth) onAddClick() }}
-      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : 'cursor-pointer hover:bg-accent/30'} ${isOver ? 'bg-primary/5' : ''}`}
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className={`font-mono text-[11px] sm:text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full tabular-nums ${todayFlag ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-        >
-          {format(day, 'd')}
-        </span>
-        {isCurrentMonth && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onAddClick() }}
-            className="sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-foreground text-sm leading-none h-5 w-5 flex items-center justify-center rounded hover:bg-accent transition-opacity"
-            aria-label="Add entry"
-          >
-            +
-          </button>
-        )}
-      </div>
-      {groups.slice(0, MAX_VISIBLE).map((grp) => (
-        <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
-      ))}
-      {groups.length > MAX_VISIBLE && (
-        <Popover>
-          <PopoverTrigger
-            onClick={(e) => e.stopPropagation()}
-            className="text-[10px] text-muted-foreground hover:text-foreground px-1 font-mono tabular-nums text-left self-start rounded hover:bg-accent/50 transition-colors"
-          >
-            +{groups.length - MAX_VISIBLE} more
-          </PopoverTrigger>
-          <PopoverContent
-            align="start"
-            className="w-64 max-h-[320px] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-[11px] font-medium text-muted-foreground px-1 pb-1.5 uppercase tracking-wide">
-              {format(day, 'EEE, MMM d')}
-            </div>
-            <div className="flex flex-col gap-1">
-              {groups.slice(MAX_VISIBLE).map((grp) => (
-                <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-    </div>
-  )
-}
-
-function GeneratedContentPreview({ id }: { id: string }) {
-  const { data, isLoading } = useGeneratedContent(id)
-  if (isLoading) return <p className="text-xs text-muted-foreground">Loading source…</p>
-  if (!data) return null
-  return (
-    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        Generated from
-      </p>
-      <p className="text-sm text-foreground">{data.brief}</p>
-      <div className="flex gap-1.5 flex-wrap mt-1">
-        <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-          {data.type}
-        </span>
-        <span className={`text-[11px] px-1.5 py-0.5 rounded ${PLATFORM_BRAND[data.platform as Platform].chip}`}>
-          {data.platform}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-// ─── Role picker helper ───────────────────────────────────────────────────────
-
-function RolePicker({
-  value,
-  onChange,
-  members,
-}: {
-  value: string
-  onChange: (v: string) => void
-  members: { id: string; email: string }[]
-}) {
-  return (
-    <div className="space-y-1">
-      <Select value={value || '__none__'} onValueChange={(v) => onChange(v === '__none__' ? '' : v)}>
-        <SelectTrigger className="h-9 text-sm">
-          <SelectValue placeholder="Unassigned" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__none__">Unassigned</SelectItem>
-          {members.map((m) => (
-            <SelectItem key={m.id} value={m.email}>
-              {emailHandle(m.email)}
-              <span className="text-muted-foreground ml-1 text-xs">({m.email})</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {members.length === 0 && (
-        <p className="text-[11px] text-muted-foreground">
-          No team members yet — invite someone in Team.
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+import { EntryCardOverlay } from '@/components/calendar/EntryCard'
+import { DayCell } from '@/components/calendar/DayCell'
+import {
+  EntryDrawer,
+  type EntryFormValues,
+} from '@/components/calendar/EntryDrawer'
+import { PillarConfigDrawer } from '@/components/calendar/PillarConfigDrawer'
+import {
+  deriveTaskStatus,
+  groupEntries,
+  type EntryGroup,
+} from '@/components/calendar/entryGroups'
 
 export function ContentCalendarPage() {
   const navigate = useNavigate()
   const { activeBrand } = useActiveBrand()
 
-  // ── Navigation ────────────────────────────────────────────────────────────
   const today = new Date()
   const [viewYear, setViewYear]   = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
@@ -372,7 +86,6 @@ export function ContentCalendarPage() {
     else setViewMonth((m) => m + 1)
   }
 
-  // ── Data ──────────────────────────────────────────────────────────────────
   const { entries, createEntry, updateEntry, deleteEntry } = useCalendar(
     activeBrand?.id ?? null,
     viewYear,
@@ -385,7 +98,6 @@ export function ContentCalendarPage() {
 
   const teamMembers = members.data ?? []
 
-  // ── Filters ───────────────────────────────────────────────────────────────
   const [filterPlatforms, setFilterPlatforms] = useState<Platform[]>([])
   const [filterStatus, setFilterStatus]       = useState<CalendarStatus | 'all'>('all')
   const [search, setSearch]                   = useState('')
@@ -411,7 +123,6 @@ export function ContentCalendarPage() {
   const groupsForDay = (day: Date) =>
     allGroups.filter((g) => g.representative.scheduled_date === format(day, 'yyyy-MM-dd'))
 
-  // ── Grid ──────────────────────────────────────────────────────────────────
   const firstDay  = startOfMonth(new Date(viewYear, viewMonth))
   const monthDays = eachDayOfInterval({
     start: startOfWeek(firstDay, { weekStartsOn: 0 }),
@@ -422,7 +133,6 @@ export function ContentCalendarPage() {
   const weekDays   = eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) })
   const gridDays   = viewMode === 'month' ? monthDays : weekDays
 
-  // ── Pillar distribution ───────────────────────────────────────────────────
   const pillarDist = useMemo(() => {
     if ((pillars.data ?? []).length === 0) return []
     const monthEntries = (entries.data ?? []).filter((e) => {
@@ -436,17 +146,17 @@ export function ContentCalendarPage() {
     })
   }, [pillars.data, entries.data, viewYear, viewMonth])
 
-  // ── Drag & drop ───────────────────────────────────────────────────────────
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor),
   )
   const [draggingGroup, setDraggingGroup] = useState<EntryGroup | null>(null)
 
-  function handleDragStart(event: DragStartEvent) {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setDraggingGroup(allGroups.find((g) => g.id === event.active.id) ?? null)
-  }
+  }, [allGroups])
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     setDraggingGroup(null)
     const { active, over } = event
     if (!over) return
@@ -460,103 +170,85 @@ export function ContentCalendarPage() {
     )
       .then(() => toast.success('Entry rescheduled'))
       .catch((err) => toast.error('Failed to reschedule', { description: (err as Error).message }))
-  }
+  }, [allGroups, updateEntry])
 
-  // ── Entry drawer ─────────────────────────────────────────────────────────
-  const [drawerOpen, setDrawerOpen]           = useState(false)
-  const [drawerMode, setDrawerMode]           = useState<'create' | 'edit'>('create')
-  const [editingGroup, setEditingGroup]       = useState<EntryGroup | null>(null)
-  const [formTitle, setFormTitle]             = useState('')
-  const [formBody, setFormBody]               = useState('')
-  const [formDate, setFormDate]               = useState('')
-  const [formPlatforms, setFormPlatforms]     = useState<Platform[]>(['instagram'])
-  const [formContentType, setFormContentType] = useState<ContentTheme>('property_tour')
-  const [formStatus, setFormStatus]           = useState<CalendarStatus>('draft')
-  const [formCampaignId, setFormCampaignId]   = useState<string | null>(null)
-  const [formPillarId, setFormPillarId]       = useState<string | null>(null)
-  const [formApprovalStatus, setFormApprovalStatus] = useState<ApprovalStatus | null>(null)
-  const [formApprovalNote, setFormApprovalNote]     = useState('')
-  // Assigned specialist
-  const [formTalent, setFormTalent]     = useState('')
-  const [formCharacter, setFormCharacter] = useState<string>('')
+  const [drawerOpen, setDrawerOpen]               = useState(false)
+  const [drawerMode, setDrawerMode]               = useState<'create' | 'edit'>('create')
+  const [editingGroup, setEditingGroup]           = useState<EntryGroup | null>(null)
+  const [defaultDate, setDefaultDate]             = useState<string | undefined>(undefined)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const lastTriggerRef = useRef<HTMLElement | null>(null)
 
-  function resetForm() {
-    setFormTitle(''); setFormBody('')
-    setFormDate(format(new Date(), 'yyyy-MM-dd'))
-    setFormPlatforms(['instagram']); setFormContentType('property_tour'); setFormStatus('draft')
-    setFormCampaignId(null); setFormPillarId(null); setFormApprovalStatus(null); setFormApprovalNote('')
-    setFormTalent(''); setFormCharacter('')
-  }
-
-  function openCreate(date?: string) {
-    setDrawerMode('create'); setEditingGroup(null)
-    resetForm()
-    if (date) setFormDate(date)
+  const openCreate = useCallback((date?: string) => {
+    lastTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setDrawerMode('create')
+    setEditingGroup(null)
+    setDefaultDate(date)
     setDrawerOpen(true)
-  }
+  }, [])
 
-  function openEdit(group: EntryGroup) {
-    const rep = group.representative
-    setDrawerMode('edit'); setEditingGroup(group)
-    setFormTitle(rep.title); setFormBody(rep.body ?? '')
-    setFormDate(rep.scheduled_date); setFormPlatforms(group.platforms)
-    setFormContentType((rep.content_type as ContentTheme) ?? 'property_tour'); setFormStatus(rep.status)
-    setFormCampaignId(rep.campaign_id ?? null)
-    setFormPillarId(rep.pillar_id ?? null)
-    setFormApprovalStatus(rep.approval_status ?? null)
-    setFormApprovalNote(rep.approval_note ?? '')
-    setFormTalent(rep.assigned_talent ?? '')
-    setFormCharacter(rep.character ?? '')
+  const openEdit = useCallback((group: EntryGroup) => {
+    lastTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setDrawerMode('edit')
+    setEditingGroup(group)
+    setDefaultDate(undefined)
     setDrawerOpen(true)
-  }
+  }, [])
 
-  function buildCommonPayload() {
+  const handleDrawerOpenChange = useCallback((open: boolean) => {
+    setDrawerOpen(open)
+    if (!open) {
+      const el = lastTriggerRef.current
+      if (el && document.contains(el)) {
+        requestAnimationFrame(() => el.focus())
+      }
+    }
+  }, [])
+
+  function buildCommonPayload(v: EntryFormValues) {
     return {
-      content_type: formContentType as ContentType,
-      title: formTitle.trim(),
-      body: formBody.trim() || null,
-      scheduled_date: formDate,
-      status: formStatus,
-      campaign_id: formCampaignId,
-      pillar_id: formPillarId,
-      approval_status: formApprovalStatus,
-      approval_note: formApprovalNote.trim() || null,
+      content_type: v.contentType as ContentType,
+      title: v.title.trim(),
+      body: v.body.trim() || null,
+      scheduled_date: v.date,
+      status: v.status,
+      campaign_id: v.campaignId,
+      pillar_id: v.pillarId,
+      approval_status: v.approvalStatus,
+      approval_note: v.approvalNote.trim() || null,
       assigned_editor: null,
       assigned_shooter: null,
-      assigned_talent: formTalent || null,
-      character: formCharacter || null,
+      assigned_talent: v.talent || null,
+      character: v.character || null,
     }
   }
 
-  async function handleSave() {
-    if (!formTitle.trim() || !formDate) {
+  async function handleSave(v: EntryFormValues) {
+    if (!v.title.trim() || !v.date) {
       toast.error('Title and date are required')
       return
     }
     try {
-      // Resolve assignee — formTalent may be an agent name or a team-member email
-      const specialist = formTalent || ''
+      // formTalent may be an agent name or a team-member email — try to resolve.
+      const specialist = v.talent || ''
       const specialistId = specialist
         ? teamMembers.find((m) => m.email === specialist)?.user_id ?? null
         : null
 
       if (drawerMode === 'create') {
-        const platforms = formPlatforms.length > 0 ? formPlatforms : ['instagram' as Platform]
+        const platforms = v.platforms.length > 0 ? v.platforms : ['instagram' as Platform]
 
-        // Fire all platform inserts in parallel and surface per-platform results.
-        // If any fail, roll back the successful rows so we don't leave a partial
-        // group (e.g. 2/3 platforms created) that the UI would render as an
-        // incomplete multi-platform post.
+        // Fire all platform inserts in parallel. If any fail, roll back the
+        // successful rows so we don't leave a partial group.
         const results = await Promise.allSettled(
           platforms.map((plat) =>
             createEntry.mutateAsync({
               brand_id: activeBrand!.id,
-              ...buildCommonPayload(),
+              ...buildCommonPayload(v),
               platform: plat,
               generated_content_id: null,
-            } as CalendarEntryInsert)
-          )
+            } as CalendarEntryInsert),
+          ),
         )
         const created: CalendarEntry[] = []
         const failed: { platform: Platform; reason: unknown }[] = []
@@ -573,20 +265,20 @@ export function ContentCalendarPage() {
             : new Error(`Failed to create entry for ${failed.map((f) => f.platform).join(', ')}`)
         }
 
-        // Every calendar entry gets a linked task — assignee optional
+        // Every calendar entry gets a linked task — assignee optional.
         const firstEntry = created[0] ?? null
         if (firstEntry) {
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
-            title: formTitle.trim(),
+            title: v.title.trim(),
             description: null,
             type: 'content',
-            status: deriveTaskStatus(formStatus),
+            status: deriveTaskStatus(v.status),
             priority: 'medium',
             assignee_id: specialistId,
             assignee_email: specialist || null,
             calendar_entry_id: firstEntry.id,
-            due_date: formDate,
+            due_date: v.date,
             created_by: null,
           })
         }
@@ -595,18 +287,18 @@ export function ContentCalendarPage() {
       } else {
         const group = editingGroup!
         const currentPlatforms = group.platforms
-        const toUpdate = formPlatforms.filter((p) => currentPlatforms.includes(p))
-        const toAdd    = formPlatforms.filter((p) => !currentPlatforms.includes(p))
-        const toRemove = currentPlatforms.filter((p) => !formPlatforms.includes(p))
+        const toUpdate = v.platforms.filter((p) => currentPlatforms.includes(p))
+        const toAdd    = v.platforms.filter((p) => !currentPlatforms.includes(p))
+        const toRemove = currentPlatforms.filter((p) => !v.platforms.includes(p))
 
         for (const plat of toUpdate) {
           const e = group.entries.find((e) => e.platform === plat)
-          if (e) await updateEntry.mutateAsync({ id: e.id, patch: buildCommonPayload() })
+          if (e) await updateEntry.mutateAsync({ id: e.id, patch: buildCommonPayload(v) })
         }
         for (const plat of toAdd) {
           await createEntry.mutateAsync({
             brand_id: activeBrand!.id,
-            ...buildCommonPayload(),
+            ...buildCommonPayload(v),
             platform: plat,
             generated_content_id: group.representative.generated_content_id,
           } as CalendarEntryInsert)
@@ -617,32 +309,28 @@ export function ContentCalendarPage() {
         }
 
         const repId = group.representative.id
-        // Match on any entry in the group, not just the current rep — the rep
-        // can shift between edits (platforms added/removed) and a narrower
-        // lookup would miss the existing task and create a duplicate.
+        // Match on any entry in the group (rep can shift between edits) to
+        // avoid creating a duplicate task.
         const groupEntryIds = new Set(group.entries.map((e) => e.id))
         const existingTask = (tasks.data ?? []).find((t) =>
           t.calendar_entry_id ? groupEntryIds.has(t.calendar_entry_id) : false,
         )
-        const derivedStatus = deriveTaskStatus(formStatus)
-        // Every group gets a task — specialist optional. Update if one already
-        // exists, otherwise create. Never delete on save: clearing the talent
-        // should leave the task unassigned, not yank it off the board.
+        const derivedStatus = deriveTaskStatus(v.status)
         if (existingTask) {
           await updateTask.mutateAsync({
             id: existingTask.id,
             patch: {
-              title: formTitle.trim(),
+              title: v.title.trim(),
               status: derivedStatus,
               assignee_id: specialistId,
               assignee_email: specialist || null,
-              due_date: formDate,
+              due_date: v.date,
             },
           })
         } else {
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
-            title: formTitle.trim(),
+            title: v.title.trim(),
             description: null,
             type: 'content',
             status: derivedStatus,
@@ -650,32 +338,29 @@ export function ContentCalendarPage() {
             assignee_id: specialistId,
             assignee_email: specialist || null,
             calendar_entry_id: repId,
-            due_date: formDate,
+            due_date: v.date,
             created_by: null,
           })
         }
 
         toast.success('Entry saved')
       }
-      setDrawerOpen(false)
+      handleDrawerOpenChange(false)
     } catch (err) {
       toast.error('Failed to save', { description: (err as Error).message })
     }
   }
 
-  async function handleDelete() {
+  async function confirmAndDelete() {
+    setConfirmDeleteOpen(false)
+    if (!editingGroup) return
     try {
-      await Promise.all(editingGroup!.entries.map((e) => deleteEntry.mutateAsync(e.id)))
+      await Promise.all(editingGroup.entries.map((e) => deleteEntry.mutateAsync(e.id)))
       toast.success('Entry deleted')
-      setDrawerOpen(false)
+      handleDrawerOpenChange(false)
     } catch (err) {
       toast.error('Failed to delete', { description: (err as Error).message })
     }
-  }
-
-  async function confirmAndDelete() {
-    setConfirmDeleteOpen(false)
-    await handleDelete()
   }
 
   async function handleDuplicate() {
@@ -704,8 +389,6 @@ export function ContentCalendarPage() {
         copies.push(copy)
       }
 
-      // Always pair the duplicate with a task — matches the save path's
-      // invariant of 1 task per content group, keeping board parity.
       const firstCopy = copies[0]
       if (firstCopy) {
         const assignedEmail = firstCopy.assigned_talent ?? null
@@ -727,8 +410,7 @@ export function ContentCalendarPage() {
         })
       }
 
-      // Reopen the drawer on the duplicate so the user can immediately rename
-      // it — title is pre-filled with "(copy)" and ready to edit.
+      // Reopen the drawer on the duplicate so the user can rename it.
       if (copies.length > 0) {
         const newGroup: EntryGroup = {
           id: copies[0].id,
@@ -738,7 +420,7 @@ export function ContentCalendarPage() {
         }
         openEdit(newGroup)
       } else {
-        setDrawerOpen(false)
+        handleDrawerOpenChange(false)
       }
 
       toast.success('Entry duplicated — rename and save')
@@ -747,29 +429,23 @@ export function ContentCalendarPage() {
     }
   }
 
-  // ── Pillar configure drawer ───────────────────────────────────────────────
+  // Pillar drawer
   const [pillarDrawerOpen, setPillarDrawerOpen] = useState(false)
-  const [newPillarLabel, setNewPillarLabel]     = useState('')
-  const [newPillarColor, setNewPillarColor]     = useState('#6366f1')
-  const [newPillarPct, setNewPillarPct]         = useState(20)
 
-  async function handleAddPillar() {
-    if (!newPillarLabel.trim() || !activeBrand) return
-    try {
-      await createPillar.mutateAsync({
-        brand_id: activeBrand.id,
-        label: newPillarLabel.trim(),
-        target_pct: newPillarPct,
-        color: newPillarColor,
-      })
-      setNewPillarLabel(''); setNewPillarPct(20); setNewPillarColor('#6366f1')
-      toast.success('Pillar added')
-    } catch (err) {
-      toast.error('Failed to add pillar', { description: (err as Error).message })
-    }
-  }
+  const handleAddPillar = useCallback(async (input: { label: string; target_pct: number; color: string }) => {
+    if (!activeBrand) return
+    await createPillar.mutateAsync({
+      brand_id: activeBrand.id,
+      label: input.label,
+      target_pct: input.target_pct,
+      color: input.color,
+    })
+  }, [activeBrand, createPillar])
 
-  // ── Guard ─────────────────────────────────────────────────────────────────
+  const handleDeletePillar = useCallback(async (id: string) => {
+    await deletePillar.mutateAsync(id)
+  }, [deletePillar])
+
   if (!activeBrand) return <NoBrandSelected />
 
   const saving =
@@ -778,7 +454,6 @@ export function ContentCalendarPage() {
     createTask.isPending ||
     updateTask.isPending
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -804,7 +479,7 @@ export function ContentCalendarPage() {
         </div>
       </div>
 
-      {/* Filter bar — right fade hints at horizontal scroll on narrow viewports */}
+      {/* Filter bar */}
       <div
         className="relative px-4 sm:px-6 pb-3 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] sm:[mask-image:none]">
         <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Platforms</span>
@@ -835,7 +510,7 @@ export function ContentCalendarPage() {
               filterStatus === s
                 ? s === 'all'
                   ? 'bg-foreground text-background border-transparent'
-                  : `${STATUS_COLORS[s as CalendarStatus]} border-transparent`
+                  : `${CALENDAR_STATUS_CHIP[s as CalendarStatus]} border-transparent`
                 : 'border-border text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -971,394 +646,31 @@ export function ContentCalendarPage() {
         </DndContext>
       </div>
 
-      {/* Entry drawer */}
-      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
-          <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
-            <div className="eyebrow">
-              {drawerMode === 'create'
-                ? 'New entry'
-                : formDate
-                ? format(parseISO(formDate), 'EEE · MMM d, yyyy')
-                : 'Edit entry'}
-            </div>
-            <SheetTitle className="font-heading font-medium tracking-tight text-[22px] leading-tight truncate">
-              {drawerMode === 'create'
-                ? 'Draft a post'
-                : formTitle.trim() || 'Untitled entry'}
-            </SheetTitle>
-          </SheetHeader>
+      <EntryDrawer
+        open={drawerOpen}
+        onOpenChange={handleDrawerOpenChange}
+        mode={drawerMode}
+        group={editingGroup}
+        defaultDate={defaultDate}
+        members={teamMembers}
+        campaigns={campaigns.data ?? []}
+        pillars={pillars.data ?? []}
+        saving={saving}
+        deleting={deleteEntry.isPending}
+        onSave={handleSave}
+        onDelete={() => setConfirmDeleteOpen(true)}
+        onDuplicate={handleDuplicate}
+        duplicating={createEntry.isPending}
+      />
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-            {/* Title */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="Entry title…"
-              />
-            </div>
-
-            {/* Caption / Notes */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Caption / Notes{' '}
-                <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <Textarea
-                value={formBody}
-                onChange={(e) => setFormBody(e.target.value)}
-                rows={5}
-                className="resize-none"
-                placeholder="Full caption, hook text, script notes…"
-              />
-            </div>
-
-            {/* Date */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Scheduled date</label>
-              <input
-                type="date"
-                value={formDate}
-                onChange={(e) => setFormDate(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              />
-            </div>
-
-            {/* Platform */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Platform
-                {drawerMode === 'create' && (
-                  <span className="text-muted-foreground font-normal text-xs ml-1">(select one or more)</span>
-                )}
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {PLATFORMS.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    onClick={() => {
-                      setFormPlatforms((prev) =>
-                        prev.includes(p.value)
-                          ? prev.length > 1 ? prev.filter((x) => x !== p.value) : prev
-                          : [...prev, p.value],
-                      )
-                    }}
-                    className="rounded-full hover:opacity-90 transition-opacity"
-                  >
-                    <PlatformPill platform={p.value} label={p.label} active={formPlatforms.includes(p.value)} />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Content type */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Content type</label>
-              <div className="flex flex-wrap gap-1.5">
-                {CONTENT_TYPES.map((ct) => (
-                  <button
-                    key={ct.value}
-                    type="button"
-                    title={ct.desc}
-                    aria-label={`${ct.label} — ${ct.desc}`}
-                    aria-pressed={formContentType === ct.value}
-                    onClick={() => setFormContentType(ct.value as ContentTheme)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      formContentType === ct.value
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-border text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {ct.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Status</label>
-              <div className="flex gap-1.5">
-                {STATUSES.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setFormStatus(s.value)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      formStatus === s.value
-                        ? `${STATUS_COLORS[s.value]} border-transparent`
-                        : 'border-border text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Client Approval */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Client Approval{' '}
-                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-              </label>
-              <div className="flex gap-1.5 flex-wrap">
-                {(
-                  [null, 'pending_review', 'approved', 'rejected'] as const
-                ).map((s) => {
-                  const selected = formApprovalStatus === s
-                  const selectedClass = s
-                    ? APPROVAL_STATUS_SOLID[s]
-                    : 'bg-muted text-foreground border-border'
-                  return (
-                    <button
-                      key={s ?? '__none__'}
-                      type="button"
-                      onClick={() => setFormApprovalStatus(s)}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        selected ? selectedClass : 'border-border text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      {s === null ? 'None' : APPROVAL_STATUS_LABEL[s]}
-                    </button>
-                  )
-                })}
-              </div>
-              {formApprovalStatus && (
-                <Textarea
-                  value={formApprovalNote}
-                  onChange={(e) => setFormApprovalNote(e.target.value)}
-                  placeholder={
-                    formApprovalStatus === 'rejected'
-                      ? 'Reason for rejection…'
-                      : formApprovalStatus === 'approved'
-                      ? 'Approval note (optional)…'
-                      : 'Note for reviewer (optional)…'
-                  }
-                  rows={2}
-                  className="resize-none text-sm"
-                />
-              )}
-            </div>
-
-            {/* Campaign selector */}
-            {(campaigns.data ?? []).length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">
-                  Campaign{' '}
-                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-                </label>
-                <Select
-                  value={formCampaignId ?? '__none__'}
-                  onValueChange={(v) => setFormCampaignId(v === '__none__' ? null : v)}
-                >
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {(campaigns.data ?? []).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Pillar selector */}
-            {(pillars.data ?? []).length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">
-                  Pillar{' '}
-                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setFormPillarId(null)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      !formPillarId
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-border text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    None
-                  </button>
-                  {(pillars.data ?? []).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setFormPillarId(p.id)}
-                      style={
-                        formPillarId === p.id
-                          ? { backgroundColor: p.color, color: 'white', borderColor: p.color }
-                          : {}
-                      }
-                      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        formPillarId !== p.id ? 'border-border text-muted-foreground hover:text-foreground' : ''
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Assigned Specialist */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Assigned Specialist{' '}
-                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-              </label>
-              <RolePicker
-                value={formTalent}
-                onChange={setFormTalent}
-                members={teamMembers}
-              />
-            </div>
-
-            {drawerMode === 'edit' && editingGroup?.representative.generated_content_id && (
-              <GeneratedContentPreview id={editingGroup.representative.generated_content_id} />
-            )}
-          </div>
-
-          <SheetFooter className="border-t border-border px-6 py-4 flex-row gap-2">
-            {drawerMode === 'edit' && (
-              <>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setConfirmDeleteOpen(true)}
-                  disabled={deleteEntry.isPending}
-                >
-                  Delete
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDuplicate}
-                  disabled={createEntry.isPending}
-                  title="Duplicate this entry as a draft"
-                >
-                  <Copy className="h-3.5 w-3.5 mr-1" />
-                  Duplicate
-                </Button>
-              </>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDrawerOpen(false)}
-              className="ml-auto"
-            >
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      {/* Pillar configure drawer */}
-      <Sheet open={pillarDrawerOpen} onOpenChange={setPillarDrawerOpen}>
-        <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-sm">
-          <SheetHeader className="border-b border-border px-6 py-4">
-            <SheetTitle>Configure Pillars</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            {(pillars.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pillars yet. Add one below.</p>
-            ) : (
-              <div className="space-y-2">
-                {(pillars.data ?? []).map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"
-                  >
-                    <div
-                      className="h-3 w-3 rounded-full shrink-0"
-                      style={{ background: p.color }}
-                    />
-                    <span className="text-sm font-medium flex-1">{p.label}</span>
-                    <span className="text-xs text-muted-foreground">{p.target_pct}% target</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        deletePillar.mutate(p.id, {
-                          onSuccess: () => toast.success('Pillar deleted'),
-                          onError: (err) => toast.error('Failed to delete pillar', { description: (err as Error).message }),
-                        })
-                      }
-                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="border-t border-border pt-4 space-y-3">
-              <p className="text-sm font-medium">Add Pillar</p>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Label</label>
-                <Input
-                  value={newPillarLabel}
-                  onChange={(e) => setNewPillarLabel(e.target.value)}
-                  placeholder="e.g. Educational, Promotional"
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Target % of posts</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={newPillarPct}
-                  onChange={(e) => setNewPillarPct(Number(e.target.value))}
-                  className="h-8 text-sm w-24"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Color</label>
-                <div className="flex flex-wrap gap-2">
-                  {PILLAR_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setNewPillarColor(c)}
-                      style={{ background: c }}
-                      className={`h-6 w-6 rounded-full transition-all duration-150 ${
-                        newPillarColor === c
-                          ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110'
-                          : 'hover:scale-110 opacity-80 hover:opacity-100'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <Button
-                size="sm"
-                onClick={handleAddPillar}
-                disabled={!newPillarLabel.trim() || createPillar.isPending}
-              >
-                {createPillar.isPending ? 'Adding…' : 'Add Pillar'}
-              </Button>
-            </div>
-          </div>
-          <SheetFooter className="border-t border-border px-6 py-4">
-            <Button variant="outline" size="sm" onClick={() => setPillarDrawerOpen(false)} className="ml-auto">
-              Done
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <PillarConfigDrawer
+        open={pillarDrawerOpen}
+        onOpenChange={setPillarDrawerOpen}
+        pillars={pillars.data ?? []}
+        creating={createPillar.isPending}
+        onAdd={handleAddPillar}
+        onDelete={handleDeletePillar}
+      />
 
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <AlertDialogContent>

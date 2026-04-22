@@ -3,6 +3,13 @@ import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Task, TaskInsert, TaskUpdate } from '@/types'
 
+// Explicit column list (not select *) so a schema addition requires an
+// intentional update here and accidental additions don't bloat the payload.
+const TASK_COLUMNS =
+  'id, brand_id, title, description, type, status, priority, ' +
+  'assignee_id, assignee_email, calendar_entry_id, due_date, ' +
+  'created_by, created_at, updated_at'
+
 /** Owner: all tasks for a brand */
 export function useTasks(brandId: string | null) {
   const queryClient = useQueryClient()
@@ -14,11 +21,11 @@ export function useTasks(brandId: string | null) {
       if (!brandId) return []
       const { data, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select(TASK_COLUMNS)
         .eq('brand_id', brandId)
         .order('created_at', { ascending: true })
       if (error) throw error
-      return (data ?? []) as Task[]
+      return (data ?? []) as unknown as Task[]
     },
     enabled: !!brandId,
   })

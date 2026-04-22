@@ -4,6 +4,14 @@ import { supabase } from '@/lib/supabase'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, format } from 'date-fns'
 import type { CalendarEntry, CalendarEntryInsert, CalendarEntryUpdate } from '@/types'
 
+// Explicit column list (not select *) so a schema addition requires an
+// intentional update here and accidental additions don't bloat the payload.
+const ENTRY_COLUMNS =
+  'id, brand_id, platform, content_type, title, body, scheduled_date, ' +
+  'status, generated_content_id, campaign_id, pillar_id, ' +
+  'approval_status, approval_note, assigned_editor, assigned_shooter, ' +
+  'assigned_talent, character, created_at, updated_at'
+
 export function useCalendar(brandId: string | null, year: number, month: number) {
   const queryClient = useQueryClient()
   const queryKey = ['calendar-entries', brandId, year, month] as const
@@ -18,28 +26,31 @@ export function useCalendar(brandId: string | null, year: number, month: number)
       if (!brandId) return []
       const { data, error } = await supabase
         .from('calendar_entries')
-        .select('*')
+        .select(ENTRY_COLUMNS)
         .eq('brand_id', brandId)
         .gte('scheduled_date', gridStart)
         .lte('scheduled_date', gridEnd)
         .order('created_at', { ascending: true })
       if (error) throw error
-      return (data ?? []) as CalendarEntry[]
+      return (data ?? []) as unknown as CalendarEntry[]
     },
     enabled: !!brandId,
   })
 
   // Refetch when calendar_entries change out-of-band — e.g. the DB trigger
   // tasks_sync_calendar_status rewrites ce.status when a task moves columns.
+  // Scope invalidation to the *active* month's cache key: the broader prefix
+  // `['calendar-entries', brandId]` would refetch every previously-viewed
+  // month, doubling the work on month-to-month navigation.
   useEffect(() => {
     if (!brandId) return
     const channel = supabase
-      .channel(`calendar-entries:${brandId}`)
+      .channel(`calendar-entries:${brandId}:${year}-${month}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_entries', filter: `brand_id=eq.${brandId}` },
-        () => queryClient.invalidateQueries({ queryKey: ['calendar-entries', brandId] }))
+        () => queryClient.invalidateQueries({ queryKey }))
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [brandId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [brandId, year, month]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const createEntry = useMutation({
     mutationFn: async (payload: CalendarEntryInsert) => {
