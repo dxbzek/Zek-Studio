@@ -596,7 +596,13 @@ export function ContentCalendarPage() {
         }
 
         const repId = group.representative.id
-        const existingTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === repId)
+        // Match on any entry in the group, not just the current rep — the rep
+        // can shift between edits (platforms added/removed) and a narrower
+        // lookup would miss the existing task and create a duplicate.
+        const groupEntryIds = new Set(group.entries.map((e) => e.id))
+        const existingTask = (tasks.data ?? []).find((t) =>
+          t.calendar_entry_id ? groupEntryIds.has(t.calendar_entry_id) : false,
+        )
         const derivedStatus = deriveTaskStatus(formStatus)
         if (specialist) {
           if (existingTask) {

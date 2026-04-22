@@ -73,7 +73,20 @@
       "Bash(curl -sL -A \"Mozilla/5.0\" \"https://cdn.simpleicons.org/linkedin/0A66C2\" -w \"HTTP:%{http_code} SIZE:%{size_download}\\\\n\" -o /tmp/li.svg)",
       "Bash(curl -sL -A \"Mozilla/5.0\" \"https://simpleicons.org/?q=linkedin\" -o /tmp/si.html -w \"%{http_code}\\\\n\")",
       "Bash(git restore *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "Bash(supabase --version)",
+      "Bash(supabase migration *)",
+      "Bash(supabase db *)",
+      "Bash(supabase functions *)",
+      "Bash(curl -sS -o /dev/null -w \"status=%{http_code}\\\\n\" -X POST https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Content-Type: application/json\" -d '{\"mode\":\"generate\"}')",
+      "Bash(curl -sS -o /dev/null -w \"status=%{http_code}\\\\n\" -X POST https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/generate-blog -H \"Content-Type: application/json\" -d '{\"mode\":\"ideas\"}')",
+      "Bash(curl -sS -o /dev/null -w \"status=%{http_code}\\\\n\" -X POST https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/niche-research -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -sS -o /dev/null -w \"status=%{http_code}\\\\n\" -X POST https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/content-audit -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -sS -o /dev/null -D - -X OPTIONS https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Origin: https://evil.example.com\" -H \"Access-Control-Request-Method: POST\")",
+      "Bash(curl -sS -o /dev/null -D - -X OPTIONS https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Origin: https://zek-studio-abc123.vercel.app\" -H \"Access-Control-Request-Method: POST\")",
+      "Bash(curl -sS -o /dev/null -D - -X OPTIONS https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Origin: http://localhost:5173\" -H \"Access-Control-Request-Method: POST\")",
+      "mcp__claude_ai_Supabase__list_edge_functions"
     ]
   }
 }
