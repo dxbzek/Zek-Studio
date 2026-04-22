@@ -83,7 +83,7 @@ export default function App() {
             </Suspense>
           </ErrorBoundary>
         </BrowserRouter>
-        <Toaster richColors position="bottom-right" />
+        <Toaster richColors position="top-center" />
       </TooltipProvider>
     </QueryClientProvider>
   )
