@@ -76,6 +76,8 @@ export function PostCard({ post, handle, onSaveHook, isSaving, alreadySaved, onT
             alt=""
             referrerPolicy="no-referrer"
             crossOrigin="anonymous"
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover"
             onError={() => setImgFailed(true)}
           />

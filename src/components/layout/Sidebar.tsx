@@ -107,6 +107,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         open ? 'translate-x-0' : '-translate-x-full',
         'sm:relative sm:translate-x-0',
       )}
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'env(safe-area-inset-left)',
+      }}
     >
       {/* Logo */}
       <div className="flex h-[52px] items-center gap-2.5 border-b border-border px-4 shrink-0">
@@ -125,7 +130,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-between px-2.5 h-[38px] hover:bg-sidebar-accent border border-border rounded-[10px]"
+              className="w-full justify-between px-2.5 h-11 sm:h-[38px] hover:bg-sidebar-accent border border-border rounded-[10px]"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <Avatar className="h-[22px] w-[22px] shrink-0">
@@ -192,7 +197,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-2.5 h-[30px] mx-1.5 px-2.5 rounded-[7px] text-[12.5px] font-medium transition-colors',
+                    'flex items-center gap-2.5 h-11 sm:h-[30px] mx-1.5 px-2.5 rounded-[7px] text-[12.5px] font-medium transition-colors',
                     isActive
                       ? 'bg-accent/60 text-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -225,7 +230,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           variant="ghost"
           size="icon"
           onClick={handleSignOut}
-          className="h-[26px] w-[26px] text-muted-foreground hover:text-foreground shrink-0"
+          className="h-11 w-11 sm:h-[26px] sm:w-[26px] text-muted-foreground hover:text-foreground shrink-0"
           title="Sign out"
         >
           <LogOut className="h-3.5 w-3.5" />

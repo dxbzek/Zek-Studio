@@ -27,12 +27,20 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const [section, title] = ROUTE_MAP[pathname] ?? ['', pathname.replace('/', '')]
 
   return (
-    <header className="sticky top-0 z-30 flex h-[52px] shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+    <header
+      className="sticky top-0 z-30 flex h-[52px] shrink-0 items-center gap-3 border-b border-border bg-background px-4"
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+        paddingRight: 'max(1rem, env(safe-area-inset-right))',
+        height: 'calc(52px + env(safe-area-inset-top))',
+      }}
+    >
       {/* Hamburger — mobile only */}
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0 sm:hidden"
+        className="h-11 w-11 shrink-0 sm:hidden"
         onClick={onMenuClick}
       >
         <Menu className="h-4 w-4" />
@@ -94,16 +102,21 @@ export function AppShell() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="flex flex-col flex-1 overflow-hidden">
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
-        <div className="flex-1 overflow-y-auto">
-          <Suspense
-            fallback={
-              <div className="flex min-h-[40vh] items-center justify-center">
-                <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden />
-              </div>
-            }
-          >
-            <Outlet />
-          </Suspense>
+        <div
+          className="flex-1 overflow-y-auto"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <div className="mx-auto w-full max-w-[1400px]">
+            <Suspense
+              fallback={
+                <div className="flex min-h-[40vh] items-center justify-center">
+                  <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden />
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </div>
         </div>
       </main>
     </div>

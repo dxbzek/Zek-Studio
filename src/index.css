@@ -88,6 +88,15 @@
     --radius-3xl: calc(var(--radius) * 2.2);
 
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* Fluid type scale — relative to the 13px html base defined below. */
+    /* Use via `font-size: var(--text-sm)` etc. on new/updated components. */
+    --text-xs:   clamp(0.75rem,  0.70rem + 0.15vw, 0.875rem);
+    --text-sm:   clamp(0.875rem, 0.82rem + 0.20vw, 1rem);
+    --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+    --text-lg:   clamp(1.25rem,  1.15rem + 0.40vw, 1.5rem);
+    --text-xl:   clamp(1.75rem,  1.50rem + 1.00vw, 2.5rem);
+    --text-2xl:  clamp(2.5rem,   2.00rem + 2.00vw, 4rem);
 }
 
 :root {
@@ -251,5 +260,16 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+  }
+}
+
+/* Honor OS-level reduce-motion preference. Kills slide-in drawers, */
+/* spinners, and future transitions for users who opt out of motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

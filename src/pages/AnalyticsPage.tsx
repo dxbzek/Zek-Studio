@@ -1228,8 +1228,39 @@ export default function AnalyticsPage() {
             <div className="px-4 py-3 border-b border-border">
               <div className="eyebrow">Channel breakdown</div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[480px]">
+            {/* Card stack — below md: */}
+            <div className="md:hidden divide-y divide-border">
+              {channelStats.map((ch) => (
+                <div key={ch.platform} className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`text-[11px] px-2 py-0.5 rounded font-semibold ${PLATFORM_BRAND[ch.platform as Platform].chip ?? 'bg-muted text-muted-foreground'}`}>
+                      {ch.platform}
+                    </span>
+                    <Sparkline data={ch.weekBuckets} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-left">
+                    <div>
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Reach</div>
+                      <div className="mono-num text-[13px]">{fmtCompact(ch.totalReach)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Eng.</div>
+                      <div className="mono-num text-[13px]">
+                        {ch.avgEng != null ? `${ch.avgEng.toFixed(1)}%` : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Posts</div>
+                      <div className="mono-num text-[13px]">{ch.count}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Table — md: and above */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/20">
                     <th className="text-left px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Channel</th>
@@ -1272,8 +1303,63 @@ export default function AnalyticsPage() {
         {/* Metrics table */}
         {displayed.length > 0 && (
           <div className="rounded-xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[600px]">
+            {/* Card stack — below md: */}
+            <div className="md:hidden divide-y divide-border">
+              {displayed.slice(0, metricsLimit).map((m) => (
+                <div key={m.id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium shrink-0 ${PLATFORM_BRAND[m.platform as Platform].chip}`}>
+                        {m.platform}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {m.posted_at ? format(parseISO(m.posted_at), 'MMM d, yyyy') : '—'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(m)}
+                      className="p-2 -m-2 rounded text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
+                      aria-label="Edit metric"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Views</div>
+                      <div className="mono-num text-[12.5px]">{fmtCompact(m.views)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Likes</div>
+                      <div className="mono-num text-[12.5px]">{fmtCompact(m.likes)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Comments</div>
+                      <div className="mono-num text-[12.5px]">{fmtCompact(m.comments)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Eng.</div>
+                      <div className="mono-num text-[12.5px]">{engagementRate(m)}</div>
+                    </div>
+                  </div>
+                  {m.post_url && (
+                    <a
+                      href={m.post_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-xs text-primary underline underline-offset-2 truncate"
+                    >
+                      {m.post_url.replace(/^https?:\/\//, '').slice(0, 50)}…
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Table — md: and above */}
+            <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/20">
                   <th className="text-left px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Date</th>
