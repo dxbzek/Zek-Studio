@@ -29,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { BrandAvatar } from '@/components/brand/BrandAvatar'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 const NAV_GROUPS = [
@@ -96,10 +96,6 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
     navigate('/login')
   }
 
-  const brandInitials = activeBrand
-    ? activeBrand.name.slice(0, 2).toUpperCase()
-    : 'ZS'
-
   return (
     <aside
       className={cn(
@@ -134,14 +130,7 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
               className="w-full justify-between px-2.5 h-11 sm:h-[38px] hover:bg-sidebar-accent border border-border rounded-[10px]"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Avatar className="h-[22px] w-[22px] shrink-0">
-                  <AvatarFallback
-                    className="text-[10px] font-semibold"
-                    style={{ background: activeBrand?.color ?? '#B8C5D1' }}
-                  >
-                    {brandInitials}
-                  </AvatarFallback>
-                </Avatar>
+                <BrandAvatar brand={activeBrand} size={22} rounded="full" />
                 <div className="flex flex-col text-left min-w-0">
                   <span className="truncate text-[12.5px] font-medium text-sidebar-foreground leading-tight">
                     {activeBrand?.name ?? 'Select a brand'}
@@ -163,14 +152,7 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
                 onClick={() => setActiveBrand(brand)}
                 className="gap-2"
               >
-                <Avatar className="h-5 w-5">
-                  <AvatarFallback
-                    className="text-[10px]"
-                    style={{ background: brand.color ?? '#B8C5D1' }}
-                  >
-                    {brand.name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <BrandAvatar brand={brand} size={20} rounded="full" />
                 <span className="truncate">{brand.name}</span>
               </DropdownMenuItem>
             ))}

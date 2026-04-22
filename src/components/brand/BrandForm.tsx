@@ -1,13 +1,15 @@
+import { useRef, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Wand2 } from 'lucide-react'
+import { Wand2, Upload, X } from 'lucide-react'
 import { PLATFORMS } from '@/types'
 import type { BrandProfile } from '@/types'
 import type { BrandUpsert } from '@/hooks/useBrands'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { BrandAvatar } from '@/components/brand/BrandAvatar'
 import { cn } from '@/lib/utils'
 
 const BRAND_COLORS = [
@@ -15,6 +17,8 @@ const BRAND_COLORS = [
   '#f97316', '#eab308', '#22c55e', '#14b8a6',
   '#0ea5e9', '#3b82f6', '#64748b', '#0f172a',
 ]
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024 // 5 MB
 
 /** Deterministically pick a color from the palette based on the brand name */
 function colorFromName(name: string): string {
@@ -47,9 +51,15 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+export interface BrandFormSubmit {
+  values: BrandUpsert
+  avatarFile: File | null
+  removeAvatar: boolean
+}
+
 interface BrandFormProps {
   defaultValues?: Partial<BrandProfile>
-  onSubmit: (values: BrandUpsert) => Promise<void>
+  onSubmit: (payload: BrandFormSubmit) => Promise<void>
   onCancel: () => void
   submitting?: boolean
 }
@@ -80,7 +90,44 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
   })
 
   const watchedName = watch('name')
+  const watchedColor = watch('color')
   const selectedPlatforms = watch('platforms') as string[]
+
+  // Avatar state. Preview can be (a) a picked-file object URL, (b) the
+  // existing avatar_url if unchanged, or (c) null if removed or never set.
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(defaultValues?.avatar_url ?? null)
+  const [avatarRemoved, setAvatarRemoved] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+
+  function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file later
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please pick an image file')
+      return
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setAvatarError('Image must be under 5 MB')
+      return
+    }
+    setAvatarError(null)
+    setAvatarFile(file)
+    setAvatarRemoved(false)
+    // Release prior object URL if we already had one picked locally.
+    if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(URL.createObjectURL(file))
+  }
+
+  function handleRemove() {
+    if (previewUrl && previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
+    setAvatarFile(null)
+    setPreviewUrl(null)
+    setAvatarRemoved(true)
+    setAvatarError(null)
+  }
 
   function togglePlatform(platform: string) {
     const next = selectedPlatforms.includes(platform)
@@ -89,8 +136,69 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
     setValue('platforms', next, { shouldValidate: true })
   }
 
+  async function handleFormSubmit(values: FormValues) {
+    await onSubmit({
+      values: values as BrandUpsert,
+      avatarFile,
+      removeAvatar: avatarRemoved && !avatarFile,
+    })
+  }
+
+  // Virtual brand object so the preview Avatar reflects the latest form state
+  // (name drives initials fallback, color drives bg).
+  const previewBrand = {
+    name: watchedName || 'Brand',
+    color: watchedColor ?? null,
+    avatar_url: previewUrl,
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit as (v: FormValues) => Promise<void>)} className="space-y-4">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+      {/* Avatar */}
+      <div className="space-y-1.5">
+        <Label>Logo</Label>
+        <div className="flex items-center gap-3">
+          <BrandAvatar brand={previewBrand} size={56} rounded="md" />
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {previewUrl ? 'Replace' : 'Upload'}
+              </Button>
+              {previewUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground hover:text-destructive"
+                  onClick={handleRemove}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Remove
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Square image, up to 5 MB. Falls back to initials if empty.
+            </p>
+            {avatarError && <p className="text-xs text-destructive">{avatarError}</p>}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePick}
+          />
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <Label htmlFor="name">Brand / Client Name</Label>
         <Input id="name" placeholder="e.g. Nike, Acme Corp" {...register('name')} />

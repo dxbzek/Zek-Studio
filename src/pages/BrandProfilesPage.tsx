@@ -3,9 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Globe, ExternalLink } from 'lucide-react'
 import { useBrands } from '@/hooks/useBrands'
-import type { BrandUpsert } from '@/hooks/useBrands'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { BrandForm } from '@/components/brand/BrandForm'
+import type { BrandFormSubmit } from '@/components/brand/BrandForm'
+import { BrandAvatar } from '@/components/brand/BrandAvatar'
+import { uploadBrandAvatar, removeBrandAvatar } from '@/lib/brandAvatar'
 import type { BrandProfile } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -43,11 +45,18 @@ export function BrandProfilesPage() {
     }
   }, [searchParams, setSearchParams])
 
-  async function handleCreate(values: BrandUpsert) {
+  async function handleCreate({ values, avatarFile }: BrandFormSubmit) {
     setSubmitting(true)
     try {
+      // Create first so we have the brand.id to scope the upload path against
+      // the RLS policy ({brand_id}/avatar-*).
       const brand = await createBrand.mutateAsync(values)
-      setActiveBrand(brand)
+      let finalBrand = brand
+      if (avatarFile) {
+        const url = await uploadBrandAvatar(brand.id, avatarFile)
+        finalBrand = await updateBrand.mutateAsync({ id: brand.id, values: { avatar_url: url } })
+      }
+      setActiveBrand(finalBrand)
       setShowForm(false)
     } catch (err) {
       toast.error('Failed to create brand', { description: err instanceof Error ? err.message : String(err) })
@@ -56,11 +65,21 @@ export function BrandProfilesPage() {
     }
   }
 
-  async function handleUpdate(values: BrandUpsert) {
+  async function handleUpdate({ values, avatarFile, removeAvatar }: BrandFormSubmit) {
     if (!editing) return
     setSubmitting(true)
     try {
-      const updated = await updateBrand.mutateAsync({ id: editing.id, values })
+      let avatarUrl: string | null | undefined = undefined
+      if (avatarFile) {
+        avatarUrl = await uploadBrandAvatar(editing.id, avatarFile)
+      } else if (removeAvatar) {
+        avatarUrl = null
+        // Best-effort: try to delete the previous storage object so we don't
+        // accumulate orphans. Failure is non-fatal.
+        if (editing.avatar_url) await removeBrandAvatar(editing.avatar_url).catch(() => {})
+      }
+      const patch = avatarUrl !== undefined ? { ...values, avatar_url: avatarUrl } : values
+      const updated = await updateBrand.mutateAsync({ id: editing.id, values: patch })
       setActiveBrand(updated)
       setEditing(null)
     } catch (err) {
@@ -120,12 +139,7 @@ export function BrandProfilesPage() {
               <div className="h-[3px] w-full" style={{ background: brand.color ?? '#B8C5D1' }} />
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-start gap-3 mb-3">
-                  <div
-                    className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[8px] text-[11px] font-bold text-white"
-                    style={{ background: brand.color ?? '#B8C5D1' }}
-                  >
-                    {brand.name.slice(0, 2).toUpperCase()}
-                  </div>
+                  <BrandAvatar brand={brand} size={38} rounded="md" />
                   <div className="min-w-0 flex-1">
                     <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: 16, fontWeight: 500, letterSpacing: '-0.02em' }} className="truncate">
                       {brand.name}
