@@ -305,6 +305,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [sortBy, setSortBy] = useState<'created_asc' | 'created_desc' | 'due_asc' | 'priority' | 'title'>('created_asc')
 
   // Drag
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
@@ -369,8 +370,30 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
         (t.description ?? '').toLowerCase().includes(q),
       )
     }
-    return result
-  }, [allTasks, filterAssignee, filterType, searchQuery])
+    const priorityRank: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 }
+    const sorted = [...result]
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case 'due_asc': {
+          // Null due dates fall to the bottom
+          if (!a.due_date && !b.due_date) return 0
+          if (!a.due_date) return 1
+          if (!b.due_date) return -1
+          return a.due_date.localeCompare(b.due_date)
+        }
+        case 'priority':
+          return priorityRank[a.priority] - priorityRank[b.priority]
+        case 'title':
+          return a.title.localeCompare(b.title)
+        case 'created_desc':
+          return b.created_at.localeCompare(a.created_at)
+        case 'created_asc':
+        default:
+          return a.created_at.localeCompare(b.created_at)
+      }
+    })
+    return sorted
+  }, [allTasks, filterAssignee, filterType, searchQuery, sortBy])
 
   function tasksForColumn(status: TaskStatus) {
     return filteredTasks.filter((t) => t.status === status)
@@ -580,6 +603,18 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
               {TASK_TYPES.map((tt) => (
                 <SelectItem key={tt.value} value={tt.value}>{tt.label}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger className="h-7 text-xs w-auto min-w-[120px] max-w-[180px]">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_asc">Oldest first</SelectItem>
+              <SelectItem value="created_desc">Newest first</SelectItem>
+              <SelectItem value="due_asc">Due date (soonest)</SelectItem>
+              <SelectItem value="priority">Priority (high first)</SelectItem>
+              <SelectItem value="title">Title (A–Z)</SelectItem>
             </SelectContent>
           </Select>
           <div className="relative ml-auto w-full sm:w-56">
