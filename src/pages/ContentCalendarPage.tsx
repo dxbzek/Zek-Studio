@@ -53,6 +53,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useCalendar, useGeneratedContent } from '@/hooks/useCalendar'
@@ -261,12 +266,28 @@ function DayCell({
         <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
       ))}
       {groups.length > MAX_VISIBLE && (
-        <span
-          onClick={(e) => e.stopPropagation()}
-          className="text-[10px] text-muted-foreground px-1 font-mono tabular-nums"
-        >
-          +{groups.length - MAX_VISIBLE} more
-        </span>
+        <Popover>
+          <PopoverTrigger
+            onClick={(e) => e.stopPropagation()}
+            className="text-[10px] text-muted-foreground hover:text-foreground px-1 font-mono tabular-nums text-left self-start rounded hover:bg-accent/50 transition-colors"
+          >
+            +{groups.length - MAX_VISIBLE} more
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            className="w-64 max-h-[320px] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-[11px] font-medium text-muted-foreground px-1 pb-1.5 uppercase tracking-wide">
+              {format(day, 'EEE, MMM d')}
+            </div>
+            <div className="flex flex-col gap-1">
+              {groups.slice(MAX_VISIBLE).map((grp) => (
+                <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   )
