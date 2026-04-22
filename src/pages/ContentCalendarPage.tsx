@@ -662,7 +662,7 @@ export function ContentCalendarPage() {
   async function handleDuplicate() {
     if (!editingGroup || !activeBrand) return
     try {
-      let firstCopy: CalendarEntry | null = null
+      const copies: CalendarEntry[] = []
       for (const e of editingGroup.entries) {
         const copy = await createEntry.mutateAsync({
           brand_id: activeBrand.id,
@@ -682,37 +682,47 @@ export function ContentCalendarPage() {
           assigned_talent: e.assigned_talent,
           character: e.character,
         } as CalendarEntryInsert)
-        if (!firstCopy) firstCopy = copy
+        copies.push(copy)
       }
 
-      // Mirror the source's linked task (if any) onto the duplicate so the
-      // board stays in parity with the calendar.
+      // Always pair the duplicate with a task — matches the save path's
+      // invariant of 1 task per content group, keeping board parity.
+      const firstCopy = copies[0]
       if (firstCopy) {
-        const sourceRepId = editingGroup.representative.id
-        const sourceTask = (tasks.data ?? []).find((t) => t.calendar_entry_id === sourceRepId)
         const assignedEmail = firstCopy.assigned_talent ?? null
         const assignedId = assignedEmail
           ? teamMembers.find((m) => m.email === assignedEmail)?.user_id ?? null
           : null
-        if (sourceTask || assignedEmail) {
-          await createTask.mutateAsync({
-            brand_id: activeBrand.id,
-            title: firstCopy.title,
-            description: null,
-            type: 'content',
-            status: deriveTaskStatus('draft'),
-            priority: 'medium',
-            assignee_id: assignedId,
-            assignee_email: assignedEmail,
-            calendar_entry_id: firstCopy.id,
-            due_date: firstCopy.scheduled_date,
-            created_by: null,
-          })
-        }
+        await createTask.mutateAsync({
+          brand_id: activeBrand.id,
+          title: firstCopy.title,
+          description: null,
+          type: 'content',
+          status: deriveTaskStatus('draft'),
+          priority: 'medium',
+          assignee_id: assignedId,
+          assignee_email: assignedEmail,
+          calendar_entry_id: firstCopy.id,
+          due_date: firstCopy.scheduled_date,
+          created_by: null,
+        })
       }
 
-      toast.success('Entry duplicated')
-      setDrawerOpen(false)
+      // Reopen the drawer on the duplicate so the user can immediately rename
+      // it — title is pre-filled with "(copy)" and ready to edit.
+      if (copies.length > 0) {
+        const newGroup: EntryGroup = {
+          id: copies[0].id,
+          representative: copies[0],
+          entries: copies,
+          platforms: copies.map((c) => c.platform),
+        }
+        openEdit(newGroup)
+      } else {
+        setDrawerOpen(false)
+      }
+
+      toast.success('Entry duplicated — rename and save')
     } catch (err) {
       toast.error('Failed to duplicate', { description: (err as Error).message })
     }
