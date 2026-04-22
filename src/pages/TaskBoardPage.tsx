@@ -320,7 +320,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       )}
 
       {/* Board */}
-      <div className="flex-1 overflow-auto px-6 pb-6 pt-4">
+      <div className="flex-1 min-h-0 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
         <DndContext
           sensors={sensors}
           // pointerWithin: drop target = whichever column the pointer is inside.
@@ -339,7 +339,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="overflow-x-auto pb-1 relative">
+          <div className="flex-1 min-h-0 overflow-x-auto pb-1 relative">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 text-foreground/40 dark:text-foreground/30"
@@ -350,9 +350,9 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
                 opacity: 0.08,
               }}
             />
-            <div className="relative flex gap-4">
+            <div className="relative flex gap-4 h-full">
               {COLUMNS.map((col) => (
-                <div key={col.id} className="w-[280px] shrink-0">
+                <div key={col.id} className="w-[280px] shrink-0 h-full">
                   <TaskColumn
                     column={col}
                     tasks={tasksForColumn(col.id)}

@@ -31,13 +31,13 @@ export function TaskColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col gap-2 min-h-[200px] p-3 rounded-xl border border-border border-t-2 ${TASK_STATUS_ACCENT[column.id]} transition-colors ${
+      className={`h-full flex flex-col gap-2 p-3 rounded-xl border border-border border-t-2 ${TASK_STATUS_ACCENT[column.id]} transition-colors ${
         isOver
           ? 'bg-primary/5 border-primary/30'
           : TASK_STATUS_COLUMN_TINT[column.id]
       }`}
     >
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-1 shrink-0">
         <span className="flex items-center gap-1.5">
           <Icon
             className={`h-3.5 w-3.5 ${TASK_STATUS_ICON_COLOR[column.id]} ${
@@ -50,25 +50,31 @@ export function TaskColumn({
           {tasks.length}
         </span>
       </div>
-      {!isSpecialist && <QuickAddTask onAdd={onQuickAdd} />}
-      {tasks.map((task) => (
-        <DraggableTask
-          key={task.id}
-          task={task}
-          linkedEntry={task.calendar_entry_id ? entryById.get(task.calendar_entry_id) : undefined}
-          onClick={() => onCardClick(task)}
-        />
-      ))}
-      {isEmpty && (
-        <div className="rounded border border-dashed border-border/60 px-2 py-3 text-[11px] text-muted-foreground/70 text-center leading-snug">
-          {column.empty}
+      {!isSpecialist && (
+        <div className="shrink-0">
+          <QuickAddTask onAdd={onQuickAdd} />
         </div>
       )}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 -mx-1 px-1">
+        {tasks.map((task) => (
+          <DraggableTask
+            key={task.id}
+            task={task}
+            linkedEntry={task.calendar_entry_id ? entryById.get(task.calendar_entry_id) : undefined}
+            onClick={() => onCardClick(task)}
+          />
+        ))}
+        {isEmpty && (
+          <div className="rounded border border-dashed border-border/60 px-2 py-3 text-[11px] text-muted-foreground/70 text-center leading-snug">
+            {column.empty}
+          </div>
+        )}
+      </div>
       {!isSpecialist && (
         <button
           type="button"
           onClick={onAddClick}
-          className="mt-auto flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground py-1 px-1 rounded hover:bg-accent transition-colors"
+          className="shrink-0 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground py-1 px-1 rounded hover:bg-accent transition-colors"
         >
           <Plus className="h-3 w-3" />
           With details…
