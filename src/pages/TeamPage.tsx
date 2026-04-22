@@ -178,7 +178,15 @@ export default function TeamPage() {
       const { data, error } = await supabase.functions.invoke('invite-member', {
         body: { email, brand_id: brandId },
       })
-      if (error) throw new Error((error as any).message)
+      if (error) {
+        // supabase-js returns a generic "non-2xx" message; the real reason is in the response body
+        try {
+          const body = await (error as any).context?.json?.()
+          throw new Error(body?.error ?? body?.message ?? (error as any).message)
+        } catch (inner) {
+          throw inner instanceof Error ? inner : (error as any)
+        }
+      }
       if (data?.error) throw new Error(data.error)
       if (data?.alreadyRegistered && data?.actionLink) {
         await navigator.clipboard.writeText(data.actionLink).catch(() => {})
