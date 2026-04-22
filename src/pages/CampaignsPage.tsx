@@ -90,6 +90,10 @@ export default function CampaignsPage() {
 
   async function handleSave() {
     if (!name.trim()) { toast.error('Campaign name is required'); return }
+    if (startDate && endDate && endDate < startDate) {
+      toast.error('End date must be on or after the start date')
+      return
+    }
     if (!activeBrand) return
     try {
       if (editingId) {

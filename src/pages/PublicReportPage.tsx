@@ -22,8 +22,16 @@ export default function PublicReportPage() {
     queryKey: ['public-report', token],
     queryFn: async () => {
       const res = await fetch(`${FUNCTIONS_URL}/get-report-data?token=${encodeURIComponent(token!)}`)
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json?.error ?? json?.message ?? `Server returned ${res.status}`)
+      const isJson = res.headers.get('content-type')?.includes('application/json') ?? false
+      const json = isJson ? await res.json().catch(() => ({})) : {}
+      if (!res.ok) {
+        throw new Error(
+          (json as { error?: string; message?: string })?.error
+            ?? (json as { error?: string; message?: string })?.message
+            ?? `Server returned ${res.status}`,
+        )
+      }
+      if (!isJson) throw new Error('Unexpected response from server')
       return json as {
         brand: { name: string; niche: string; color: string }
         metrics: PostMetric[]

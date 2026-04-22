@@ -99,7 +99,7 @@ export function useSpecialistBrand() {
 
       if (!brandId) return null
       const { data: brand } = await supabase
-        .from('brand_profiles').select('*').eq('id', brandId).single()
+        .from('brand_profiles').select('*').eq('id', brandId).maybeSingle()
       return (brand ?? null) as BrandProfile | null
     },
     staleTime: 5 * 60 * 1000,

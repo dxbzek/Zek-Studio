@@ -8,7 +8,7 @@ export function useNicheResearch(brandId: string | null, niche: string | null, l
   const cacheKey = niche ? `${niche.toLowerCase().trim()}${loc ? `:${loc.toLowerCase()}` : ''}` : null
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['niche-research', brandId],
+    queryKey: ['niche-research', brandId, cacheKey],
     queryFn: async () => {
       if (!brandId || !cacheKey) return null
       const { data, error } = await supabase
@@ -39,6 +39,7 @@ export function useNicheResearch(brandId: string | null, niche: string | null, l
       }
       return data as { results: NicheResearchResults; cached: boolean }
     },
+    // Invalidate every cached niche+location combo for this brand — prefix match.
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['niche-research', brandId] })
     },

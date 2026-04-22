@@ -56,8 +56,10 @@ export function useGenerator(brandId: string | null) {
       }
       return data.record as GeneratedContent
     },
-    onSuccess: (record) => {
-      queryClient.invalidateQueries({ queryKey: ['generated-content', record.brand_id] })
+    onSuccess: () => {
+      // Use the closure brandId, not the server-echoed value, so the invalidate
+      // always targets the cache the current component is reading from.
+      queryClient.invalidateQueries({ queryKey: ['generated-content', brandId] })
     },
   })
 

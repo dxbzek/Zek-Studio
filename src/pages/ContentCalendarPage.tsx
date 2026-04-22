@@ -156,20 +156,23 @@ export function ContentCalendarPage() {
     setDraggingGroup(allGroups.find((g) => g.id === event.active.id) ?? null)
   }, [allGroups])
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setDraggingGroup(null)
     const { active, over } = event
     if (!over) return
     const targetDate = over.id as string
     const group = allGroups.find((g) => g.id === active.id)
     if (!group || group.representative.scheduled_date === targetDate) return
-    Promise.all(
-      group.entries.map((e) =>
-        updateEntry.mutateAsync({ id: e.id, patch: { scheduled_date: targetDate } }),
-      ),
-    )
-      .then(() => toast.success('Entry rescheduled'))
-      .catch((err) => toast.error('Failed to reschedule', { description: (err as Error).message }))
+    try {
+      await Promise.all(
+        group.entries.map((e) =>
+          updateEntry.mutateAsync({ id: e.id, patch: { scheduled_date: targetDate } }),
+        ),
+      )
+      toast.success('Entry rescheduled')
+    } catch (err) {
+      toast.error('Failed to reschedule', { description: (err as Error).message })
+    }
   }, [allGroups, updateEntry])
 
   const [drawerOpen, setDrawerOpen]               = useState(false)
