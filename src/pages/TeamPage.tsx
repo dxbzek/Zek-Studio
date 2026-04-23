@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { UserPlus, Trash2, X, Plus, Check } from 'lucide-react'
+import { UserPlus, Trash2, X, Plus, Check, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,13 +14,23 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { BrandAvatar } from '@/components/brand/BrandAvatar'
 import { useAllTeam } from '@/hooks/useTeam'
 import { useBrands } from '@/hooks/useBrands'
-import type { TeamMember, BrandProfile } from '@/types'
+import { TEAM_ROLES } from '@/types'
+import type { TeamMember, TeamRole, BrandProfile } from '@/types'
 import { cn } from '@/lib/utils'
+
+const ROLE_STYLES: Record<TeamRole, { label: string; cls: string }> = {
+  admin:    { label: 'Admin',    cls: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
+  editor:   { label: 'Editor',   cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+  approver: { label: 'Approver', cls: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
+  viewer:   { label: 'Viewer',   cls: 'bg-muted text-muted-foreground' },
+}
 
 function initials(email: string) {
   return email.slice(0, 2).toUpperCase()
@@ -63,6 +73,7 @@ function PersonRow({
   onRevoke,
   onGrant,
   onRemoveAll,
+  onChangeRole,
   busy,
 }: {
   person: Person
@@ -70,6 +81,7 @@ function PersonRow({
   onRevoke: (member: TeamMember) => void
   onGrant: (brandId: string) => void
   onRemoveAll: () => void
+  onChangeRole: (member: TeamMember, role: TeamRole) => void
   busy: boolean
 }) {
   const hasAccess = new Set(person.access.map((a) => a.brand.id))
@@ -100,7 +112,9 @@ function PersonRow({
             <BrandChip
               key={member.id}
               brand={brand}
+              role={member.role}
               onRemove={() => onRevoke(member)}
+              onChangeRole={(r) => onChangeRole(member, r)}
               disabled={busy}
             />
           ))}
@@ -155,17 +169,61 @@ function PersonRow({
 
 function BrandChip({
   brand,
+  role,
   onRemove,
+  onChangeRole,
   disabled,
 }: {
   brand: BrandProfile
+  role: TeamRole
   onRemove: () => void
+  onChangeRole: (r: TeamRole) => void
   disabled: boolean
 }) {
+  const roleStyle = ROLE_STYLES[role] ?? ROLE_STYLES.editor
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] pl-1 pr-1 py-0.5 rounded-full border border-border bg-background">
       <BrandAvatar brand={brand} size={18} rounded="full" />
       <span className="truncate max-w-[140px]">{brand.name}</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            title="Change role"
+            className={cn(
+              'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium',
+              roleStyle.cls,
+              'hover:brightness-110 transition',
+              disabled && 'opacity-50 cursor-not-allowed',
+            )}
+          >
+            {roleStyle.label}
+            <ChevronDown className="h-2.5 w-2.5 opacity-70" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-60">
+          <DropdownMenuLabel className="text-[11px] text-muted-foreground">
+            Role on {brand.name}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {TEAM_ROLES.map((r) => (
+            <DropdownMenuItem
+              key={r.value}
+              onClick={() => onChangeRole(r.value)}
+              className="flex items-start gap-2"
+            >
+              <div className="w-3 pt-1">
+                {r.value === role && <Check className="h-3 w-3 text-primary" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-medium">{r.label}</div>
+                <div className="text-[10.5px] text-muted-foreground leading-tight">{r.desc}</div>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <button
         type="button"
         onClick={onRemove}
@@ -194,11 +252,12 @@ function InviteDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   brands: BrandProfile[]
-  onSubmit: (email: string, brandIds: string[]) => Promise<void>
+  onSubmit: (email: string, brandIds: string[], role: TeamRole) => Promise<void>
   submitting: boolean
 }) {
   const [email, setEmail] = useState('')
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [role, setRole] = useState<TeamRole>('editor')
 
   function togglePick(id: string) {
     setPicked((prev) => {
@@ -213,14 +272,15 @@ function InviteDialog({
     const trimmed = email.trim().toLowerCase()
     if (!trimmed || !trimmed.includes('@')) { toast.error('Enter a valid email'); return }
     if (picked.size === 0) { toast.error('Pick at least one brand'); return }
-    await onSubmit(trimmed, Array.from(picked))
+    await onSubmit(trimmed, Array.from(picked), role)
     setEmail('')
     setPicked(new Set())
+    setRole('editor')
   }
 
   // When the dialog closes via Cancel or outside-click, clear state too.
   function handleOpenChange(next: boolean) {
-    if (!next) { setEmail(''); setPicked(new Set()) }
+    if (!next) { setEmail(''); setPicked(new Set()); setRole('editor') }
     onOpenChange(next)
   }
 
@@ -266,6 +326,33 @@ function InviteDialog({
               })}
             </div>
           </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[12px] text-muted-foreground">Role on picked brand(s)</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {TEAM_ROLES.map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setRole(r.value)}
+                  className={cn(
+                    'text-left rounded-lg border px-2.5 py-2 transition-colors',
+                    role === r.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:bg-muted/40',
+                  )}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn('text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full', ROLE_STYLES[r.value].cls)}>
+                      {r.label}
+                    </span>
+                    {role === r.value && <Check className="h-3 w-3 text-primary" />}
+                  </div>
+                  <div className="text-[10.5px] text-muted-foreground mt-1 leading-tight">{r.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>Cancel</Button>
@@ -282,7 +369,7 @@ function InviteDialog({
 
 export default function TeamPage() {
   const { brands } = useBrands()
-  const { members, grantAccess, revokeAccess } = useAllTeam()
+  const { members, grantAccess, revokeAccess, updateRole } = useAllTeam()
 
   const [inviteOpen, setInviteOpen] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState<Person | null>(null)
@@ -300,11 +387,11 @@ export default function TeamPage() {
     pending: people.filter((p) => !p.anyAccepted).length,
   }
 
-  async function handleInvite(email: string, brandIds: string[]) {
+  async function handleInvite(email: string, brandIds: string[], role: TeamRole) {
     setWorking(true)
     try {
       const results = await Promise.allSettled(
-        brandIds.map((brandId) => grantAccess.mutateAsync({ email, brandId })),
+        brandIds.map((brandId) => grantAccess.mutateAsync({ email, brandId, role })),
       )
       const ok = results.filter((r) => r.status === 'fulfilled').length
       const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
@@ -352,10 +439,23 @@ export default function TeamPage() {
   async function handleGrant(email: string, brandId: string) {
     setWorking(true)
     try {
-      await grantAccess.mutateAsync({ email, brandId })
-      toast.success(`Added ${email} to brand`)
+      await grantAccess.mutateAsync({ email, brandId, role: 'editor' })
+      toast.success(`Added ${email} to brand (Editor)`)
     } catch (err) {
       toast.error('Failed to grant access', { description: (err as Error).message })
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function handleChangeRole(member: TeamMember, role: TeamRole) {
+    if (member.role === role) return
+    setWorking(true)
+    try {
+      await updateRole.mutateAsync({ memberId: member.id, role })
+      toast.success(`Role changed to ${ROLE_STYLES[role].label}`)
+    } catch (err) {
+      toast.error('Failed to change role', { description: (err as Error).message })
     } finally {
       setWorking(false)
     }
@@ -437,6 +537,7 @@ export default function TeamPage() {
                 onRevoke={handleRevoke}
                 onGrant={(brandId) => handleGrant(person.email, brandId)}
                 onRemoveAll={() => setConfirmRemove(person)}
+                onChangeRole={handleChangeRole}
                 busy={working}
               />
             ))}

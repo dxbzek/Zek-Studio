@@ -219,12 +219,21 @@ export type CalendarEntryUpdate = Partial<CalendarEntryInsert>
 
 // ─── Team Members ─────────────────────────────────────────────────────────────
 
+export type TeamRole = 'admin' | 'editor' | 'approver' | 'viewer'
+
+export const TEAM_ROLES: { value: TeamRole; label: string; desc: string }[] = [
+  { value: 'admin',    label: 'Admin',    desc: 'Full access + manage team. Cannot delete the brand.' },
+  { value: 'editor',   label: 'Editor',   desc: 'Create and edit content, tasks, calendar, campaigns.' },
+  { value: 'approver', label: 'Approver', desc: 'Read-only + can approve/reject content.' },
+  { value: 'viewer',   label: 'Viewer',   desc: 'Read-only access to everything.' },
+]
+
 export interface TeamMember {
   id: string
   brand_id: string
   user_id: string | null
   email: string
-  role: 'specialist'
+  role: TeamRole
   invited_at: string
   accepted_at: string | null
 }

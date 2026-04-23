@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useBrands } from '@/hooks/useBrands'
-import type { TeamMember, BrandProfile } from '@/types'
+import type { TeamMember, TeamRole, BrandProfile } from '@/types'
 
 export function useTeam(brandId: string | null) {
   const queryClient = useQueryClient()
@@ -97,11 +97,16 @@ export function useAllTeam() {
   })
 
   // Grant access: wraps the invite-member Edge Function so the email-exists /
-  // needs-invite branching stays in one place. If the email already has an
-  // account and a row for this brand, the function returns a friendly error
-  // we surface to the UI.
+  // needs-invite branching stays in one place. Role defaults to 'editor' on
+  // the DB side; the mutation optionally patches role immediately after the
+  // row is created, so the UI can pick an Admin/Approver/Viewer at invite
+  // time without needing the Edge Function to accept a role param.
   const grantAccess = useMutation({
-    mutationFn: async ({ email, brandId }: { email: string; brandId: string }) => {
+    mutationFn: async ({
+      email,
+      brandId,
+      role,
+    }: { email: string; brandId: string; role?: TeamRole }) => {
       const normalized = email.trim().toLowerCase()
       const { data, error } = await supabase.functions.invoke('invite-member', {
         body: { email: normalized, brand_id: brandId },
@@ -116,12 +121,31 @@ export function useAllTeam() {
         } catch { /* non-JSON body; keep default */ }
         throw new Error(msg)
       }
+      // Patch role if caller wanted something other than the default 'editor'.
+      if (role && role !== 'editor') {
+        await supabase
+          .from('team_members')
+          .update({ role } as never)
+          .eq('brand_id', brandId)
+          .eq('email', normalized)
+      }
       return data as {
         member?: TeamMember
         emailed?: boolean
         alreadyRegistered?: boolean
         actionLink?: string
       }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['all-team'] }),
+  })
+
+  const updateRole = useMutation({
+    mutationFn: async ({ memberId, role }: { memberId: string; role: TeamRole }) => {
+      const { error } = await supabase
+        .from('team_members')
+        .update({ role } as never)
+        .eq('id', memberId)
+      if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['all-team'] }),
   })
@@ -134,7 +158,7 @@ export function useAllTeam() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['all-team'] }),
   })
 
-  return { members, grantAccess, revokeAccess }
+  return { members, grantAccess, revokeAccess, updateRole }
 }
 
 /** Returns the first brand the specialist belongs to (for auto-seeding activeBrand) */
