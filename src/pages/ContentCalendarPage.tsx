@@ -178,16 +178,35 @@ export function ContentCalendarPage() {
     const targetDate = over.id as string
     const group = allGroups.find((g) => g.id === active.id)
     if (!group || group.representative.scheduled_date === targetDate) return
-    try {
-      await Promise.all(
-        group.entries.map((e) =>
-          updateEntry.mutateAsync({ id: e.id, patch: { scheduled_date: targetDate } }),
-        ),
-      )
+
+    // Multi-platform entries are separate rows (one per platform). Promise.all
+    // can partial-succeed — leaving half the group on the new date and half on
+    // the old. Track which succeeded, and on any rejection roll the winners
+    // back to the original date so the calendar never shows a split group.
+    const originalDate = group.representative.scheduled_date
+    const settled = await Promise.allSettled(
+      group.entries.map((e) =>
+        updateEntry.mutateAsync({ id: e.id, patch: { scheduled_date: targetDate } }),
+      ),
+    )
+    const failures = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (failures.length === 0) {
       toast.success('Entry rescheduled')
-    } catch (err) {
-      toast.error('Failed to reschedule', { description: (err as Error).message })
+      return
     }
+    // Partial failure — roll back the ones that succeeded.
+    const succeededIds = settled
+      .map((r, i) => (r.status === 'fulfilled' ? group.entries[i].id : null))
+      .filter((id): id is string => id !== null)
+    await Promise.allSettled(
+      succeededIds.map((id) =>
+        updateEntry.mutateAsync({ id, patch: { scheduled_date: originalDate } }),
+      ),
+    )
+    toast.error('Failed to reschedule', {
+      description: (failures[0].reason as Error | undefined)?.message
+        ?? `${failures.length} of ${group.entries.length} platforms failed; the move was rolled back.`,
+    })
   }, [allGroups, updateEntry])
 
   const [drawerOpen, setDrawerOpen]               = useState(false)
@@ -499,7 +518,7 @@ export function ContentCalendarPage() {
 
       {/* Filter bar */}
       <div
-        className="relative px-4 sm:px-6 pb-3 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] sm:[mask-image:none]">
+        className="relative px-4 sm:px-6 pb-3 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] [mask-image:linear-gradient(to_right,transparent,black_24px,black_calc(100%-24px),transparent)] sm:[mask-image:none]">
         <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Platforms</span>
         {PLATFORMS.map((p) => (
           <button

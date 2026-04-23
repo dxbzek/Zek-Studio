@@ -51,11 +51,11 @@ export function SpecialistShell() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <header className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
-        <div className="flex items-center gap-5 min-w-0">
+      <header className="flex items-center justify-between gap-2 px-3 sm:px-5 py-3 border-b border-border shrink-0">
+        <div className="flex items-center gap-2 sm:gap-5 min-w-0 flex-1">
           <span
             style={{ fontFamily: 'var(--font-heading)', fontSize: 15, letterSpacing: '-0.02em' }}
-            className="shrink-0"
+            className="shrink-0 hidden sm:inline"
           >
             Zek Studio
           </span>
@@ -104,15 +104,17 @@ export function SpecialistShell() {
               <button
                 key={id}
                 onClick={() => setPage(id)}
+                aria-label={label}
+                aria-pressed={page === id}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-medium transition-colors',
+                  'flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-md text-[12.5px] font-medium transition-colors',
                   page === id
                     ? 'bg-accent text-foreground'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
+                <Icon className="h-3.5 w-3.5" aria-hidden />
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </nav>
@@ -129,10 +131,11 @@ export function SpecialistShell() {
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            aria-label="Sign out"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
-            <LogOut className="h-3.5 w-3.5" />
-            Sign out
+            <LogOut className="h-3.5 w-3.5" aria-hidden />
+            <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
       </header>

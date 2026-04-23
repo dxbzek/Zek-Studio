@@ -177,13 +177,13 @@ export function BrandProfilesPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1.5">
-                  <Button size="sm" variant="outline" className="flex-1 h-[30px] text-[12px]" onClick={() => setActiveBrand(brand)}>
+                  <Button size="sm" variant="outline" className="flex-1 h-10 sm:h-[30px] text-[12px]" onClick={() => setActiveBrand(brand)}>
                     Set active
                   </Button>
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-[30px] w-[30px]"
+                    className="h-10 w-10 sm:h-[30px] sm:w-[30px]"
                     onClick={() => setEditing(brand)}
                     aria-label={`Edit ${brand.name}`}
                   >
@@ -192,7 +192,7 @@ export function BrandProfilesPage() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-[30px] w-[30px] text-destructive hover:text-destructive"
+                    className="h-10 w-10 sm:h-[30px] sm:w-[30px] text-destructive hover:text-destructive"
                     onClick={() => setDeleting(brand)}
                     aria-label={`Delete ${brand.name}`}
                   >

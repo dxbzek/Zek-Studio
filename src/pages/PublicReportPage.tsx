@@ -149,7 +149,30 @@ export default function PublicReportPage() {
         {platformRows.length > 0 && (
           <div>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 12 }}>Platform Breakdown</h2>
-            <div className="rounded-xl border border-border overflow-hidden">
+            {/* Mobile: stacked cards */}
+            <div className="sm:hidden space-y-2">
+              {platformRows.map(([platform, s]) => (
+                <div key={platform} className="rounded-xl border border-border p-3">
+                  <div className="font-medium capitalize text-sm">{platform}</div>
+                  <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Posts</div>
+                      <div className="tabular-nums mt-0.5">{s.count}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Avg Views</div>
+                      <div className="tabular-nums mt-0.5">{fmtCompact(Math.round(s.views / s.count))}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Avg Likes</div>
+                      <div className="tabular-nums mt-0.5">{fmtCompact(Math.round(s.likes / s.count))}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Tablet/desktop: table */}
+            <div className="hidden sm:block rounded-xl border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
@@ -182,7 +205,43 @@ export default function PublicReportPage() {
         {topPosts.length > 0 && (
           <div>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 12 }}>Top Posts</h2>
-            <div className="rounded-xl border border-border overflow-hidden">
+            {/* Mobile: stacked cards */}
+            <div className="sm:hidden space-y-2">
+              {topPosts.map((m) => (
+                <div key={m.id} className="rounded-xl border border-border p-3">
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="capitalize font-medium text-foreground">{m.platform}</span>
+                    <span>{m.posted_at ? format(parseISO(m.posted_at), 'MMM d, yyyy') : '—'}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Views</div>
+                      <div className="tabular-nums mt-0.5">{fmtCompact(m.views)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Likes</div>
+                      <div className="tabular-nums mt-0.5">{fmtCompact(m.likes)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Eng.</div>
+                      <div className="tabular-nums mt-0.5">{engagementRate(m)}</div>
+                    </div>
+                  </div>
+                  {m.post_url && (
+                    <a
+                      href={m.post_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block mt-2 text-xs text-primary underline underline-offset-2 truncate"
+                    >
+                      {m.post_url.replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Tablet/desktop: table */}
+            <div className="hidden sm:block rounded-xl border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">

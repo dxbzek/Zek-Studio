@@ -94,11 +94,15 @@ function AutoTextarea({
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
+  // Cap auto-grow so a long paste doesn't push the submit button off-screen
+  // on mobile; switch to internal scrolling past the cap.
+  const MAX_PX = 420
   useEffect(() => {
-    if (ref.current) {
-      ref.current.style.height = 'auto'
-      ref.current.style.height = `${ref.current.scrollHeight}px`
-    }
+    if (!ref.current) return
+    ref.current.style.height = 'auto'
+    const next = Math.min(ref.current.scrollHeight, MAX_PX)
+    ref.current.style.height = `${next}px`
+    ref.current.style.overflowY = ref.current.scrollHeight > MAX_PX ? 'auto' : 'hidden'
   }, [value])
 
   return (
@@ -107,7 +111,7 @@ function AutoTextarea({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       rows={1}
-      className={`w-full resize-none overflow-hidden bg-transparent border border-transparent rounded-md focus:border-border/60 focus:bg-muted/20 px-1.5 py-1 -mx-1.5 outline-none ring-0 focus:ring-0 transition-colors leading-relaxed ${className ?? ''}`}
+      className={`w-full resize-none bg-transparent border border-transparent rounded-md focus:border-border/60 focus:bg-muted/20 px-1.5 py-1 -mx-1.5 outline-none ring-0 focus:ring-0 transition-colors leading-relaxed ${className ?? ''}`}
     />
   )
 }
