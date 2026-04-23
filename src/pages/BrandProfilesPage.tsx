@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -179,11 +180,23 @@ export function BrandProfilesPage() {
                   <Button size="sm" variant="outline" className="flex-1 h-[30px] text-[12px]" onClick={() => setActiveBrand(brand)}>
                     Set active
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-[30px] w-[30px]" onClick={() => setEditing(brand)}>
-                    <Pencil className="h-3.5 w-3.5" />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-[30px] w-[30px]"
+                    onClick={() => setEditing(brand)}
+                    aria-label={`Edit ${brand.name}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-[30px] w-[30px] text-destructive hover:text-destructive" onClick={() => setDeleting(brand)}>
-                    <Trash2 className="h-3.5 w-3.5" />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-[30px] w-[30px] text-destructive hover:text-destructive"
+                    onClick={() => setDeleting(brand)}
+                    aria-label={`Delete ${brand.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </Button>
                 </div>
               </CardContent>
@@ -197,6 +210,9 @@ export function BrandProfilesPage() {
         <DialogContent className="sm:max-w-lg overflow-y-auto max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>New Brand Profile</DialogTitle>
+            <DialogDescription>
+              Add a new brand or client you create content for.
+            </DialogDescription>
           </DialogHeader>
           <BrandForm
             onSubmit={handleCreate}
@@ -211,6 +227,9 @@ export function BrandProfilesPage() {
         <DialogContent className="sm:max-w-lg overflow-y-auto max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>Edit Brand Profile</DialogTitle>
+            <DialogDescription>
+              Update this brand's details, color, logo, and connected platforms.
+            </DialogDescription>
           </DialogHeader>
           {editing && (
             <BrandForm

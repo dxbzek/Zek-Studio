@@ -512,6 +512,8 @@ export function ContentCalendarPage() {
                   : [...prev, p.value],
               )
             }
+            aria-pressed={filterPlatforms.includes(p.value)}
+            aria-label={`Filter: ${p.label}`}
             className="rounded-full border border-transparent hover:opacity-90 transition-opacity shrink-0"
           >
             <PlatformPill platform={p.value} label={p.label} active={filterPlatforms.includes(p.value)} />
@@ -524,6 +526,7 @@ export function ContentCalendarPage() {
             key={s}
             type="button"
             onClick={() => setFilterStatus(s)}
+            aria-pressed={filterStatus === s}
             className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
               filterStatus === s
                 ? s === 'all'

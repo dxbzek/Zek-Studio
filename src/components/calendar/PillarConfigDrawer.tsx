@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
 import type { ContentPillar } from '@/types'
 import { PILLAR_COLORS } from './entryGroups'
@@ -50,6 +50,9 @@ export function PillarConfigDrawer({
       <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-sm">
         <SheetHeader className="border-b border-border px-6 py-4">
           <SheetTitle>Configure Pillars</SheetTitle>
+          <SheetDescription className="sr-only">
+            Manage content pillars for this brand and their target percentages.
+          </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {pillars.length === 0 ? (

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -150,6 +150,9 @@ export function TaskDrawer({
       >
         <SheetHeader className="border-b border-border px-6 py-4">
           <SheetTitle>{mode === 'create' ? 'New Task' : 'Edit Task'}</SheetTitle>
+          <SheetDescription className="sr-only">
+            {mode === 'create' ? 'Create a new task for this brand.' : 'Edit this task’s details, status, priority, and assignment.'}
+          </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           <div className="space-y-1.5">

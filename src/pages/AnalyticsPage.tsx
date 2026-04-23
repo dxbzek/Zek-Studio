@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
 import {
   AlertDialog,
@@ -1439,6 +1439,11 @@ export default function AnalyticsPage() {
         <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
           <SheetHeader className="border-b border-border px-6 py-4">
             <SheetTitle>{drawerMode === 'create' ? 'Log Post Metrics' : 'Edit Metrics'}</SheetTitle>
+            <SheetDescription className="sr-only">
+              {drawerMode === 'create'
+                ? 'Log engagement metrics for a post.'
+                : 'Edit logged metrics for this post.'}
+            </SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
             {/* Platform */}

@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetFooter,
@@ -238,6 +239,11 @@ export default function CampaignsPage() {
         <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
           <SheetHeader className="border-b border-border px-6 py-4">
             <SheetTitle>{editingId ? 'Edit Campaign' : 'New Campaign'}</SheetTitle>
+            <SheetDescription className="sr-only">
+              {editingId
+                ? 'Edit this campaign’s name, dates, goal, and color.'
+                : 'Create a new campaign to group calendar entries.'}
+            </SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
             <div className="space-y-1.5">
@@ -306,7 +312,7 @@ export default function CampaignsPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Color</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Campaign color">
                 {CAMPAIGN_COLORS.map((c) => (
                   <button
                     key={c}
@@ -318,6 +324,10 @@ export default function CampaignsPage() {
                         ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110'
                         : 'hover:scale-110 opacity-80 hover:opacity-100'
                     }`}
+                    role="radio"
+                    aria-checked={color === c}
+                    aria-label={`Campaign color ${c}`}
+                    title={c}
                   />
                 ))}
               </div>

@@ -215,8 +215,9 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
           onClick={handleSignOut}
           className="h-11 w-11 sm:h-[26px] sm:w-[26px] text-muted-foreground hover:text-foreground shrink-0"
           title="Sign out"
+          aria-label="Sign out"
         >
-          <LogOut className="h-3.5 w-3.5" />
+          <LogOut className="h-3.5 w-3.5" aria-hidden />
         </Button>
       </div>
     </aside>

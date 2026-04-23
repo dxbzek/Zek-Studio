@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -160,8 +161,9 @@ function PersonRow({
         onClick={onRemoveAll}
         disabled={busy}
         title="Remove from all brands"
+        aria-label={`Remove ${person.email} from all brands`}
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="h-3.5 w-3.5" aria-hidden />
       </Button>
     </div>
   )
@@ -233,8 +235,9 @@ function BrandChip({
           disabled && 'opacity-50 cursor-not-allowed',
         )}
         title="Revoke access"
+        aria-label={`Revoke ${brand.name} access`}
       >
-        <X className="h-2.5 w-2.5" />
+        <X className="h-2.5 w-2.5" aria-hidden />
       </button>
     </span>
   )
@@ -289,11 +292,11 @@ function InviteDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Invite Specialist</DialogTitle>
+          <DialogDescription>
+            They'll receive a sign-up email and will see the brand(s) you pick as soon as their account is active.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
-          <p className="text-sm text-muted-foreground">
-            They'll receive a sign-up email and will see the brand(s) you pick as soon as their account is active.
-          </p>
           <Input
             type="email"
             placeholder="specialist@example.com"
@@ -559,12 +562,12 @@ export default function TeamPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Remove from all brands?</DialogTitle>
+            <DialogDescription className="pt-2">
+              <strong>{confirmRemove?.email}</strong> will lose access to all{' '}
+              {confirmRemove?.access.length} brand{confirmRemove?.access.length === 1 ? '' : 's'} they're on.
+              Their tasks will remain but become unassigned.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            <strong>{confirmRemove?.email}</strong> will lose access to all{' '}
-            {confirmRemove?.access.length} brand{confirmRemove?.access.length === 1 ? '' : 's'} they're on.
-            Their tasks will remain but become unassigned.
-          </p>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setConfirmRemove(null)}>
               Cancel

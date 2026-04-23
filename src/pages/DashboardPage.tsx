@@ -13,7 +13,7 @@ import { fmtCompact, isInMonth } from '@/lib/formatting'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import type { PostMetric, BrandKpi } from '@/types'
 
@@ -347,9 +347,11 @@ export function DashboardPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Monthly Goals — {format(new Date(), 'MMMM yyyy')}</DialogTitle>
+            <DialogDescription>
+              Leave blank to hide that goal. Progress is calculated from your logged metrics.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <p className="text-[12px] text-muted-foreground">Leave blank to hide that goal. Progress is calculated from your logged metrics.</p>
             {[
               { key: 'posts', label: 'Posts target', placeholder: 'e.g. 20' },
               { key: 'views', label: 'Views target', placeholder: 'e.g. 50000' },

@@ -298,7 +298,7 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
               <Label>Brand Color</Label>
 
               {/* Swatches */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Brand color">
                 {BRAND_COLORS.map((color) => (
                   <button
                     key={color}
@@ -312,6 +312,9 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
                         : 'hover:scale-110 opacity-80 hover:opacity-100'
                     )}
                     title={color}
+                    role="radio"
+                    aria-checked={field.value === color}
+                    aria-label={`Brand color ${color}`}
                   />
                 ))}
               </div>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -127,6 +127,11 @@ export function EntryDrawer({
               ? 'Draft a post'
               : values.title.trim() || 'Untitled entry'}
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            {mode === 'create'
+              ? 'Create a new calendar entry for this brand.'
+              : 'Edit this calendar entry’s title, body, platforms, schedule, and assignments.'}
+          </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
