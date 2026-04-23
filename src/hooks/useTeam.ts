@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { useBrands } from '@/hooks/useBrands'
 import type { TeamMember, BrandProfile } from '@/types'
 
 export function useTeam(brandId: string | null) {
@@ -67,6 +68,73 @@ export function useTeam(brandId: string | null) {
   })
 
   return { members, invite, removeMember, reassignBrand }
+}
+
+/**
+ * Cross-brand team view for the owner. Returns every team_members row across
+ * every brand the owner manages, so the Team page can group by email and let
+ * the owner see who has access to what.
+ */
+export function useAllTeam() {
+  const queryClient = useQueryClient()
+  const { brands } = useBrands()
+  const brandIds = brands.map((b) => b.id).sort()
+  const queryKey = ['all-team', brandIds] as const
+
+  const members = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (brandIds.length === 0) return []
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .in('brand_id', brandIds)
+        .order('invited_at', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as TeamMember[]
+    },
+    enabled: brandIds.length > 0,
+  })
+
+  // Grant access: wraps the invite-member Edge Function so the email-exists /
+  // needs-invite branching stays in one place. If the email already has an
+  // account and a row for this brand, the function returns a friendly error
+  // we surface to the UI.
+  const grantAccess = useMutation({
+    mutationFn: async ({ email, brandId }: { email: string; brandId: string }) => {
+      const normalized = email.trim().toLowerCase()
+      const { data, error } = await supabase.functions.invoke('invite-member', {
+        body: { email: normalized, brand_id: brandId },
+      })
+      if (error) {
+        let msg = (error as Error).message
+        try {
+          const body = await (error as { context?: { json?: () => Promise<unknown> } }).context?.json?.()
+          const b = body as { error?: string; message?: string } | undefined
+          if (b?.error) msg = b.error
+          else if (b?.message) msg = b.message
+        } catch { /* non-JSON body; keep default */ }
+        throw new Error(msg)
+      }
+      return data as {
+        member?: TeamMember
+        emailed?: boolean
+        alreadyRegistered?: boolean
+        actionLink?: string
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['all-team'] }),
+  })
+
+  const revokeAccess = useMutation({
+    mutationFn: async (memberId: string) => {
+      const { error } = await supabase.from('team_members').delete().eq('id', memberId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['all-team'] }),
+  })
+
+  return { members, grantAccess, revokeAccess }
 }
 
 /** Returns the first brand the specialist belongs to (for auto-seeding activeBrand) */

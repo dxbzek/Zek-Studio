@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { UserPlus, Trash2, AlertCircle, Building2 } from 'lucide-react'
+import { UserPlus, Trash2, X, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,228 +10,369 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { BrandSelect } from '@/components/BrandSelect'
-import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
-import { useActiveBrand } from '@/stores/activeBrand'
-import { useTeam } from '@/hooks/useTeam'
-import { useTasks } from '@/hooks/useTasks'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { BrandAvatar } from '@/components/brand/BrandAvatar'
+import { useAllTeam } from '@/hooks/useTeam'
 import { useBrands } from '@/hooks/useBrands'
-import type { TeamMember, Task } from '@/types'
+import type { TeamMember, BrandProfile } from '@/types'
+import { cn } from '@/lib/utils'
 
 function initials(email: string) {
   return email.slice(0, 2).toUpperCase()
 }
 
-interface MemberWorkload {
-  total: number
-  done: number
-  inProgress: number
-  todo: number
-  overdue: number
+interface Person {
+  email: string
+  access: { brand: BrandProfile; member: TeamMember }[]
+  anyAccepted: boolean
+  earliestInvite: string
 }
 
-// Bucket every task by assignee in a single pass. Called from a memo so the
-// grid renders O(n + m) instead of O(n × m) per render.
-function computeWorkloads(tasks: Task[]): Map<string, MemberWorkload> {
-  const today = new Date().toISOString().slice(0, 10)
-  const map = new Map<string, MemberWorkload>()
-  for (const t of tasks) {
-    if (!t.assignee_email) continue
-    let w = map.get(t.assignee_email)
-    if (!w) {
-      w = { total: 0, done: 0, inProgress: 0, todo: 0, overdue: 0 }
-      map.set(t.assignee_email, w)
+/** Group all team_members rows by normalized email, joined with brand info. */
+function groupPeople(members: TeamMember[], brands: BrandProfile[]): Person[] {
+  const brandById = new Map(brands.map((b) => [b.id, b]))
+  const byEmail = new Map<string, Person>()
+  for (const m of members) {
+    const brand = brandById.get(m.brand_id)
+    if (!brand) continue
+    const email = m.email.toLowerCase()
+    let p = byEmail.get(email)
+    if (!p) {
+      p = { email, access: [], anyAccepted: false, earliestInvite: m.invited_at }
+      byEmail.set(email, p)
     }
-    w.total++
-    if (t.status === 'done') w.done++
-    else if (t.status === 'in_progress') w.inProgress++
-    else if (t.status === 'todo') w.todo++
-    if (t.status !== 'done' && t.due_date && t.due_date < today) w.overdue++
+    p.access.push({ brand, member: m })
+    if (m.accepted_at) p.anyAccepted = true
+    if (m.invited_at < p.earliestInvite) p.earliestInvite = m.invited_at
   }
-  return map
-}
-
-const EMPTY_WORKLOAD: MemberWorkload = { total: 0, done: 0, inProgress: 0, todo: 0, overdue: 0 }
-
-function WorkloadBar({ workload }: { workload: MemberWorkload }) {
-  if (workload.total === 0) return null
-  const completionPct = Math.round((workload.done / workload.total) * 100)
-  const inProgressPct = Math.round((workload.inProgress / workload.total) * 100)
-  return (
-    <div className="mt-2 space-y-1.5">
-      <div className="flex items-center gap-3 text-[11px]">
-        <span className="text-muted-foreground">
-          {workload.done}/{workload.total} done · {completionPct}%
-        </span>
-        {workload.inProgress > 0 && (
-          <span className="text-blue-500 dark:text-blue-400">{workload.inProgress} in progress</span>
-        )}
-        {workload.overdue > 0 && (
-          <span className="flex items-center gap-0.5 text-red-500">
-            <AlertCircle className="h-3 w-3" />
-            {workload.overdue} overdue
-          </span>
-        )}
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden flex">
-        {workload.done > 0 && (
-          <div
-            className="h-full bg-emerald-500 transition-all"
-            style={{ width: `${completionPct}%` }}
-          />
-        )}
-        {workload.inProgress > 0 && (
-          <div
-            className="h-full bg-blue-500 transition-all"
-            style={{ width: `${inProgressPct}%` }}
-          />
-        )}
-      </div>
-    </div>
+  return Array.from(byEmail.values()).sort((a, b) =>
+    a.earliestInvite.localeCompare(b.earliestInvite),
   )
 }
 
-function MemberRow({
-  member,
-  workload,
-  onRemove,
-  onReassign,
+// ─── Row ──────────────────────────────────────────────────────────────────────
+
+function PersonRow({
+  person,
+  availableBrands,
+  onRevoke,
+  onGrant,
+  onRemoveAll,
+  busy,
 }: {
-  member: TeamMember
-  workload: MemberWorkload
-  onRemove: () => void
-  onReassign: () => void
+  person: Person
+  availableBrands: BrandProfile[]
+  onRevoke: (member: TeamMember) => void
+  onGrant: (brandId: string) => void
+  onRemoveAll: () => void
+  busy: boolean
 }) {
+  const hasAccess = new Set(person.access.map((a) => a.brand.id))
+  const grantable = availableBrands.filter((b) => !hasAccess.has(b.id))
+
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card">
+    <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-border bg-card">
       <div className="h-[34px] w-[34px] rounded-full bg-muted text-foreground flex items-center justify-center text-[11px] font-semibold shrink-0">
-        {initials(member.email)}
+        {initials(person.email)}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-foreground truncate">{member.email}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {workload.total} task{workload.total !== 1 ? 's' : ''} · {workload.done} done
-        </p>
-        <WorkloadBar workload={workload} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-[13px] font-medium text-foreground truncate">{person.email}</p>
+          {person.anyAccepted ? (
+            <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+              Active
+            </span>
+          ) : (
+            <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+              Pending
+            </span>
+          )}
+        </div>
+
+        {/* Brand access chips */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {person.access.map(({ brand, member }) => (
+            <BrandChip
+              key={member.id}
+              brand={brand}
+              onRemove={() => onRevoke(member)}
+              disabled={busy}
+            />
+          ))}
+          {grantable.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border border-dashed border-border',
+                    'text-muted-foreground hover:text-foreground hover:border-foreground transition-colors',
+                    busy && 'opacity-50 cursor-not-allowed',
+                  )}
+                  title="Grant access to another brand"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add brand
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                {grantable.map((brand) => (
+                  <DropdownMenuItem
+                    key={brand.id}
+                    className="gap-2"
+                    onClick={() => onGrant(brand.id)}
+                  >
+                    <BrandAvatar brand={brand} size={20} rounded="full" />
+                    <span className="truncate">{brand.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {member.accepted_at ? (
-          <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-            Active
-          </span>
-        ) : (
-          <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-            Pending
-          </span>
-        )}
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onReassign} title="Change brand">
-          <Building2 className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={onRemove}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+
+      {/* Remove-everywhere button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+        onClick={onRemoveAll}
+        disabled={busy}
+        title="Remove from all brands"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
     </div>
   )
 }
 
+function BrandChip({
+  brand,
+  onRemove,
+  disabled,
+}: {
+  brand: BrandProfile
+  onRemove: () => void
+  disabled: boolean
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] pl-1 pr-1 py-0.5 rounded-full border border-border bg-background">
+      <BrandAvatar brand={brand} size={18} rounded="full" />
+      <span className="truncate max-w-[140px]">{brand.name}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={disabled}
+        className={cn(
+          'h-4 w-4 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10',
+          disabled && 'opacity-50 cursor-not-allowed',
+        )}
+        title="Revoke access"
+      >
+        <X className="h-2.5 w-2.5" />
+      </button>
+    </span>
+  )
+}
+
+// ─── Invite dialog ────────────────────────────────────────────────────────────
+
+function InviteDialog({
+  open,
+  onOpenChange,
+  brands,
+  onSubmit,
+  submitting,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  brands: BrandProfile[]
+  onSubmit: (email: string, brandIds: string[]) => Promise<void>
+  submitting: boolean
+}) {
+  const [email, setEmail] = useState('')
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+
+  function togglePick(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function submit() {
+    const trimmed = email.trim().toLowerCase()
+    if (!trimmed || !trimmed.includes('@')) { toast.error('Enter a valid email'); return }
+    if (picked.size === 0) { toast.error('Pick at least one brand'); return }
+    await onSubmit(trimmed, Array.from(picked))
+    setEmail('')
+    setPicked(new Set())
+  }
+
+  // When the dialog closes via Cancel or outside-click, clear state too.
+  function handleOpenChange(next: boolean) {
+    if (!next) { setEmail(''); setPicked(new Set()) }
+    onOpenChange(next)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Invite Specialist</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            They'll receive a sign-up email and will see the brand(s) you pick as soon as their account is active.
+          </p>
+          <Input
+            type="email"
+            placeholder="specialist@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoFocus
+          />
+          <div className="space-y-1.5">
+            <label className="text-[12px] text-muted-foreground">Grant access to</label>
+            <div className="flex flex-wrap gap-1.5">
+              {brands.map((b) => {
+                const on = picked.has(b.id)
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => togglePick(b.id)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 text-[12px] pl-1 pr-2 py-0.5 rounded-full border transition-colors',
+                      on
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <BrandAvatar brand={b} size={18} rounded="full" />
+                    <span className="truncate max-w-[140px]">{b.name}</span>
+                    {on && <Check className="h-3 w-3 text-primary" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={submitting}>
+            {submitting ? 'Sending…' : `Invite to ${picked.size || 0} brand${picked.size === 1 ? '' : 's'}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function TeamPage() {
-  const { activeBrand } = useActiveBrand()
-  const { members, invite, removeMember, reassignBrand } = useTeam(activeBrand?.id ?? null)
-  const { tasks } = useTasks(activeBrand?.id ?? null)
   const { brands } = useBrands()
-  const allBrands = brands ?? []
+  const { members, grantAccess, revokeAccess } = useAllTeam()
 
   const [inviteOpen, setInviteOpen] = useState(false)
-  const [emailInput, setEmailInput] = useState('')
-  const [inviteBrandId, setInviteBrandId] = useState<string>('')
-  const [confirmRemove, setConfirmRemove] = useState<TeamMember | null>(null)
-  const [reassignMember, setReassignMember] = useState<TeamMember | null>(null)
-  const [reassignBrandId, setReassignBrandId] = useState<string>('')
+  const [confirmRemove, setConfirmRemove] = useState<Person | null>(null)
+  const [working, setWorking] = useState(false)
 
-  const allTasks = tasks.data ?? []
+  const people = useMemo(
+    () => groupPeople(members.data ?? [], brands),
+    [members.data, brands],
+  )
 
-  const teamStats = useMemo(() => {
-    if (allTasks.length === 0) return { totalTasks: 0, totalDone: 0, totalOverdue: 0 }
-    const today = new Date().toISOString().slice(0, 10)
-    let totalDone = 0
-    let totalOverdue = 0
-    for (const t of allTasks) {
-      if (t.status === 'done') totalDone++
-      else if (t.due_date && t.due_date < today) totalOverdue++
-    }
-    return { totalTasks: allTasks.length, totalDone, totalOverdue }
-  }, [allTasks])
+  const stats = {
+    people: people.length,
+    seats: (members.data ?? []).length,
+    brands: brands.length,
+    pending: people.filter((p) => !p.anyAccepted).length,
+  }
 
-  const workloadByEmail = useMemo(() => computeWorkloads(allTasks), [allTasks])
-
-  if (!activeBrand) return <NoBrandSelected />
-
-  async function handleInvite() {
-    const email = emailInput.trim().toLowerCase()
-    if (!email || !email.includes('@')) { toast.error('Enter a valid email address'); return }
-    const brandId = inviteBrandId || activeBrand?.id
-    if (!brandId) return
+  async function handleInvite(email: string, brandIds: string[]) {
+    setWorking(true)
     try {
-      // Temporarily use selected brand by calling invite-member directly with that brand_id
-      const { supabase } = await import('@/lib/supabase')
-      const { data, error } = await supabase.functions.invoke('invite-member', {
-        body: { email, brand_id: brandId },
-      })
-      if (error) {
-        // supabase-js returns a generic "non-2xx" message; the real reason is in the response body
-        try {
-          const body = await (error as any).context?.json?.()
-          throw new Error(body?.error ?? body?.message ?? (error as any).message)
-        } catch (inner) {
-          throw inner instanceof Error ? inner : (error as any)
-        }
-      }
-      if (data?.error) throw new Error(data.error)
-      if (data?.alreadyRegistered && data?.actionLink) {
-        await navigator.clipboard.writeText(data.actionLink).catch(() => {})
-        toast.success(`${email} already has an account — added to brand`, {
-          description: 'Sign-in link copied to clipboard. Share it directly since Supabase won\'t re-email existing users.',
-          duration: 10000,
-        })
-      } else if (data?.emailed) {
-        toast.success(`Invite emailed to ${email}`, {
-          description: 'Tell them to check spam if it doesn\'t arrive in a few minutes.',
+      const results = await Promise.allSettled(
+        brandIds.map((brandId) => grantAccess.mutateAsync({ email, brandId })),
+      )
+      const ok = results.filter((r) => r.status === 'fulfilled').length
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      if (failed.length > 0) {
+        toast.error(`Granted ${ok} of ${brandIds.length}`, {
+          description: failed.map((f) => (f.reason as Error).message).join(' · '),
         })
       } else {
-        toast.success(`${email} added to brand`)
+        // Check if any of the successful results was an existing account
+        // needing a share link — copy the first one we see.
+        const resolved = results
+          .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof grantAccess.mutateAsync>>> => r.status === 'fulfilled')
+          .map((r) => r.value)
+        const link = resolved.find((r) => r?.actionLink)?.actionLink
+        if (link) {
+          await navigator.clipboard.writeText(link).catch(() => {})
+          toast.success(`${email} added to ${ok} brand${ok === 1 ? '' : 's'}`, {
+            description: 'Sign-in link copied to clipboard (Supabase won\'t re-email existing users).',
+            duration: 10000,
+          })
+        } else {
+          toast.success(`${email} invited to ${ok} brand${ok === 1 ? '' : 's'}`)
+        }
       }
-      setEmailInput('')
-      setInviteBrandId('')
       setInviteOpen(false)
     } catch (err) {
-      toast.error('Failed to send invite', { description: (err as Error).message })
+      toast.error('Failed to invite', { description: (err as Error).message })
+    } finally {
+      setWorking(false)
     }
   }
 
-  async function handleReassign() {
-    if (!reassignMember || !reassignBrandId) return
+  async function handleRevoke(member: TeamMember) {
+    setWorking(true)
     try {
-      await reassignBrand.mutateAsync({ memberId: reassignMember.id, newBrandId: reassignBrandId })
-      toast.success(`${reassignMember.email} moved to new brand`)
-      setReassignMember(null)
-      setReassignBrandId('')
+      await revokeAccess.mutateAsync(member.id)
+      toast.success(`Revoked access for ${member.email}`)
     } catch (err) {
-      toast.error('Failed to reassign', { description: (err as Error).message })
+      toast.error('Failed to revoke', { description: (err as Error).message })
+    } finally {
+      setWorking(false)
     }
   }
 
-  async function handleRemove(member: TeamMember) {
+  async function handleGrant(email: string, brandId: string) {
+    setWorking(true)
     try {
-      await removeMember.mutateAsync(member.id)
-      toast.success(`${member.email} removed from team`)
+      await grantAccess.mutateAsync({ email, brandId })
+      toast.success(`Added ${email} to brand`)
+    } catch (err) {
+      toast.error('Failed to grant access', { description: (err as Error).message })
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function handleRemoveAll(person: Person) {
+    setWorking(true)
+    try {
+      await Promise.all(person.access.map(({ member }) => revokeAccess.mutateAsync(member.id)))
+      toast.success(`${person.email} removed from all brands`)
       setConfirmRemove(null)
     } catch (err) {
-      toast.error('Failed to remove member', { description: (err as Error).message })
+      toast.error('Failed to remove', { description: (err as Error).message })
+    } finally {
+      setWorking(false)
     }
   }
-
-  const memberList = members.data ?? []
 
   return (
     <div className="flex flex-col h-full">
@@ -242,39 +383,45 @@ export default function TeamPage() {
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>
             Team
           </h1>
-          <p className="text-[13px] text-muted-foreground mt-1">{activeBrand.name}</p>
+          <p className="text-[13px] text-muted-foreground mt-1">
+            Everyone across your {stats.brands} brand{stats.brands === 1 ? '' : 's'}.
+          </p>
         </div>
-        <Button size="sm" onClick={() => setInviteOpen(true)}>
+        <Button size="sm" onClick={() => setInviteOpen(true)} disabled={brands.length === 0}>
           <UserPlus className="h-3.5 w-3.5 mr-1.5" />
           Invite
         </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
-        {members.isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading team...</p>
-        ) : memberList.length === 0 ? (
+        {brands.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm text-muted-foreground">Create a brand first before inviting specialists.</p>
+          </div>
+        ) : members.isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading team…</p>
+        ) : people.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
               <UserPlus className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="text-sm font-medium text-foreground">No team members yet</p>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-              Invite your social media specialists. They'll get an email with a link to set up their account.
+              Invite specialists and pick which brand(s) they can access.
             </p>
             <Button size="sm" className="mt-4" onClick={() => setInviteOpen(true)}>
               Invite your first specialist
             </Button>
           </div>
         ) : (
-          <div className="space-y-3 max-w-2xl">
-            {/* KPI stat row */}
+          <div className="space-y-3 max-w-3xl">
+            {/* Stat row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {[
-                { label: 'Members', value: String(memberList.length) },
-                { label: 'Total tasks', value: String(teamStats.totalTasks) },
-                { label: 'Completed', value: String(teamStats.totalDone) },
-                { label: 'Overdue', value: String(teamStats.totalOverdue) },
+                { label: 'People', value: String(stats.people) },
+                { label: 'Seats', value: String(stats.seats) },
+                { label: 'Brands', value: String(stats.brands) },
+                { label: 'Pending', value: String(stats.pending) },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-xl border border-border bg-card p-3">
                   <div className="eyebrow mb-1" style={{ fontSize: 9.5 }}>{label}</div>
@@ -282,13 +429,15 @@ export default function TeamPage() {
                 </div>
               ))}
             </div>
-            {memberList.map((member) => (
-              <MemberRow
-                key={member.id}
-                member={member}
-                workload={workloadByEmail.get(member.email) ?? EMPTY_WORKLOAD}
-                onRemove={() => setConfirmRemove(member)}
-                onReassign={() => { setReassignMember(member); setReassignBrandId(member.brand_id) }}
+            {people.map((person) => (
+              <PersonRow
+                key={person.email}
+                person={person}
+                availableBrands={brands}
+                onRevoke={handleRevoke}
+                onGrant={(brandId) => handleGrant(person.email, brandId)}
+                onRemoveAll={() => setConfirmRemove(person)}
+                busy={working}
               />
             ))}
           </div>
@@ -296,88 +445,24 @@ export default function TeamPage() {
       </div>
 
       {/* Invite Dialog */}
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Invite Specialist</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              The specialist will receive an email to set up their Zek Studio account.
-            </p>
-            <Input
-              type="email"
-              placeholder="specialist@example.com"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleInvite() }}
-              autoFocus
-            />
-            <div className="space-y-1.5">
-              <label className="text-[12px] text-muted-foreground">Assign to brand</label>
-              <BrandSelect
-                brands={allBrands}
-                value={inviteBrandId || activeBrand.id}
-                onChange={setInviteBrandId}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleInvite} disabled={invite.isPending}>
-              {invite.isPending ? 'Sending...' : 'Send Invite'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InviteDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        brands={brands}
+        onSubmit={handleInvite}
+        submitting={working}
+      />
 
-      {/* Reassign Brand Dialog */}
-      <Dialog
-        open={!!reassignMember}
-        onOpenChange={(open) => {
-          if (!open) {
-            setReassignMember(null)
-            setReassignBrandId('')
-          }
-        }}
-      >
+      {/* Confirm remove-all dialog */}
+      <Dialog open={!!confirmRemove} onOpenChange={(open) => !open && setConfirmRemove(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Change Brand</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">
-              Reassign <strong>{reassignMember?.email}</strong> to a different brand.
-            </p>
-            <BrandSelect
-              brands={allBrands}
-              value={reassignBrandId}
-              onChange={setReassignBrandId}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setReassignMember(null); setReassignBrandId('') }}
-            >
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleReassign} disabled={reassignBrand.isPending || !reassignBrandId}>
-              {reassignBrand.isPending ? 'Saving...' : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Confirm Remove Dialog */}
-      <Dialog open={!!confirmRemove} onOpenChange={() => setConfirmRemove(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Remove team member?</DialogTitle>
+            <DialogTitle>Remove from all brands?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground py-2">
-            {confirmRemove?.email} will lose access to this brand's tasks. Their tasks will remain but become unassigned.
+            <strong>{confirmRemove?.email}</strong> will lose access to all{' '}
+            {confirmRemove?.access.length} brand{confirmRemove?.access.length === 1 ? '' : 's'} they're on.
+            Their tasks will remain but become unassigned.
           </p>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setConfirmRemove(null)}>
@@ -386,10 +471,10 @@ export default function TeamPage() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => confirmRemove && handleRemove(confirmRemove)}
-              disabled={removeMember.isPending}
+              onClick={() => confirmRemove && handleRemoveAll(confirmRemove)}
+              disabled={working}
             >
-              {removeMember.isPending ? 'Removing...' : 'Remove'}
+              {working ? 'Removing…' : 'Remove everywhere'}
             </Button>
           </DialogFooter>
         </DialogContent>
