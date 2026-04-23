@@ -352,7 +352,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
             />
             <div className="relative flex gap-4 h-full">
               {COLUMNS.map((col) => (
-                <div key={col.id} className="w-[280px] shrink-0 h-full">
+                <div key={col.id} className="w-[calc(100vw-3rem)] sm:w-[280px] shrink-0 h-full">
                   <TaskColumn
                     column={col}
                     tasks={tasksForColumn(col.id)}

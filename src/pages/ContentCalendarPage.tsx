@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -75,7 +75,22 @@ export function ContentCalendarPage() {
   const today = new Date()
   const [viewYear, setViewYear]   = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
-  const [viewMode, setViewMode]   = useState<'month' | 'week'>('month')
+  // Month grid is 7 × 6 cells — unreadable below md: (each cell ~55px on a
+  // phone). Default to week on first paint if we're small, and auto-switch
+  // as the viewport crosses the breakpoint. The user can still pick month
+  // on mobile if they want to; we just don't force it on them by default.
+  const [viewMode, setViewMode] = useState<'month' | 'week'>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+      ? 'week'
+      : 'month'
+  )
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(max-width: 767px)')
+    const handler = (e: MediaQueryListEvent) => setViewMode(e.matches ? 'week' : 'month')
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11) }

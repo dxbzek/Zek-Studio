@@ -194,7 +194,7 @@ export function BrandProfilesPage() {
 
       {/* Create Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg overflow-y-auto max-h-[85vh]">
+        <DialogContent className="sm:max-w-lg overflow-y-auto max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>New Brand Profile</DialogTitle>
           </DialogHeader>
@@ -208,7 +208,7 @@ export function BrandProfilesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-w-lg overflow-y-auto max-h-[85vh]">
+        <DialogContent className="sm:max-w-lg overflow-y-auto max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>Edit Brand Profile</DialogTitle>
           </DialogHeader>
