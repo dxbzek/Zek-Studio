@@ -98,7 +98,7 @@ export function ContentCalendarPage() {
 
   const teamMembers = members.data ?? []
 
-  const [filterPlatforms, setFilterPlatforms] = useState<Platform[]>([])
+  const [filterPlatforms, setFilterPlatforms] = useState<Platform[]>(() => PLATFORMS.map((p) => p.value))
   const [filterStatus, setFilterStatus]       = useState<CalendarStatus | 'all'>('all')
   const [search, setSearch]                   = useState('')
 
