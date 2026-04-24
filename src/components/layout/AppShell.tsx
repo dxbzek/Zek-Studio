@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from 'react'
-import { Outlet, Navigate, useLocation } from 'react-router-dom'
-import { Menu, Download, X as XIcon } from 'lucide-react'
+import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Menu, Download, X as XIcon, Plus, CalendarDays, ListChecks, Megaphone } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { SpecialistShell } from './SpecialistShell'
 import { ThemeToggle } from './ThemeToggle'
@@ -71,6 +71,62 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
         <ThemeToggle />
       </div>
     </header>
+  )
+}
+
+// Mobile-only floating action button. Routes the most common create
+// actions to their respective pages — each page already opens its creation
+// drawer/form via existing New-button logic, so we don't duplicate that UI
+// here; we just get the user there with one tap.
+function MobileQuickAdd() {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="sm:hidden fixed bottom-4 right-4 z-30">
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-label="Close quick add"
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 bg-black/20 cursor-default"
+          />
+          <div className="absolute bottom-16 right-0 flex flex-col gap-2 items-end">
+            <button
+              type="button"
+              onClick={() => { navigate('/tasks'); setOpen(false) }}
+              className="flex items-center gap-2 px-3 py-2 rounded-full shadow-lg bg-card border border-border text-xs font-medium"
+            >
+              <ListChecks className="h-3.5 w-3.5" /> New task
+            </button>
+            <button
+              type="button"
+              onClick={() => { navigate('/calendar'); setOpen(false) }}
+              className="flex items-center gap-2 px-3 py-2 rounded-full shadow-lg bg-card border border-border text-xs font-medium"
+            >
+              <CalendarDays className="h-3.5 w-3.5" /> New entry
+            </button>
+            <button
+              type="button"
+              onClick={() => { navigate('/campaigns'); setOpen(false) }}
+              className="flex items-center gap-2 px-3 py-2 rounded-full shadow-lg bg-card border border-border text-xs font-medium"
+            >
+              <Megaphone className="h-3.5 w-3.5" /> New campaign
+            </button>
+          </div>
+        </>
+      )}
+      <button
+        type="button"
+        aria-label={open ? 'Close quick add' : 'Quick add'}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+      >
+        {open ? <XIcon className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+      </button>
+    </div>
   )
 }
 
@@ -149,6 +205,7 @@ export function AppShell() {
         onClose={() => setSidebarOpen(false)}
         desktopHidden={desktopHidden}
       />
+      <MobileQuickAdd />
       <main className="flex flex-col flex-1 overflow-hidden">
         <Topbar onMenuClick={handleMenuClick} />
         <PwaInstallBanner />

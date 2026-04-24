@@ -577,6 +577,62 @@ export function ContentCalendarPage() {
   // Pillar drawer
   const [pillarDrawerOpen, setPillarDrawerOpen] = useState(false)
 
+  // ── Duplicate last week ───────────────────────────────────────────────────
+  // Copies every entry from the previous calendar week forward 7 days, so a
+  // user who runs the same weekly cadence can stamp next week's shell in a
+  // single click. Respects the past-published trigger — anything still dated
+  // in the past (shouldn't be after +7, but defensively) gets the right
+  // status from the DB.
+  const [dupWeekBusy, setDupWeekBusy] = useState(false)
+  const [dupWeekConfirm, setDupWeekConfirm] = useState(false)
+
+  const lastWeekEntries = useMemo(() => {
+    const now = new Date()
+    const lastWeekAnchor = addDays(now, -7)
+    const lwStart = startOfWeek(lastWeekAnchor, { weekStartsOn: 0 })
+    const lwEnd = endOfWeek(lastWeekAnchor, { weekStartsOn: 0 })
+    return (entries.data ?? []).filter((e) => {
+      try {
+        const d = parseISO(e.scheduled_date)
+        return d >= lwStart && d <= lwEnd
+      } catch { return false }
+    })
+  }, [entries.data])
+
+  const handleDuplicateLastWeek = useCallback(async () => {
+    if (!activeBrand || lastWeekEntries.length === 0) return
+    setDupWeekBusy(true)
+    try {
+      const results = await Promise.all(lastWeekEntries.map(async (e) => {
+        const newDate = format(addDays(parseISO(e.scheduled_date), 7), 'yyyy-MM-dd')
+        return createEntry.mutateAsync({
+          brand_id: activeBrand.id,
+          platform: e.platform,
+          content_type: e.content_type,
+          title: e.title,
+          body: e.body,
+          scheduled_date: newDate,
+          status: 'draft',
+          generated_content_id: null,
+          campaign_id: e.campaign_id,
+          pillar_id: e.pillar_id,
+          approval_status: null,
+          approval_note: null,
+          assigned_editor: null,
+          assigned_shooter: null,
+          assigned_talent: e.assigned_talent,
+          character: e.character,
+        } as CalendarEntryInsert)
+      }))
+      toast.success(`Copied ${results.length} entries forward one week`)
+      setDupWeekConfirm(false)
+    } catch (err) {
+      toast.error('Copy failed', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setDupWeekBusy(false)
+    }
+  }, [activeBrand, lastWeekEntries, createEntry])
+
   const handleAddPillar = useCallback(async (input: { label: string; target_pct: number; color: string }) => {
     if (!activeBrand) return
     await createPillar.mutateAsync({
@@ -751,13 +807,23 @@ export function ContentCalendarPage() {
         >
           Today
         </button>
+        {lastWeekEntries.length > 0 && !selectMode && (
+          <button
+            type="button"
+            onClick={() => setDupWeekConfirm(true)}
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+            title={`Copy last week's ${lastWeekEntries.length} entries forward 7 days`}
+          >
+            Duplicate last week
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
             if (selectMode) exitSelectMode()
             else setSelectMode(true)
           }}
-          className={`ml-auto text-xs border rounded px-2 py-0.5 transition-colors ${
+          className={`${lastWeekEntries.length > 0 && !selectMode ? '' : 'ml-auto'} text-xs border rounded px-2 py-0.5 transition-colors ${
             selectMode
               ? 'bg-primary text-primary-foreground border-primary'
               : 'border-border text-muted-foreground hover:text-foreground'
@@ -898,6 +964,24 @@ export function ContentCalendarPage() {
           </button>
         </div>
       )}
+
+      <AlertDialog open={dupWeekConfirm} onOpenChange={setDupWeekConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplicate last week?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {lastWeekEntries.length} entries from the previous week will be copied forward 7 days as drafts.
+              You can still rename or reschedule each one afterwards.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={dupWeekBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDuplicateLastWeek} disabled={dupWeekBusy}>
+              {dupWeekBusy ? 'Copying…' : 'Copy forward'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={bulkConfirmDelete} onOpenChange={setBulkConfirmDelete}>
         <AlertDialogContent>

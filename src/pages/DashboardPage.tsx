@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Briefcase, ArrowRight, TrendingUp, TrendingDown, Minus, Target, Sparkles, CalendarDays, Eye, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { format } from 'date-fns'
+import { format, startOfWeek, endOfWeek } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useActiveBrand } from '@/stores/activeBrand'
@@ -117,6 +117,40 @@ export function DashboardPage() {
   const kpis = useKpis(activeBrand?.id ?? null)
   const currentMonthISO = useMemo(() => format(new Date(), 'yyyy-MM-01'), [])
 
+  // ── Weekly digest ────────────────────────────────────────────────────────
+  // Single round-trip for this week's calendar entries, counted into four
+  // buckets the dashboard card displays. Starts the week on Sunday to match
+  // the calendar grid so the numbers line up with what the user sees there.
+  const weekRange = useMemo(() => {
+    const now = new Date()
+    return {
+      start: format(startOfWeek(now, { weekStartsOn: 0 }), 'yyyy-MM-dd'),
+      end:   format(endOfWeek  (now, { weekStartsOn: 0 }), 'yyyy-MM-dd'),
+    }
+  }, [])
+  const weeklyDigest = useQuery({
+    queryKey: ['dashboard-week', activeBrand?.id, weekRange.start],
+    queryFn: async () => {
+      if (!activeBrand?.id) return null
+      const { data, error } = await supabase
+        .from('calendar_entries')
+        .select('status, approval_status, scheduled_date')
+        .eq('brand_id', activeBrand.id)
+        .gte('scheduled_date', weekRange.start)
+        .lte('scheduled_date', weekRange.end)
+      if (error) throw error
+      const rows = data ?? []
+      return {
+        total:     rows.length,
+        shipped:   rows.filter((r) => r.status === 'published').length,
+        scheduled: rows.filter((r) => r.status === 'scheduled').length,
+        draft:     rows.filter((r) => r.status === 'draft').length,
+        inReview:  rows.filter((r) => r.approval_status === 'pending_review').length,
+      }
+    },
+    enabled: !!activeBrand?.id,
+  })
+
   const kpiGoalQuery = useQuery({
     queryKey: ['brand-kpi', activeBrand?.id, currentMonthISO],
     queryFn: async () => {
@@ -174,7 +208,7 @@ export function DashboardPage() {
   )
 
   const firstName = activeBrand?.name?.split(' ')[0] || 'there'
-  const weekRange = `${format(new Date(), 'MMM d')} – ${format(new Date(Date.now() + 6 * 86400000), 'MMM d')}`
+  const greetingWeekRange = `${format(new Date(), 'MMM d')} – ${format(new Date(Date.now() + 6 * 86400000), 'MMM d')}`
 
   if (isLoading) {
     return (
@@ -228,7 +262,7 @@ export function DashboardPage() {
           {/* Page header */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <div className="eyebrow mb-2">Weekly brief · {weekRange}</div>
+              <div className="eyebrow mb-2">Weekly brief · {greetingWeekRange}</div>
               <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>
                 Good {timeOfDay()}, {firstName}.
               </h1>
@@ -273,6 +307,51 @@ export function DashboardPage() {
                 value={kpis.totalKw > 0 ? `${kpis.rankingKw}/${kpis.totalKw}` : '—'}
                 sub="Page 1–2"
               />
+            </div>
+          )}
+
+          {/* Weekly digest — at-a-glance snapshot of this week's calendar. */}
+          {activeBrand && weeklyDigest.data && weeklyDigest.data.total > 0 && (
+            <div className="rounded-xl ring-1 ring-border bg-card p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="eyebrow">This week</div>
+                  <div className="text-[13px] text-muted-foreground mt-0.5">
+                    {format(new Date(weekRange.start), 'MMM d')} – {format(new Date(weekRange.end), 'MMM d')}
+                  </div>
+                </div>
+                <Button asChild variant="outline" size="sm" className="h-[26px] text-[11px] gap-1">
+                  <Link to="/calendar">
+                    <CalendarDays className="h-3 w-3" /> View calendar
+                  </Link>
+                </Button>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="rounded-lg bg-muted/30 px-2 py-2">
+                  <div className="mono-num text-[20px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {weeklyDigest.data.shipped}
+                  </div>
+                  <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground mt-0.5">Shipped</div>
+                </div>
+                <div className="rounded-lg bg-muted/30 px-2 py-2">
+                  <div className="mono-num text-[20px] font-semibold tabular-nums">
+                    {weeklyDigest.data.scheduled}
+                  </div>
+                  <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground mt-0.5">Scheduled</div>
+                </div>
+                <div className="rounded-lg bg-muted/30 px-2 py-2">
+                  <div className="mono-num text-[20px] font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                    {weeklyDigest.data.inReview}
+                  </div>
+                  <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground mt-0.5">In review</div>
+                </div>
+                <div className="rounded-lg bg-muted/30 px-2 py-2">
+                  <div className="mono-num text-[20px] font-semibold tabular-nums text-muted-foreground">
+                    {weeklyDigest.data.draft}
+                  </div>
+                  <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground mt-0.5">Draft</div>
+                </div>
+              </div>
             </div>
           )}
 
