@@ -4,30 +4,11 @@ import { ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { humanizeAuthError } from '@/lib/authErrors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import logoSrc from '/logo.png'
-
-// Map Supabase's raw error strings to a friendlier note. Supabase returns
-// english messages regardless of the UI language, so we match on known
-// phrases rather than codes.
-function humanizeAuthError(raw: string): string {
-  const msg = raw.toLowerCase()
-  if (msg.includes('invalid login credentials')) {
-    return 'Email or password is incorrect. Check for typos or reset your password.'
-  }
-  if (msg.includes('email not confirmed')) {
-    return 'This email hasn\'t been confirmed yet. Check your inbox for the confirmation link.'
-  }
-  if (msg.includes('rate limit') || msg.includes('too many')) {
-    return 'Too many attempts. Wait a minute and try again.'
-  }
-  if (msg.includes('network') || msg.includes('failed to fetch')) {
-    return 'Couldn\'t reach the server. Check your connection and try again.'
-  }
-  return raw
-}
 
 export function LoginPage() {
   const { user, loading } = useAuth()

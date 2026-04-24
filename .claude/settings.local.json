@@ -90,7 +90,8 @@
       "Bash(supabase gen *)",
       "Bash(git checkout *)",
       "Bash(git revert *)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(npm test *)"
     ]
   }
 }
