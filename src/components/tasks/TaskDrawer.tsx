@@ -12,6 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { PlatformBadge } from '@/lib/platformBrand'
+import { FormButtonGroup } from '@/components/ui/form-button-group'
+import type { FormButtonGroupOption } from '@/components/ui/form-button-group'
 import {
   TASK_PRIORITY_CHIP, TASK_STATUS_CHIP, TASK_TYPE_CHIP,
 } from '@/lib/statusTokens'
@@ -179,28 +181,17 @@ export function TaskDrawer({
           </div>
           {!isSpecialist && (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Status</label>
-              <div className="flex flex-wrap gap-1.5">
-                {COLUMNS.map((col) => {
-                  const Icon = col.icon
-                  const active = formStatus === col.id
-                  return (
-                    <button
-                      key={col.id}
-                      type="button"
-                      onClick={() => setFormStatus(col.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        active
-                          ? `${TASK_STATUS_CHIP[col.id]} border-transparent`
-                          : 'border-border text-muted-foreground'
-                      }`}
-                    >
-                      <Icon className="h-3 w-3" />
-                      {col.label}
-                    </button>
-                  )
-                })}
-              </div>
+              <FormButtonGroup<TaskStatus>
+                label="Status"
+                value={formStatus}
+                onChange={setFormStatus}
+                options={COLUMNS.map<FormButtonGroupOption<TaskStatus>>((col) => ({
+                  value: col.id,
+                  label: col.label,
+                  icon: col.icon,
+                  activeClassName: TASK_STATUS_CHIP[col.id],
+                }))}
+              />
               {formStatus === 'scheduled' && (
                 <p className="text-[11px] text-muted-foreground leading-snug">
                   Scheduled tasks don't appear on the calendar.{' '}
@@ -215,51 +206,29 @@ export function TaskDrawer({
               )}
             </div>
           )}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Type</label>
-            <div className="flex flex-wrap gap-1.5">
-              {TASK_TYPES.map((tt) => {
-                const Icon = tt.icon
-                const active = formType === tt.value
-                return (
-                  <button
-                    key={tt.value}
-                    type="button"
-                    disabled={isSpecialist}
-                    onClick={() => setFormType(tt.value)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      active
-                        ? `${TASK_TYPE_CHIP[tt.value]} border-transparent`
-                        : 'border-border text-muted-foreground'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <Icon className="h-3 w-3" />
-                    {tt.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Priority</label>
-            <div className="flex gap-1.5">
-              {PRIORITIES.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  disabled={isSpecialist}
-                  onClick={() => setFormPriority(p.value)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    formPriority === p.value
-                      ? `${TASK_PRIORITY_CHIP[p.value]} border-transparent`
-                      : 'border-border text-muted-foreground'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <FormButtonGroup<TaskType>
+            label="Type"
+            value={formType}
+            onChange={setFormType}
+            disabled={isSpecialist}
+            options={TASK_TYPES.map<FormButtonGroupOption<TaskType>>((tt) => ({
+              value: tt.value,
+              label: tt.label,
+              icon: tt.icon,
+              activeClassName: TASK_TYPE_CHIP[tt.value],
+            }))}
+          />
+          <FormButtonGroup<TaskPriority>
+            label="Priority"
+            value={formPriority}
+            onChange={setFormPriority}
+            disabled={isSpecialist}
+            options={PRIORITIES.map<FormButtonGroupOption<TaskPriority>>((p) => ({
+              value: p.value,
+              label: p.label,
+              activeClassName: TASK_PRIORITY_CHIP[p.value],
+            }))}
+          />
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Due date</label>
             <Input

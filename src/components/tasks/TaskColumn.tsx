@@ -17,6 +17,18 @@ interface TaskColumnProps {
   onAddClick: () => void
   onQuickAdd: (title: string) => void
   isSpecialist: boolean
+  isLoading?: boolean
+}
+
+// 3 gray placeholders sized like TaskChip. Shown only during the first fetch
+// so columns don't flash "Nothing waiting here" before the data arrives.
+function TaskChipSkeleton() {
+  return (
+    <div className="rounded border border-border/60 bg-muted/40 p-2.5 animate-pulse">
+      <div className="h-3 w-2/3 rounded bg-muted-foreground/20 mb-2" />
+      <div className="h-2.5 w-1/2 rounded bg-muted-foreground/15" />
+    </div>
+  )
 }
 
 // Not memoized on purpose: parent passes fresh inline closures for
@@ -24,7 +36,7 @@ interface TaskColumnProps {
 // real win is memoizing the *cards* (DraggableTask/TaskChip), which get stable
 // identity via keyed children.
 export function TaskColumn({
-  column, tasks, entryById, onCardClick, onAddClick, onQuickAdd, isSpecialist,
+  column, tasks, entryById, onCardClick, onAddClick, onQuickAdd, isSpecialist, isLoading,
 }: TaskColumnProps) {
   // useDroppable registers the column itself as a drop target (for empty
   // columns or drops below the last card). SortableContext lets cards
@@ -71,7 +83,14 @@ export function TaskColumn({
             />
           ))}
         </SortableContext>
-        {isEmpty && (
+        {isEmpty && isLoading && (
+          <>
+            <TaskChipSkeleton />
+            <TaskChipSkeleton />
+            <TaskChipSkeleton />
+          </>
+        )}
+        {isEmpty && !isLoading && (
           <div className="rounded border border-dashed border-border/60 px-2 py-3 text-[11px] text-muted-foreground/70 text-center leading-snug">
             {column.empty}
           </div>

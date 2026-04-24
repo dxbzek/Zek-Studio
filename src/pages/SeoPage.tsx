@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Trash2, ExternalLink, CheckSquare, Square, Loader2, Sparkles, Copy, Check, Info, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react'
 import { toast } from 'sonner'
@@ -75,6 +75,17 @@ type KwSort = 'volume' | 'keyword'
 
 function KeywordsTab({ brandId }: { brandId: string }) {
   const { keywords, isLoading, addKeyword, updateKeyword, deleteKeyword } = useSeoKeywords(brandId)
+  // Stable row handlers so memoized KeywordRow doesn't re-render on every tab
+  // state change. The row passes its own id back up, so the mutators can stay
+  // reference-stable across renders.
+  const handleRowUpdate = useCallback(
+    (id: string, patch: Partial<SeoKeyword>) => updateKeyword.mutate({ id, patch }),
+    [updateKeyword.mutate],
+  )
+  const handleRowDelete = useCallback(
+    (id: string) => deleteKeyword.mutate(id),
+    [deleteKeyword.mutate],
+  )
   const [adding, setAdding] = useState(false)
   const [filterStatus, setFilterStatus] = useState<SeoKeywordStatus | 'all'>('all')
   const [sortBy, setSortBy] = useState<KwSort>('keyword')
@@ -233,8 +244,8 @@ function KeywordsTab({ brandId }: { brandId: string }) {
                 <KeywordRow
                   key={kw.id}
                   kw={kw}
-                  onUpdate={(patch) => updateKeyword.mutate({ id: kw.id, patch })}
-                  onDelete={() => deleteKeyword.mutate(kw.id)}
+                  onUpdate={handleRowUpdate}
+                  onDelete={handleRowDelete}
                 />
               ))}
             </tbody>
@@ -245,7 +256,16 @@ function KeywordsTab({ brandId }: { brandId: string }) {
   )
 }
 
-function KeywordRow({ kw, onUpdate, onDelete }: { kw: SeoKeyword; onUpdate: (p: Partial<SeoKeyword>) => void; onDelete: () => void }) {
+// Signature takes `id` so parent can pass stable mutators — keeps this row
+// inside memo's equality check when the tab re-renders for unrelated reasons
+// (filter toggle, sort change).
+interface KeywordRowProps {
+  kw: SeoKeyword
+  onUpdate: (id: string, patch: Partial<SeoKeyword>) => void
+  onDelete: (id: string) => void
+}
+
+const KeywordRow = memo(function KeywordRow({ kw, onUpdate, onDelete }: KeywordRowProps) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [edit, setEdit] = useState({
@@ -257,7 +277,7 @@ function KeywordRow({ kw, onUpdate, onDelete }: { kw: SeoKeyword; onUpdate: (p: 
   })
 
   function handleSave() {
-    onUpdate({
+    onUpdate(kw.id, {
       keyword: edit.keyword.trim() || kw.keyword,
       volume: edit.volume ? parseInt(edit.volume) : null,
       target_url: edit.target_url.trim() || null,
@@ -289,7 +309,7 @@ function KeywordRow({ kw, onUpdate, onDelete }: { kw: SeoKeyword; onUpdate: (p: 
           {kw.intent && <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium capitalize', SEO_INTENT_CHIP[kw.intent])}>{kw.intent}</span>}
         </td>
         <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-          <Select value={kw.status} onValueChange={(v) => onUpdate({ status: v as SeoKeywordStatus })}>
+          <Select value={kw.status} onValueChange={(v) => onUpdate(kw.id, { status: v as SeoKeywordStatus })}>
             <SelectTrigger className="h-7 text-xs w-[120px]">
               <span className={cn('text-xs px-1.5 py-0.5 rounded-full font-medium', SEO_KW_STATUS_CHIP[kw.status])}>{SEO_KW_STATUS_LABEL[kw.status]}</span>
             </SelectTrigger>
@@ -366,7 +386,7 @@ function KeywordRow({ kw, onUpdate, onDelete }: { kw: SeoKeyword; onUpdate: (p: 
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={onDelete}
+              onClick={() => onDelete(kw.id)}
             >
               Delete
             </AlertDialogAction>
@@ -375,12 +395,21 @@ function KeywordRow({ kw, onUpdate, onDelete }: { kw: SeoKeyword; onUpdate: (p: 
       </AlertDialog>
     </>
   )
-}
+})
 
 // ─── Blog Planner Tab ────────────────────────────────────────────────────────
 
 function BlogTab({ brand }: { brand: BrandProfile }) {
   const { posts, isLoading, addPost, updatePost, deletePost } = useBlogPosts(brand.id)
+  // See KeywordsTab — stable mutators let BlogPostRow stay in memo's cache.
+  const handlePostUpdate = useCallback(
+    (id: string, patch: Partial<BlogPost>) => updatePost.mutate({ id, patch }),
+    [updatePost.mutate],
+  )
+  const handlePostDelete = useCallback(
+    (id: string) => deletePost.mutate(id),
+    [deletePost.mutate],
+  )
   const { keywords } = useSeoKeywords(brand.id)
   const [adding, setAdding] = useState(false)
   const [filterStatus, setFilterStatus] = useState<BlogPostStatus | 'all'>('all')
@@ -653,8 +682,8 @@ function BlogTab({ brand }: { brand: BrandProfile }) {
               post={post}
               brand={brand}
               keywords={keywords}
-              onUpdate={(patch) => updatePost.mutate({ id: post.id, patch })}
-              onDelete={() => deletePost.mutate(post.id)}
+              onUpdate={handlePostUpdate}
+              onDelete={handlePostDelete}
             />
           ))}
         </div>
@@ -663,10 +692,19 @@ function BlogTab({ brand }: { brand: BrandProfile }) {
   )
 }
 
-function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: {
-  post: BlogPost; brand: BrandProfile; keywords: SeoKeyword[]
-  onUpdate: (p: Partial<BlogPost>) => void; onDelete: () => void
-}) {
+interface BlogPostRowProps {
+  post: BlogPost
+  brand: BrandProfile
+  keywords: SeoKeyword[]
+  // Parent passes stable mutators — row binds its id locally so the many
+  // internal callers still read like `onUpdate({ ... })`.
+  onUpdate: (id: string, patch: Partial<BlogPost>) => void
+  onDelete: (id: string) => void
+}
+
+const BlogPostRow = memo(function BlogPostRow({ post, brand, keywords, onUpdate: onUpdateProp, onDelete: onDeleteProp }: BlogPostRowProps) {
+  const onUpdate = useCallback((patch: Partial<BlogPost>) => onUpdateProp(post.id, patch), [onUpdateProp, post.id])
+  const onDelete = useCallback(() => onDeleteProp(post.id), [onDeleteProp, post.id])
   const [expanded, setExpanded] = useState(false)
   const [loadingDraft, setLoadingDraft] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -970,7 +1008,7 @@ function BlogPostRow({ post, brand, keywords, onUpdate, onDelete }: {
       </AlertDialog>
     </div>
   )
-}
+})
 
 // ─── Audit Tab ───────────────────────────────────────────────────────────────
 
