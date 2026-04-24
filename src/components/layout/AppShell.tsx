@@ -1,11 +1,12 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
-import { Menu } from 'lucide-react'
+import { Menu, Download, X as XIcon } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { SpecialistShell } from './SpecialistShell'
 import { ThemeToggle } from './ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
 import { useIsSpecialist } from '@/hooks/useTeam'
+import { usePwaInstall } from '@/hooks/usePwaInstall'
 import { Button } from '@/components/ui/button'
 
 const SIDEBAR_HIDDEN_KEY = 'zek-sidebar-hidden'
@@ -73,6 +74,32 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   )
 }
 
+function PwaInstallBanner() {
+  const { canInstall, install, dismiss } = usePwaInstall()
+  if (!canInstall) return null
+  return (
+    <div className="sm:hidden border-b border-border bg-accent/40 px-4 py-2 flex items-center gap-2 text-xs">
+      <Download className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+      <span className="flex-1">Install Zek Studio for offline access and a faster launch.</span>
+      <button
+        type="button"
+        onClick={install}
+        className="text-xs font-medium text-primary hover:underline"
+      >
+        Install
+      </button>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Dismiss install prompt"
+        className="text-muted-foreground hover:text-foreground p-0.5"
+      >
+        <XIcon className="h-3 w-3" />
+      </button>
+    </div>
+  )
+}
+
 export function AppShell() {
   const { user, loading: authLoading } = useAuth()
   const { data: isSpecialist, isLoading: roleLoading } = useIsSpecialist()
@@ -124,6 +151,7 @@ export function AppShell() {
       />
       <main className="flex flex-col flex-1 overflow-hidden">
         <Topbar onMenuClick={handleMenuClick} />
+        <PwaInstallBanner />
         <div
           className="flex-1 overflow-y-auto"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
