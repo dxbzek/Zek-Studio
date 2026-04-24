@@ -1,5 +1,5 @@
 import { useDroppable } from '@dnd-kit/core'
-import { format, isSameDay } from 'date-fns'
+import { format, isSameDay, startOfDay } from 'date-fns'
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover'
@@ -15,20 +15,30 @@ interface DayCellProps {
   tall?: boolean
   onGroupClick: (group: EntryGroup) => void
   onAddClick: () => void
+  selectMode?: boolean
+  selectedGroupIds?: Set<string>
+  onToggleSelect?: (groupId: string) => void
 }
 
 export function DayCell({
   day, groups, isCurrentMonth, tall, onGroupClick, onAddClick,
+  selectMode, selectedGroupIds, onToggleSelect,
 }: DayCellProps) {
   const dateStr = format(day, 'yyyy-MM-dd')
   const { isOver, setNodeRef } = useDroppable({ id: dateStr })
   const todayFlag = isSameDay(day, new Date())
+  // "Gap" indicator: empty cell in the current month that's today or in the
+  // future — i.e. a day the user could still fill. Past empty days and
+  // out-of-month trailing/leading cells don't get the marker because they
+  // aren't actionable.
+  const isUpcomingEmpty =
+    groups.length === 0 && isCurrentMonth && startOfDay(day) >= startOfDay(new Date())
 
   return (
     <div
       ref={setNodeRef}
-      onClick={() => { if (isCurrentMonth) onAddClick() }}
-      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : 'cursor-pointer hover:bg-accent/30'} ${isOver ? 'bg-primary/5' : ''}`}
+      onClick={() => { if (isCurrentMonth && !selectMode) onAddClick() }}
+      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : selectMode ? '' : 'cursor-pointer hover:bg-accent/30'} ${isOver ? 'bg-primary/5' : ''}`}
     >
       <div className="flex items-center justify-between">
         <span
@@ -47,8 +57,20 @@ export function DayCell({
           </button>
         )}
       </div>
+      {isUpcomingEmpty && (
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50 self-start px-1 py-0.5 rounded border border-dashed border-muted-foreground/20">
+          No post
+        </span>
+      )}
       {groups.slice(0, MAX_VISIBLE).map((grp) => (
-        <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
+        <EntryCard
+          key={grp.id}
+          group={grp}
+          onClick={() => onGroupClick(grp)}
+          selectMode={selectMode}
+          isSelected={selectedGroupIds?.has(grp.id)}
+          onToggleSelect={onToggleSelect}
+        />
       ))}
       {groups.length > MAX_VISIBLE && (
         <Popover>
@@ -68,7 +90,14 @@ export function DayCell({
             </div>
             <div className="flex flex-col gap-1">
               {groups.slice(MAX_VISIBLE).map((grp) => (
-                <EntryCard key={grp.id} group={grp} onClick={() => onGroupClick(grp)} />
+                <EntryCard
+                  key={grp.id}
+                  group={grp}
+                  onClick={() => onGroupClick(grp)}
+                  selectMode={selectMode}
+                  isSelected={selectedGroupIds?.has(grp.id)}
+                  onToggleSelect={onToggleSelect}
+                />
               ))}
             </div>
           </PopoverContent>

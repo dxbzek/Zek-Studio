@@ -68,6 +68,7 @@ import { PillarConfigDrawer } from '@/components/calendar/PillarConfigDrawer'
 import {
   deriveTaskStatus,
   groupEntries,
+  STATUSES,
   type EntryGroup,
 } from '@/components/calendar/entryGroups'
 
@@ -87,6 +88,12 @@ export function ContentCalendarPage() {
       ? 'week'
       : 'month'
   )
+  // Bulk-edit selection. Tracks group ids (representative entry ids); on
+  // commit, each selected group expands to all its per-platform siblings.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false)
   useEffect(() => {
     if (typeof window === 'undefined') return
     const mq = window.matchMedia('(max-width: 767px)')
@@ -404,6 +411,61 @@ export function ContentCalendarPage() {
     }
   }
 
+  // ── Bulk-edit handlers ─────────────────────────────────────────────────
+  const toggleSelect = useCallback((groupId: string) => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(groupId)) next.delete(groupId)
+      else next.add(groupId)
+      return next
+    })
+  }, [])
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false)
+    setSelectedGroupIds(new Set())
+  }, [])
+
+  // Flatten selected group ids → all the per-platform sibling entries, so
+  // bulk ops hit every physical row the UI's logical "card" represents.
+  const selectedEntries = useMemo(() => {
+    if (selectedGroupIds.size === 0) return [] as CalendarEntry[]
+    return allGroups
+      .filter((g) => selectedGroupIds.has(g.id))
+      .flatMap((g) => g.entries)
+  }, [allGroups, selectedGroupIds])
+
+  const handleBulkStatus = useCallback(async (status: CalendarStatus) => {
+    if (selectedEntries.length === 0) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(selectedEntries.map((e) =>
+        updateEntry.mutateAsync({ id: e.id, patch: { status } }),
+      ))
+      toast.success(`Marked ${selectedEntries.length} entries as ${status}`)
+      exitSelectMode()
+    } catch (err) {
+      toast.error('Bulk update failed', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [selectedEntries, updateEntry, exitSelectMode])
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedEntries.length === 0) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(selectedEntries.map((e) => deleteEntry.mutateAsync(e.id)))
+      toast.success(`Deleted ${selectedEntries.length} entries`)
+      setBulkConfirmDelete(false)
+      exitSelectMode()
+    } catch (err) {
+      toast.error('Bulk delete failed', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [selectedEntries, deleteEntry, exitSelectMode])
+
   // Bridge the drawer's Generate button to the AI generator. The drawer
   // knows the per-post info (title, platform, theme); the calendar page
   // supplies brand + tone defaults.
@@ -661,7 +723,21 @@ export function ContentCalendarPage() {
         >
           Today
         </button>
-        <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5">
+        <button
+          type="button"
+          onClick={() => {
+            if (selectMode) exitSelectMode()
+            else setSelectMode(true)
+          }}
+          className={`ml-auto text-xs border rounded px-2 py-0.5 transition-colors ${
+            selectMode
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-border text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {selectMode ? 'Cancel' : 'Select'}
+        </button>
+        <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
           {(['month', 'week'] as const).map((m) => (
             <button
               key={m}
@@ -707,6 +783,9 @@ export function ContentCalendarPage() {
                 tall={viewMode === 'week'}
                 onGroupClick={openEdit}
                 onAddClick={() => openCreate(format(day, 'yyyy-MM-dd'))}
+                selectMode={selectMode}
+                selectedGroupIds={selectedGroupIds}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
@@ -742,6 +821,62 @@ export function ContentCalendarPage() {
         onAdd={handleAddPillar}
         onDelete={handleDeletePillar}
       />
+
+      {/* Bulk-edit action bar */}
+      {selectMode && selectedGroupIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-card border border-border shadow-lg rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap max-w-[calc(100vw-2rem)]">
+          <span className="text-xs font-medium tabular-nums">
+            {selectedEntries.length} selected
+          </span>
+          <div className="h-4 w-px bg-border" />
+          {STATUSES.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => handleBulkStatus(s.value)}
+              className="text-xs px-2 py-0.5 rounded border border-border hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {s.label}
+            </button>
+          ))}
+          <div className="h-4 w-px bg-border" />
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() => setBulkConfirmDelete(true)}
+            className="text-xs px-2 py-0.5 rounded border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={exitSelectMode}
+            className="text-xs px-2 py-0.5 rounded border border-border hover:bg-accent transition-colors ml-1"
+          >
+            Done
+          </button>
+        </div>
+      )}
+
+      <AlertDialog open={bulkConfirmDelete} onOpenChange={setBulkConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedEntries.length} entries?</AlertDialogTitle>
+            <AlertDialogDescription>This cannot be undone. Linked tasks remain and will need manual cleanup.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleBulkDelete}
+              disabled={bulkBusy}
+            >
+              Delete all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <AlertDialogContent>

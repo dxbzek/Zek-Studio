@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, type MouseEvent } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import {
@@ -10,32 +10,60 @@ import type { EntryGroup } from './entryGroups'
 interface EntryCardProps {
   group: EntryGroup
   onClick: () => void
+  // When selectMode is on, click toggles selection instead of opening the
+  // drawer; the card renders with a checkbox-like state indicator and drag
+  // is disabled (too easy to misfire during multi-select).
+  selectMode?: boolean
+  isSelected?: boolean
+  onToggleSelect?: (groupId: string) => void
 }
 
-function EntryCardImpl({ group, onClick }: EntryCardProps) {
+function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect }: EntryCardProps) {
   const { representative: rep } = group
   const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: group.id })
+    useDraggable({ id: group.id, disabled: selectMode })
 
   const approvalDot = rep.approval_status ? APPROVAL_STATUS_DOT[rep.approval_status] : null
+
+  const handleClick = (e: MouseEvent) => {
+    e.stopPropagation()
+    if (selectMode && onToggleSelect) onToggleSelect(group.id)
+    else onClick()
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1 }}
-      {...listeners}
-      {...attributes}
-      onClick={(e) => { e.stopPropagation(); onClick() }}
-      className={`cursor-pointer rounded border border-border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} bg-card px-1.5 py-1 text-xs hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
+      {...(selectMode ? {} : listeners)}
+      {...(selectMode ? {} : attributes)}
+      onClick={handleClick}
+      className={`${selectMode ? 'cursor-pointer' : 'cursor-pointer'} rounded border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} bg-card px-1.5 py-1 text-xs ${selectMode && isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
     >
       {/* Mobile: single row — status dot + title */}
       <div className="flex items-center gap-1.5 sm:hidden">
+        {selectMode && (
+          <span
+            className={`h-3 w-3 shrink-0 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}
+            aria-hidden
+          >
+            {isSelected && <span className="text-[8px] leading-none text-primary-foreground">✓</span>}
+          </span>
+        )}
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${CALENDAR_STATUS_DOT[rep.status]}`} />
         <span className="text-foreground line-clamp-1 text-[11px] leading-tight flex-1">{rep.title}</span>
       </div>
       {/* Desktop: platform stack + metadata dots + title */}
       <div className="hidden sm:block">
         <div className="flex items-center gap-1.5">
+          {selectMode && (
+            <span
+              className={`h-3 w-3 shrink-0 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}
+              aria-hidden
+            >
+              {isSelected && <span className="text-[8px] leading-none text-primary-foreground">✓</span>}
+            </span>
+          )}
           <PlatformStack platforms={group.platforms} />
           <span className="ml-auto flex items-center gap-1 shrink-0">
             {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
