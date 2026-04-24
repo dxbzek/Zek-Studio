@@ -1,12 +1,33 @@
 import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import logoSrc from '/logo.png'
+
+// Map Supabase's raw error strings to a friendlier note. Supabase returns
+// english messages regardless of the UI language, so we match on known
+// phrases rather than codes.
+function humanizeAuthError(raw: string): string {
+  const msg = raw.toLowerCase()
+  if (msg.includes('invalid login credentials')) {
+    return 'Email or password is incorrect. Check for typos or reset your password.'
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'This email hasn\'t been confirmed yet. Check your inbox for the confirmation link.'
+  }
+  if (msg.includes('rate limit') || msg.includes('too many')) {
+    return 'Too many attempts. Wait a minute and try again.'
+  }
+  if (msg.includes('network') || msg.includes('failed to fetch')) {
+    return 'Couldn\'t reach the server. Check your connection and try again.'
+  }
+  return raw
+}
 
 export function LoginPage() {
   const { user, loading } = useAuth()
@@ -18,8 +39,46 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
 
   if (!loading && user) return <Navigate to="/" replace />
+
+  async function handleForgotPassword() {
+    const trimmed = email.trim()
+    if (!trimmed) {
+      setError('Enter your email first, then hit "Forgot password?" again.')
+      return
+    }
+    setResetLoading(true)
+    setError(null)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: `${window.location.origin}/reset`,
+      })
+      if (error) throw error
+      toast.success('Reset email sent', { description: 'Check your inbox for a link to set a new password.' })
+    } catch (err) {
+      setError(humanizeAuthError(err instanceof Error ? err.message : 'Could not send reset email.'))
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  async function handleResendConfirmation() {
+    const trimmed = email.trim()
+    if (!trimmed) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: trimmed })
+      if (error) throw error
+      toast.success('Confirmation email resent', { description: 'Check your inbox (and spam folder).' })
+    } catch (err) {
+      setError(humanizeAuthError(err instanceof Error ? err.message : 'Could not resend confirmation.'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   async function handleGoogleSignIn() {
     setGoogleLoading(true)
@@ -27,7 +86,7 @@ export function LoginPage() {
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/` },
     })
-    if (error) setError(error.message)
+    if (error) setError(humanizeAuthError(error.message))
     // The successful path redirects away and unmounts this page. Re-enable the
     // button either way so a blocked/cancelled redirect doesn't strand the UI.
     setGoogleLoading(false)
@@ -66,7 +125,7 @@ export function LoginPage() {
         setMode('login')
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
+      setError(humanizeAuthError(err instanceof Error ? err.message : 'Something went wrong.'))
     } finally {
       setSubmitting(false)
     }
@@ -163,14 +222,39 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)} required autoFocus />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-[11px] font-medium text-muted-foreground">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-[11px] font-medium text-muted-foreground">Password</Label>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={resetLoading}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {resetLoading ? 'Sending…' : 'Forgot password?'}
+                  </button>
+                )}
+              </div>
               <Input id="password" type="password"
                 placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
                 value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
             </div>
 
             {error && (
-              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive">{error}</p>
+              <div className="rounded-lg bg-destructive/10 px-3 py-2 text-[12.5px] text-destructive">
+                <p>{error}</p>
+                {/* Inline recovery for the most common actionable error. */}
+                {/confirmation link/i.test(error) && (
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={submitting}
+                    className="mt-1 underline underline-offset-2 text-[11px] font-medium disabled:opacity-40"
+                  >
+                    Resend confirmation email
+                  </button>
+                )}
+              </div>
             )}
             {successMsg && (
               <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-[12.5px] text-emerald-600 dark:text-emerald-400">{successMsg}</p>

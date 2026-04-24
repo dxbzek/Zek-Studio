@@ -9,6 +9,7 @@ import { ResearchShell }  from '@/pages/shells/ResearchShell'
 import { WorkspaceShell } from '@/pages/shells/WorkspaceShell'
 
 const LoginPage              = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))
+const ResetPasswordPage      = lazy(() => import('@/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })))
 const DashboardPage          = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const BrandProfilesPage      = lazy(() => import('@/pages/BrandProfilesPage').then(m => ({ default: m.BrandProfilesPage })))
 const CompetitorResearchPage = lazy(() => import('@/pages/CompetitorResearchPage').then(m => ({ default: m.CompetitorResearchPage })))
@@ -49,6 +50,7 @@ export default function App() {
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/reset" element={<ResetPasswordPage />} />
                 <Route path="/report/:token" element={<PublicReportPage />} />
                 <Route path="/approve/:token" element={<PublicApprovalPage />} />
                 <Route element={<AppShell />}>
