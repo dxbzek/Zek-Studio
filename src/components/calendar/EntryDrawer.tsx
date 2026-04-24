@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
+import { inferContentType } from '@/lib/inferContentType'
 import { Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -77,11 +78,17 @@ export function EntryDrawer({
   saving, deleting, onSave, onDelete, onDuplicate, duplicating,
 }: EntryDrawerProps) {
   const [values, setValues] = useState<EntryFormValues>(INITIAL)
+  // True once the user has explicitly clicked a content-type chip. While
+  // false, the title-watch effect auto-fills contentType from the title so
+  // the user doesn't have to duplicate the work. In edit mode we start this
+  // true — respect whatever was saved, don't overwrite on first keystroke.
+  const typeManuallyPicked = useRef(false)
 
   useEffect(() => {
     if (!open) return
     if (mode === 'edit' && group) {
       const rep = group.representative
+      typeManuallyPicked.current = true
       setValues({
         title: rep.title,
         body: rep.body ?? '',
@@ -97,6 +104,7 @@ export function EntryDrawer({
         character: rep.character ?? '',
       })
     } else {
+      typeManuallyPicked.current = false
       setValues({
         ...INITIAL,
         date: defaultDate ?? format(new Date(), 'yyyy-MM-dd'),
@@ -104,11 +112,32 @@ export function EntryDrawer({
     }
   }, [open, mode, group, defaultDate])
 
+  // Auto-fill content type as the user types the title (create mode only,
+  // and only until they explicitly pick a chip). Silent when the helper
+  // can't match — don't flip back to the default.
+  useEffect(() => {
+    if (!open) return
+    if (typeManuallyPicked.current) return
+    const inferred = inferContentType(values.title)
+    if (inferred && inferred !== values.contentType) {
+      setValues((prev) => ({ ...prev, contentType: inferred }))
+    }
+  }, [values.title, open]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const set = <K extends keyof EntryFormValues>(k: K, v: EntryFormValues[K]) =>
     setValues((prev) => ({ ...prev, [k]: v }))
 
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const isPastDate = values.date < today
+
   async function handleSave() {
-    await onSave(values)
+    // Past-dated entries are forced to 'published' so the calendar doesn't
+    // show historical posts as still "Scheduled". DB trigger (migration 037)
+    // enforces this server-side too.
+    const final: EntryFormValues = isPastDate
+      ? { ...values, status: 'published' }
+      : values
+    await onSave(final)
   }
 
   return (
@@ -210,7 +239,10 @@ export function EntryDrawer({
                   title={ct.desc}
                   aria-label={`${ct.label} — ${ct.desc}`}
                   aria-pressed={values.contentType === ct.value}
-                  onClick={() => set('contentType', ct.value as ContentTheme)}
+                  onClick={() => {
+                    typeManuallyPicked.current = true
+                    set('contentType', ct.value as ContentTheme)
+                  }}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                     values.contentType === ct.value
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -232,8 +264,9 @@ export function EntryDrawer({
                   key={s.value}
                   type="button"
                   onClick={() => set('status', s.value)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    values.status === s.value
+                  disabled={isPastDate && s.value !== 'published'}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    (isPastDate ? 'published' : values.status) === s.value
                       ? `${CALENDAR_STATUS_CHIP[s.value]} border-transparent`
                       : 'border-border text-muted-foreground hover:text-foreground'
                   }`}
@@ -242,6 +275,11 @@ export function EntryDrawer({
                 </button>
               ))}
             </div>
+            {isPastDate && (
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Scheduled date is in the past — entry will save as Published.
+              </p>
+            )}
           </div>
 
           {/* Client Approval */}

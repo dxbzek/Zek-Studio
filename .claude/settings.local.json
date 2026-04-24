@@ -88,7 +88,9 @@
       "Bash(curl -sS -o /dev/null -D - -X OPTIONS https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Origin: http://localhost:5173\" -H \"Access-Control-Request-Method: POST\")",
       "mcp__claude_ai_Supabase__list_edge_functions",
       "Bash(supabase gen *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(git revert *)",
+      "Bash(npm uninstall *)"
     ]
   }
 }
