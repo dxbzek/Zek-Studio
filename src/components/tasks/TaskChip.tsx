@@ -10,9 +10,10 @@ import { assigneeInitial, dueMeta } from './taskConstants'
 interface TaskChipProps {
   task: Task
   linkedEntry?: CalendarEntry
+  isDragging?: boolean
 }
 
-function TaskChipImpl({ task, linkedEntry }: TaskChipProps) {
+function TaskChipImpl({ task, linkedEntry, isDragging }: TaskChipProps) {
   const due = dueMeta(task.due_date)
   const handle = task.assignee_email ? task.assignee_email.split('@')[0] : null
   const isDone = task.status === 'done'
@@ -26,9 +27,15 @@ function TaskChipImpl({ task, linkedEntry }: TaskChipProps) {
     ? 'bg-amber-500/[0.04]'
     : 'bg-card'
 
+  // Hover lift + transition-all was compounding with dnd-kit's transform while
+  // the cursor passed over other cards mid-drag, producing visible stutter.
+  // Suppress both while this card is being dragged, and drop -translate-y
+  // everywhere else — keep the border/shadow hover feedback only.
   return (
     <div
-      className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} ${urgencyTint} px-2 py-1.5 space-y-1.5 transition-all duration-150 hover:border-border/80 hover:shadow-sm hover:-translate-y-[1px] ${
+      className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} ${urgencyTint} px-2 py-1.5 space-y-1.5 ${
+        isDragging ? '' : 'transition-colors duration-150 hover:border-border/80 hover:shadow-sm'
+      } ${
         isDone ? 'opacity-75' : ''
       }`}
     >
