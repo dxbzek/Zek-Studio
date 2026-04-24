@@ -208,7 +208,7 @@ export type Database = {
         Row: {
           id: string
           brand_id: string
-          platform: string
+          platform: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter'
           content_type: string
           title: string
           body: string | null
@@ -222,13 +222,14 @@ export type Database = {
           assigned_editor: string | null
           assigned_shooter: string | null
           assigned_talent: string | null
+          character: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           brand_id: string
-          platform: string
+          platform: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter'
           content_type: string
           title: string
           body?: string | null
@@ -242,12 +243,13 @@ export type Database = {
           assigned_editor?: string | null
           assigned_shooter?: string | null
           assigned_talent?: string | null
+          character?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           brand_id?: string
-          platform?: string
+          platform?: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter'
           content_type?: string
           title?: string
           body?: string | null
@@ -261,6 +263,7 @@ export type Database = {
           assigned_editor?: string | null
           assigned_shooter?: string | null
           assigned_talent?: string | null
+          character?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -295,13 +298,37 @@ export type Database = {
         }
         Relationships: []
       }
+      growth_snapshots: {
+        Row: {
+          id: string
+          brand_id: string
+          platform: string
+          followers: number
+          recorded_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          platform: string
+          followers: number
+          recorded_at?: string
+          created_at?: string
+        }
+        Update: {
+          platform?: string
+          followers?: number
+          recorded_at?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           id: string
           brand_id: string
           user_id: string | null
           email: string
-          role: string
+          role: 'admin' | 'editor' | 'approver' | 'viewer'
           invited_at: string
           accepted_at: string | null
         }
@@ -310,13 +337,13 @@ export type Database = {
           brand_id: string
           user_id?: string | null
           email: string
-          role?: string
+          role?: 'admin' | 'editor' | 'approver' | 'viewer'
           invited_at?: string
           accepted_at?: string | null
         }
         Update: {
           user_id?: string | null
-          role?: string
+          role?: 'admin' | 'editor' | 'approver' | 'viewer'
           accepted_at?: string | null
         }
         Relationships: []
@@ -328,8 +355,8 @@ export type Database = {
           title: string
           description: string | null
           type: string
-          status: string
-          priority: string
+          status: 'todo' | 'in_progress' | 'scheduled' | 'done'
+          priority: 'low' | 'medium' | 'high'
           assignee_id: string | null
           assignee_email: string | null
           calendar_entry_id: string | null
@@ -345,8 +372,8 @@ export type Database = {
           title: string
           description?: string | null
           type?: string
-          status?: string
-          priority?: string
+          status?: 'todo' | 'in_progress' | 'scheduled' | 'done'
+          priority?: 'low' | 'medium' | 'high'
           assignee_id?: string | null
           assignee_email?: string | null
           calendar_entry_id?: string | null
@@ -361,8 +388,8 @@ export type Database = {
           title?: string
           description?: string | null
           type?: string
-          status?: string
-          priority?: string
+          status?: 'todo' | 'in_progress' | 'scheduled' | 'done'
+          priority?: 'low' | 'medium' | 'high'
           assignee_id?: string | null
           assignee_email?: string | null
           calendar_entry_id?: string | null
