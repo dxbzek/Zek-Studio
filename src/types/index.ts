@@ -256,13 +256,17 @@ export interface Task {
   assignee_email: string | null
   calendar_entry_id: string | null
   due_date: string | null
+  sort_order: number
   created_by: string | null
   created_at: string
   updated_at: string
 }
 
-export type TaskInsert = Omit<Task, 'id' | 'created_at' | 'updated_at'>
-export type TaskUpdate = Partial<TaskInsert>
+// sort_order is omitted from TaskInsert because callers rarely care — the DB
+// default (0) covers them and useTasks.createTask bumps it to the column tail
+// so new cards land at the bottom, not above backfilled rows.
+export type TaskInsert = Omit<Task, 'id' | 'sort_order' | 'created_at' | 'updated_at'>
+export type TaskUpdate = Partial<TaskInsert> & { sort_order?: number }
 
 // ─── Post Metrics ─────────────────────────────────────────────────────────────
 

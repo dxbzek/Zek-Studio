@@ -37,7 +37,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
 
   // Both owner & specialist operate on the active brand's tasks.
   // RLS (migration 019) scopes specialists to brands they're team_members of.
-  const { tasks: rawTasks, createTask, updateTask, deleteTask } = useTasks(activeBrand?.id ?? null)
+  const { tasks: rawTasks, createTask, updateTask, deleteTask, reorderTask } = useTasks(activeBrand?.id ?? null)
   const { members } = useTeam(activeBrand?.id ?? null)
 
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
@@ -119,19 +119,19 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           return b.created_at.localeCompare(a.created_at)
         case 'created_asc':
         default:
-          return a.created_at.localeCompare(b.created_at)
+          // "Manual" order: respect the server-provided sort_order so drag
+          // reorders stick. Falls back to created_at when two rows tie.
+          return (
+            a.sort_order - b.sort_order
+            || a.created_at.localeCompare(b.created_at)
+          )
       }
     })
     return sorted
   }, [allTasks, filterAssignee, filterType, searchQuery, sortBy])
 
   function tasksForColumn(status: TaskStatus) {
-    const cols = filteredTasks.filter((t) => t.status === status)
-    // Done column: most-recently-moved first so a just-dragged card lands at top.
-    if (status === 'done') {
-      return [...cols].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
-    }
-    return cols
+    return filteredTasks.filter((t) => t.status === status)
   }
 
   const statusCounts = useMemo(() => {
@@ -210,18 +210,61 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setDraggingTask(null)
     const { active, over } = event
-    if (!over) return
-    const targetStatus = over.id as TaskStatus
+    if (!over || active.id === over.id) return
     const task = allTasks.find((t) => t.id === active.id)
-    if (!task || task.status === targetStatus) return
-    const targetLabel = COLUMNS.find((c) => c.id === targetStatus)?.label ?? targetStatus
+    if (!task) return
+
+    // over.id is either a column id (dropped on empty area) or a task id
+    // (dropped onto another card, meaning "insert above that card").
+    const overIsColumn = (COLUMNS as readonly { id: TaskStatus }[]).some((c) => c.id === over.id)
+    let targetStatus: TaskStatus
+    let targetSortOrder: number
+
+    // Snapshot of the visible column after removing the dragged task, sorted
+    // by the current sort_order so fractional-index math is predictable.
+    const cardsIn = (status: TaskStatus) => allTasks
+      .filter((t) => t.status === status && t.id !== task.id)
+      .sort((a, b) => a.sort_order - b.sort_order)
+
+    if (overIsColumn) {
+      targetStatus = over.id as TaskStatus
+      const cards = cardsIn(targetStatus)
+      // Append at the end of the target column.
+      const lastOrder = cards.length > 0 ? cards[cards.length - 1].sort_order : 0
+      targetSortOrder = lastOrder + 1024
+    } else {
+      const targetTask = allTasks.find((t) => t.id === over.id)
+      if (!targetTask) return
+      targetStatus = targetTask.status
+      const cards = cardsIn(targetStatus)
+      const idx = cards.findIndex((t) => t.id === targetTask.id)
+      if (idx <= 0) {
+        // Insert at the top of this column.
+        targetSortOrder = targetTask.sort_order - 1024
+      } else {
+        const prev = cards[idx - 1]
+        targetSortOrder = (prev.sort_order + targetTask.sort_order) / 2
+      }
+    }
+
+    const statusChanged = task.status !== targetStatus
+    const orderChanged = task.sort_order !== targetSortOrder
+    if (!statusChanged && !orderChanged) return
+
     try {
-      await updateTask.mutateAsync({ id: task.id, patch: { status: targetStatus } })
-      toast.success(`Moved to ${targetLabel}`)
+      await reorderTask.mutateAsync({
+        id: task.id,
+        sort_order: targetSortOrder,
+        status: statusChanged ? targetStatus : undefined,
+      })
+      if (statusChanged) {
+        const targetLabel = COLUMNS.find((c) => c.id === targetStatus)?.label ?? targetStatus
+        toast.success(`Moved to ${targetLabel}`)
+      }
     } catch (err) {
       toast.error('Move failed', { description: errorMessage(err) })
     }
-  }, [allTasks, updateTask])
+  }, [allTasks, reorderTask])
 
   if (!activeBrand) return <NoBrandSelected />
 

@@ -334,6 +334,7 @@ export type Database = {
           assignee_email: string | null
           calendar_entry_id: string | null
           due_date: string | null
+          sort_order: number
           created_by: string | null
           created_at: string
           updated_at: string
@@ -350,6 +351,7 @@ export type Database = {
           assignee_email?: string | null
           calendar_entry_id?: string | null
           due_date?: string | null
+          sort_order?: number
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -365,6 +367,7 @@ export type Database = {
           assignee_email?: string | null
           calendar_entry_id?: string | null
           due_date?: string | null
+          sort_order?: number
           created_by?: string | null
           updated_at?: string
         }

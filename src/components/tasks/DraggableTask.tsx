@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { useDraggable } from '@dnd-kit/core'
+import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { CalendarEntry, Task } from '@/types'
 import { TaskChip } from './TaskChip'
@@ -11,16 +11,25 @@ interface DraggableTaskProps {
 }
 
 function DraggableTaskImpl({ task, linkedEntry, onClick }: DraggableTaskProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
-  // willChange: transform hints the compositor so CSS.Translate updates don't
-  // repaint. Without it, dragging a card while other chips are mid-hover
-  // (transition-all) produces visible stutter.
+  // useSortable handles both same-column reordering and cross-column drops.
+  // - animateLayoutChanges: false stops sibling cards from CSS-animating to
+  //   their new slots; without it the moving neighbor ghosts into the
+  //   dragged card's old position (what produced the blurry overlap).
+  // - The dragged card itself is hidden entirely (opacity 0 + pointer-events
+  //   none) so only the DragOverlay follows the cursor — no double image.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: { type: 'task', status: task.status },
+    animateLayoutChanges: () => false,
+  })
   return (
     <div
       ref={setNodeRef}
       style={{
         transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.4 : 1,
+        transition,
+        opacity: isDragging ? 0 : 1,
+        pointerEvents: isDragging ? 'none' : undefined,
         willChange: isDragging ? 'transform' : undefined,
       }}
       {...listeners}

@@ -1,4 +1,5 @@
 import { useDroppable } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import type { CalendarEntry, Task } from '@/types'
 import {
@@ -25,9 +26,13 @@ interface TaskColumnProps {
 export function TaskColumn({
   column, tasks, entryById, onCardClick, onAddClick, onQuickAdd, isSpecialist,
 }: TaskColumnProps) {
-  const { isOver, setNodeRef } = useDroppable({ id: column.id })
+  // useDroppable registers the column itself as a drop target (for empty
+  // columns or drops below the last card). SortableContext lets cards
+  // reorder among themselves inside this column.
+  const { isOver, setNodeRef } = useDroppable({ id: column.id, data: { type: 'column', status: column.id } })
   const Icon = column.icon
   const isEmpty = tasks.length === 0
+  const taskIds = tasks.map((t) => t.id)
   return (
     <div
       ref={setNodeRef}
@@ -56,14 +61,16 @@ export function TaskColumn({
         </div>
       )}
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 -mx-1 px-1">
-        {tasks.map((task) => (
-          <DraggableTask
-            key={task.id}
-            task={task}
-            linkedEntry={task.calendar_entry_id ? entryById.get(task.calendar_entry_id) : undefined}
-            onClick={() => onCardClick(task)}
-          />
-        ))}
+        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+          {tasks.map((task) => (
+            <DraggableTask
+              key={task.id}
+              task={task}
+              linkedEntry={task.calendar_entry_id ? entryById.get(task.calendar_entry_id) : undefined}
+              onClick={() => onCardClick(task)}
+            />
+          ))}
+        </SortableContext>
         {isEmpty && (
           <div className="rounded border border-dashed border-border/60 px-2 py-3 text-[11px] text-muted-foreground/70 text-center leading-snug">
             {column.empty}

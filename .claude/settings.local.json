@@ -86,7 +86,9 @@
       "Bash(curl -sS -o /dev/null -D - -X OPTIONS https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Origin: https://evil.example.com\" -H \"Access-Control-Request-Method: POST\")",
       "Bash(curl -sS -o /dev/null -D - -X OPTIONS https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Origin: https://zek-studio-abc123.vercel.app\" -H \"Access-Control-Request-Method: POST\")",
       "Bash(curl -sS -o /dev/null -D - -X OPTIONS https://otyksdmlepmhqwsyxvsn.supabase.co/functions/v1/ai-generate -H \"Origin: http://localhost:5173\" -H \"Access-Control-Request-Method: POST\")",
-      "mcp__claude_ai_Supabase__list_edge_functions"
+      "mcp__claude_ai_Supabase__list_edge_functions",
+      "Bash(supabase gen *)",
+      "Bash(git checkout *)"
     ]
   }
 }
