@@ -50,7 +50,9 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
-  const [sortBy, setSortBy] = useState<'created_asc' | 'created_desc' | 'due_asc' | 'priority' | 'title'>('created_asc')
+  const [sortBy, setSortBy] = useState<
+    'created_asc' | 'created_desc' | 'due_asc' | 'due_desc' | 'priority' | 'title'
+  >('due_desc')
 
   const [draggingTask, setDraggingTask] = useState<Task | null>(null)
   const collisionMissLogged = useRef(false)
@@ -117,6 +119,12 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           if (!a.due_date) return 1
           if (!b.due_date) return -1
           return a.due_date.localeCompare(b.due_date)
+        }
+        case 'due_desc': {
+          if (!a.due_date && !b.due_date) return 0
+          if (!a.due_date) return 1
+          if (!b.due_date) return -1
+          return b.due_date.localeCompare(a.due_date)
         }
         case 'priority':
           return priorityRank[a.priority] - priorityRank[b.priority]
@@ -245,12 +253,29 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       targetStatus = targetTask.status
       const cards = cardsIn(targetStatus)
       const idx = cards.findIndex((t) => t.id === targetTask.id)
-      if (idx <= 0) {
-        // Insert at the top of this column.
-        targetSortOrder = targetTask.sort_order - 1024
+
+      // Decide insert-above vs insert-below using the pointer's final Y
+      // relative to the target card's vertical center. This is what lets
+      // the user land at *any* position in a column instead of only being
+      // able to displace a card from above.
+      const activeRect = active.rect.current.translated
+      const overRect = over.rect
+      const overCenterY = overRect.top + overRect.height / 2
+      const activeCenterY = activeRect
+        ? activeRect.top + activeRect.height / 2
+        : overCenterY - 1
+      const insertBelow = activeCenterY > overCenterY
+
+      if (insertBelow) {
+        const next = cards[idx + 1]
+        targetSortOrder = next
+          ? (targetTask.sort_order + next.sort_order) / 2
+          : targetTask.sort_order + 1024
       } else {
         const prev = cards[idx - 1]
-        targetSortOrder = (prev.sort_order + targetTask.sort_order) / 2
+        targetSortOrder = prev
+          ? (prev.sort_order + targetTask.sort_order) / 2
+          : targetTask.sort_order - 1024
       }
     }
 
@@ -340,9 +365,10 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
               <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="created_asc">Oldest first</SelectItem>
-              <SelectItem value="created_desc">Newest first</SelectItem>
-              <SelectItem value="due_asc">Due date (soonest)</SelectItem>
+              <SelectItem value="due_desc">Due date (latest first)</SelectItem>
+              <SelectItem value="due_asc">Due date (soonest first)</SelectItem>
+              <SelectItem value="created_asc">Manual order (drag)</SelectItem>
+              <SelectItem value="created_desc">Newest created</SelectItem>
               <SelectItem value="priority">Priority (high first)</SelectItem>
               <SelectItem value="title">Title (A–Z)</SelectItem>
             </SelectContent>
