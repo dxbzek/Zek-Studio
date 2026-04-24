@@ -85,3 +85,22 @@ export function inferContentType(title: string): ContentTheme | null {
   }
   return null
 }
+
+// Match the title against a list of brand-created names (campaigns, pillar
+// labels). Single-word names shorter than 4 chars are skipped to avoid
+// over-matching on common small words (e.g. a campaign named "Q1" would
+// hit every "q1" in a title, which is usually not what the user wants).
+// Returns the first match's id, or null.
+export function inferByNameMatch<T extends { id: string; name: string }>(
+  title: string,
+  options: readonly T[],
+): string | null {
+  const t = title.toLowerCase()
+  if (!t.trim()) return null
+  for (const opt of options) {
+    const name = opt.name.toLowerCase().trim()
+    if (name.length < 4) continue
+    if (t.includes(name)) return opt.id
+  }
+  return null
+}

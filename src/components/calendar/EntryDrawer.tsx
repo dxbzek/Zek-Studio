@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { inferContentType } from '@/lib/inferContentType'
-import { Copy } from 'lucide-react'
+import { inferByNameMatch, inferContentType } from '@/lib/inferContentType'
+import { Copy, Loader2, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -56,6 +57,10 @@ interface EntryDrawerProps {
   onDelete: () => void
   onDuplicate: () => Promise<void>
   duplicating?: boolean
+  // Optional: when provided, a Generate button appears next to the
+  // Caption/Notes label. Parent is responsible for calling the AI generator
+  // and returning the text to paste into the body field.
+  onGenerateCaption?: (args: { title: string; platform: Platform; theme: ContentTheme }) => Promise<string | null>
 }
 
 const INITIAL: EntryFormValues = {
@@ -75,20 +80,26 @@ const INITIAL: EntryFormValues = {
 
 export function EntryDrawer({
   open, onOpenChange, mode, group, defaultDate, members, campaigns, pillars,
-  saving, deleting, onSave, onDelete, onDuplicate, duplicating,
+  saving, deleting, onSave, onDelete, onDuplicate, duplicating, onGenerateCaption,
 }: EntryDrawerProps) {
   const [values, setValues] = useState<EntryFormValues>(INITIAL)
-  // True once the user has explicitly clicked a content-type chip. While
-  // false, the title-watch effect auto-fills contentType from the title so
-  // the user doesn't have to duplicate the work. In edit mode we start this
-  // true — respect whatever was saved, don't overwrite on first keystroke.
+  const [generating, setGenerating] = useState(false)
+  // True once the user has explicitly clicked the corresponding chip. While
+  // false, the title-watch effect auto-fills that field from the title so
+  // the user doesn't have to duplicate the work. In edit mode all three
+  // start true — respect whatever was saved, don't overwrite on first
+  // keystroke.
   const typeManuallyPicked = useRef(false)
+  const campaignManuallyPicked = useRef(false)
+  const pillarManuallyPicked = useRef(false)
 
   useEffect(() => {
     if (!open) return
     if (mode === 'edit' && group) {
       const rep = group.representative
       typeManuallyPicked.current = true
+      campaignManuallyPicked.current = true
+      pillarManuallyPicked.current = true
       setValues({
         title: rep.title,
         body: rep.body ?? '',
@@ -105,6 +116,8 @@ export function EntryDrawer({
       })
     } else {
       typeManuallyPicked.current = false
+      campaignManuallyPicked.current = false
+      pillarManuallyPicked.current = false
       setValues({
         ...INITIAL,
         date: defaultDate ?? format(new Date(), 'yyyy-MM-dd'),
@@ -112,17 +125,32 @@ export function EntryDrawer({
     }
   }, [open, mode, group, defaultDate])
 
-  // Auto-fill content type as the user types the title (create mode only,
-  // and only until they explicitly pick a chip). Silent when the helper
-  // can't match — don't flip back to the default.
+  // Auto-fill content type, campaign, and pillar from the title (create
+  // mode only, and only until the user explicitly picks each chip). Silent
+  // when nothing matches — don't flip back to default or clear a previous
+  // inference when the title is edited to remove the keyword.
   useEffect(() => {
     if (!open) return
-    if (typeManuallyPicked.current) return
-    const inferred = inferContentType(values.title)
-    if (inferred && inferred !== values.contentType) {
-      setValues((prev) => ({ ...prev, contentType: inferred }))
+    const patch: Partial<EntryFormValues> = {}
+    if (!typeManuallyPicked.current) {
+      const t = inferContentType(values.title)
+      if (t && t !== values.contentType) patch.contentType = t
     }
-  }, [values.title, open]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!campaignManuallyPicked.current && campaigns.length > 0) {
+      const id = inferByNameMatch(values.title, campaigns)
+      if (id && id !== values.campaignId) patch.campaignId = id
+    }
+    if (!pillarManuallyPicked.current && pillars.length > 0) {
+      const id = inferByNameMatch(
+        values.title,
+        pillars.map((p) => ({ id: p.id, name: p.label })),
+      )
+      if (id && id !== values.pillarId) patch.pillarId = id
+    }
+    if (Object.keys(patch).length > 0) {
+      setValues((prev) => ({ ...prev, ...patch }))
+    }
+  }, [values.title, open, campaigns, pillars]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof EntryFormValues>(k: K, v: EntryFormValues[K]) =>
     setValues((prev) => ({ ...prev, [k]: v }))
@@ -138,6 +166,37 @@ export function EntryDrawer({
       ? { ...values, status: 'published' }
       : values
     await onSave(final)
+  }
+
+  async function handleGenerateCaption() {
+    if (!onGenerateCaption) return
+    if (!values.title.trim()) {
+      toast.error('Add a title first', { description: 'The generator uses the title as the brief.' })
+      return
+    }
+    if (values.platforms.length === 0) {
+      toast.error('Pick at least one platform')
+      return
+    }
+    setGenerating(true)
+    try {
+      const result = await onGenerateCaption({
+        title: values.title,
+        // First selected platform: generator operates on a single platform;
+        // the user can re-run per sibling entry if they need per-platform
+        // variants.
+        platform: values.platforms[0],
+        theme: values.contentType,
+      })
+      if (result) {
+        setValues((prev) => ({ ...prev, body: result }))
+        toast.success('Caption drafted')
+      }
+    } catch (err) {
+      toast.error('Couldn\'t draft caption', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setGenerating(false)
+    }
   }
 
   return (
@@ -176,10 +235,28 @@ export function EntryDrawer({
 
           {/* Caption / Notes */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              Caption / Notes{' '}
-              <span className="text-muted-foreground font-normal">(optional)</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">
+                Caption / Notes{' '}
+                <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              {onGenerateCaption && (
+                <button
+                  type="button"
+                  onClick={handleGenerateCaption}
+                  disabled={generating || !values.title.trim() || values.platforms.length === 0}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Use the AI generator with the title as the brief"
+                >
+                  {generating ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {generating ? 'Drafting…' : 'Generate'}
+                </button>
+              )}
+            </div>
             <Textarea
               value={values.body}
               onChange={(e) => set('body', e.target.value)}
@@ -334,7 +411,10 @@ export function EntryDrawer({
               </label>
               <Select
                 value={values.campaignId ?? '__none__'}
-                onValueChange={(v) => set('campaignId', v === '__none__' ? null : v)}
+                onValueChange={(v) => {
+                  campaignManuallyPicked.current = true
+                  set('campaignId', v === '__none__' ? null : v)
+                }}
               >
                 <SelectTrigger className="h-8 text-sm">
                   <SelectValue placeholder="None" />
@@ -359,7 +439,10 @@ export function EntryDrawer({
               <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
-                  onClick={() => set('pillarId', null)}
+                  onClick={() => {
+                    pillarManuallyPicked.current = true
+                    set('pillarId', null)
+                  }}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                     !values.pillarId
                       ? 'bg-primary text-primary-foreground border-primary'
@@ -372,7 +455,10 @@ export function EntryDrawer({
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => set('pillarId', p.id)}
+                    onClick={() => {
+                      pillarManuallyPicked.current = true
+                      set('pillarId', p.id)
+                    }}
                     style={
                       values.pillarId === p.id
                         ? { backgroundColor: p.color, color: 'white', borderColor: p.color }

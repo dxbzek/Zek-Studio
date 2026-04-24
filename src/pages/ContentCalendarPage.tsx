@@ -42,6 +42,7 @@ import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
+import { useGenerator } from '@/hooks/useGenerator'
 import { PLATFORMS } from '@/types'
 import { PlatformPill } from '@/lib/platformBrand'
 import {
@@ -52,7 +53,9 @@ import type {
   CalendarEntryInsert,
   CalendarStatus,
   ContentPillar,
+  ContentTheme,
   ContentType,
+  GeneratorPlatform,
   Platform,
 } from '@/types'
 import { EntryCardOverlay } from '@/components/calendar/EntryCard'
@@ -110,6 +113,7 @@ export function ContentCalendarPage() {
   const { tasks, createTask, updateTask } = useTasks(activeBrand?.id ?? null)
   const { campaigns } = useCampaigns(activeBrand?.id ?? null)
   const { pillars, createPillar, deletePillar } = useContentPillars(activeBrand?.id ?? null)
+  const { generate: generateContent } = useGenerator(activeBrand?.id ?? null)
 
   const teamMembers = members.data ?? []
 
@@ -399,6 +403,32 @@ export function ContentCalendarPage() {
       toast.error('Failed to delete', { description: (err as Error).message })
     }
   }
+
+  // Bridge the drawer's Generate button to the AI generator. The drawer
+  // knows the per-post info (title, platform, theme); the calendar page
+  // supplies brand + tone defaults.
+  const handleGenerateCaption = useCallback(async (args: {
+    title: string
+    platform: Platform
+    theme: ContentTheme
+  }): Promise<string | null> => {
+    // Platform → GeneratorPlatform mapping. Generator has 4 buckets; calendar
+    // has 6. Instagram/Facebook/Twitter all route through 'meta' (which is
+    // short-form social copy); LinkedIn/YouTube/TikTok map 1:1.
+    const generatorPlatform: GeneratorPlatform =
+      args.platform === 'linkedin' ? 'linkedin' :
+      args.platform === 'youtube' ? 'youtube' :
+      args.platform === 'tiktok' ? 'tiktok' : 'meta'
+    const result = await generateContent.mutateAsync({
+      theme: args.theme,
+      platform: generatorPlatform,
+      tone: 'professional',
+      source: { type: 'manual', brief: args.title },
+    })
+    // Generator returns an array of variants; first variant is the one the
+    // user sees on the Generator page as the primary.
+    return result.output?.[0] ?? null
+  }, [generateContent])
 
   async function handleDuplicate() {
     if (!editingGroup || !activeBrand) return
@@ -701,6 +731,7 @@ export function ContentCalendarPage() {
         onDelete={() => setConfirmDeleteOpen(true)}
         onDuplicate={handleDuplicate}
         duplicating={createEntry.isPending}
+        onGenerateCaption={handleGenerateCaption}
       />
 
       <PillarConfigDrawer
