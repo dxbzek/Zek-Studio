@@ -451,6 +451,22 @@ export function ContentCalendarPage() {
     }
   }, [selectedEntries, updateEntry, exitSelectMode])
 
+  const handleBulkDate = useCallback(async (newDate: string) => {
+    if (selectedEntries.length === 0 || !newDate) return
+    setBulkBusy(true)
+    try {
+      await Promise.all(selectedEntries.map((e) =>
+        updateEntry.mutateAsync({ id: e.id, patch: { scheduled_date: newDate } }),
+      ))
+      toast.success(`Moved ${selectedEntries.length} entries to ${newDate}`)
+      exitSelectMode()
+    } catch (err) {
+      toast.error('Bulk date change failed', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [selectedEntries, updateEntry, exitSelectMode])
+
   const handleBulkDelete = useCallback(async () => {
     if (selectedEntries.length === 0) return
     setBulkBusy(true)
@@ -669,19 +685,31 @@ export function ContentCalendarPage() {
         </div>
       </div>
 
-      {/* Pillar distribution bar */}
+      {/* Pillar distribution bar — live gauges showing this month's actual
+          share vs target per pillar. Bar fill = actual, vertical tick = target. */}
       {pillarDist.length > 0 && (
         <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
             <span className="text-xs text-muted-foreground font-medium">Pillars:</span>
             {pillarDist.map((p) => (
-              <div key={p.id} className="flex items-center gap-1.5">
+              <div key={p.id} className="flex items-center gap-1.5" title={`${p.count} entries this month`}>
                 <div className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />
                 <span className="text-xs text-muted-foreground">{p.label}</span>
-                <span className="text-xs font-semibold" style={{ color: p.color }}>
+                <div className="relative h-1.5 w-16 sm:w-20 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="absolute inset-y-0 left-0 transition-[width] duration-300"
+                    style={{ width: `${Math.min(100, p.actual_pct)}%`, background: p.color }}
+                  />
+                  <div
+                    className="absolute inset-y-[-2px] w-px bg-foreground/50"
+                    style={{ left: `${Math.min(100, p.target_pct)}%` }}
+                    aria-hidden
+                  />
+                </div>
+                <span className="text-xs font-semibold tabular-nums" style={{ color: p.color }}>
                   {p.actual_pct}%
                 </span>
-                <span className="text-xs text-muted-foreground">/ {p.target_pct}% target</span>
+                <span className="text-xs text-muted-foreground tabular-nums">/ {p.target_pct}%</span>
               </div>
             ))}
             <button
@@ -840,6 +868,18 @@ export function ContentCalendarPage() {
               {s.label}
             </button>
           ))}
+          <div className="h-4 w-px bg-border" />
+          <label className="text-xs text-muted-foreground flex items-center gap-1">
+            Move to
+            <input
+              type="date"
+              disabled={bulkBusy}
+              onChange={(e) => {
+                if (e.target.value) handleBulkDate(e.target.value)
+              }}
+              className="h-6 rounded border border-border bg-transparent px-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
+            />
+          </label>
           <div className="h-4 w-px bg-border" />
           <button
             type="button"

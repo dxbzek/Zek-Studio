@@ -63,6 +63,37 @@ interface EntryDrawerProps {
   onGenerateCaption?: (args: { title: string; platform: Platform; theme: ContentTheme }) => Promise<string | null>
 }
 
+// Practical per-platform caption limits. Facebook/TikTok/YouTube have very
+// high ceilings in practice and are only listed so the user sees them
+// present in the check; the meaningful warning is almost always Twitter/X.
+const PLATFORM_CHAR_LIMITS: Record<Platform, { label: string; limit: number }> = {
+  instagram: { label: 'IG', limit: 2200 },
+  facebook:  { label: 'FB', limit: 63206 },
+  tiktok:    { label: 'TikTok', limit: 2200 },
+  youtube:   { label: 'YT', limit: 5000 },
+  linkedin:  { label: 'LI', limit: 3000 },
+  twitter:   { label: 'X', limit: 280 },
+}
+
+function CaptionLimits({ body, platforms }: { body: string; platforms: Platform[] }) {
+  if (platforms.length === 0) return null
+  const len = body.length
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+      <span className="tabular-nums">{len} chars</span>
+      {platforms.map((p) => {
+        const { label, limit } = PLATFORM_CHAR_LIMITS[p]
+        const over = len > limit
+        return (
+          <span key={p} className={`tabular-nums ${over ? 'text-destructive font-medium' : ''}`}>
+            {over ? '⚠' : '✓'} {label} {len}/{limit}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 const INITIAL: EntryFormValues = {
   title: '',
   body: '',
@@ -264,6 +295,7 @@ export function EntryDrawer({
               className="resize-none"
               placeholder="Full caption, hook text, script notes…"
             />
+            <CaptionLimits body={values.body} platforms={values.platforms} />
           </div>
 
           {/* Date */}
