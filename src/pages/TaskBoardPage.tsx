@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  pointerWithin, rectIntersection,
+  pointerWithin, rectIntersection, MeasuringStrategy,
 } from '@dnd-kit/core'
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent, DropAnimation } from '@dnd-kit/core'
 import { parseISO, startOfWeek } from 'date-fns'
 import { AlertCircle, Search, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
@@ -27,6 +27,13 @@ import { COLUMNS, TASK_TYPES } from '@/components/tasks/taskConstants'
 import { TaskChip } from '@/components/tasks/TaskChip'
 import { TaskColumn } from '@/components/tasks/TaskColumn'
 import { TaskDrawer } from '@/components/tasks/TaskDrawer'
+
+// Snappy drop: 120ms is short enough to feel instant but long enough that
+// the preview doesn't just pop. null would also work but feels abrupt.
+const DROP_ANIMATION: DropAnimation = {
+  duration: 120,
+  easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+}
 
 interface TaskBoardPageProps {
   isSpecialist?: boolean
@@ -366,6 +373,11 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       <div className="flex-1 min-h-0 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
         <DndContext
           sensors={sensors}
+          // MeasuringStrategy.Always caches droppable rects up-front so
+          // dnd-kit isn't measuring mid-drag — biggest source of stutter
+          // on the old setup. Droppables only re-measure when the drag ends
+          // or layout changes.
+          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
           // pointerWithin: drop target = whichever column the pointer is inside.
           // Fall back to rectIntersection so a card whose cursor sits in the
           // inter-column gap still resolves to the nearest overlapping column.
@@ -409,9 +421,12 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
               ))}
             </div>
           </div>
-          <DragOverlay>
+          <DragOverlay dropAnimation={DROP_ANIMATION}>
             {draggingTask && (
-              <div className="shadow-lg rounded border border-border bg-card px-2 py-1.5">
+              // No wrapper div — render the chip with its own styling so the
+              // dragged preview matches the card in its slot 1:1. shadow-xl
+              // signals "picked up" without doubling padding/borders.
+              <div className="shadow-xl rounded">
                 <TaskChip
                   task={draggingTask}
                   linkedEntry={
