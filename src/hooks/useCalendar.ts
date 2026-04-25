@@ -35,6 +35,9 @@ export function useCalendar(brandId: string | null, year: number, month: number)
       return (data ?? []) as unknown as CalendarEntry[]
     },
     enabled: !!brandId,
+    // 1 minute floor — the realtime channel handles live updates, so
+    // bouncing month-to-month doesn't need to refetch every visit.
+    staleTime: 60_000,
   })
 
   // Refetch when calendar_entries change out-of-band — e.g. the DB trigger

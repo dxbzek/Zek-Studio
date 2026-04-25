@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -127,6 +127,10 @@ export function ContentCalendarPage() {
   const [filterPlatforms, setFilterPlatforms] = useState<Platform[]>(() => PLATFORMS.map((p) => p.value))
   const [filterStatus, setFilterStatus]       = useState<CalendarStatus | 'all'>('all')
   const [search, setSearch]                   = useState('')
+  // Defer the search filter so each keystroke doesn't re-run filteredEntries
+  // synchronously. The input updates instantly; the calendar grid catches up
+  // on the next idle frame.
+  const deferredSearch = useDeferredValue(search)
 
   const filteredEntries = useMemo(() => {
     let result = entries.data ?? []
@@ -134,8 +138,8 @@ export function ContentCalendarPage() {
       result = result.filter((e) => filterPlatforms.includes(e.platform))
     if (filterStatus !== 'all')
       result = result.filter((e) => e.status === filterStatus)
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.trim().toLowerCase()
       result = result.filter((e) =>
         e.title.toLowerCase().includes(q) ||
         (e.body ?? '').toLowerCase().includes(q) ||
@@ -143,11 +147,24 @@ export function ContentCalendarPage() {
       )
     }
     return result
-  }, [entries.data, filterPlatforms, filterStatus, search])
+  }, [entries.data, filterPlatforms, filterStatus, deferredSearch])
 
   const allGroups = useMemo(() => groupEntries(filteredEntries), [filteredEntries])
-  const groupsForDay = (day: Date) =>
-    allGroups.filter((g) => g.representative.scheduled_date === format(day, 'yyyy-MM-dd'))
+  // Bucket groups by their scheduled_date once instead of running an
+  // O(groups) filter for each of the 42 day cells on every render. Cuts
+  // selection-toggle / drag-tick re-render cost from ~2k filter ops on a
+  // 50-entry brand to a constant-time Map lookup.
+  const groupsByDate = useMemo(() => {
+    const m = new Map<string, EntryGroup[]>()
+    for (const g of allGroups) {
+      const key = g.representative.scheduled_date
+      const list = m.get(key)
+      if (list) list.push(g)
+      else m.set(key, [g])
+    }
+    return m
+  }, [allGroups])
+  const groupsForDay = (day: Date) => groupsByDate.get(format(day, 'yyyy-MM-dd')) ?? []
 
   const firstDay  = startOfMonth(new Date(viewYear, viewMonth))
   const monthDays = eachDayOfInterval({

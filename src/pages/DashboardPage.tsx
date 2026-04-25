@@ -208,7 +208,11 @@ export function DashboardPage() {
   )
 
   const firstName = activeBrand?.name?.split(' ')[0] || 'there'
-  const greetingWeekRange = `${format(new Date(), 'MMM d')} – ${format(new Date(Date.now() + 6 * 86400000), 'MMM d')}`
+  // Date range only changes when the day rolls over; cheap-and-correct
+  // useMemo keeps the string stable across render cycles within a day.
+  const greetingWeekRange = useMemo(() =>
+    `${format(new Date(), 'MMM d')} – ${format(new Date(Date.now() + 6 * 86400000), 'MMM d')}`,
+  [])
 
   if (isLoading) {
     return (

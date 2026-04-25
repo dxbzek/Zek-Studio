@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react'
 import {
   DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors,
   pointerWithin, rectIntersection, MeasuringStrategy,
@@ -50,6 +50,9 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   const [filterAssignee, setFilterAssignee] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
+  // Defer search so the input doesn't block filtering every keystroke when
+  // the board has hundreds of tasks.
+  const deferredSearch = useDeferredValue(searchQuery)
   const [sortBy, setSortBy] = useState<
     'created_asc' | 'created_desc' | 'due_asc' | 'due_desc' | 'priority' | 'title'
   >('due_desc')
@@ -103,7 +106,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
     let result = allTasks
     if (filterAssignee !== 'all') result = result.filter((t) => t.assignee_email === filterAssignee)
     if (filterType !== 'all') result = result.filter((t) => t.type === filterType)
-    const q = searchQuery.trim().toLowerCase()
+    const q = deferredSearch.trim().toLowerCase()
     if (q) {
       result = result.filter((t) =>
         t.title.toLowerCase().includes(q) ||
@@ -143,7 +146,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       }
     })
     return sorted
-  }, [allTasks, filterAssignee, filterType, searchQuery, sortBy])
+  }, [allTasks, filterAssignee, filterType, deferredSearch, sortBy])
 
   function tasksForColumn(status: TaskStatus) {
     return filteredTasks.filter((t) => t.status === status)

@@ -19,6 +19,9 @@ export function usePostMetrics(brandId: string | null) {
       return (data ?? []) as PostMetric[]
     },
     enabled: !!brandId,
+    // Metrics get logged at most a few times a day. 10-minute cache means
+    // /analytics navigation stays instant inside a session.
+    staleTime: 600_000,
   })
 
   const logMetric = useMutation({

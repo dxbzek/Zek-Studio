@@ -99,6 +99,9 @@ export function useCompetitorPosts(
         .select('*')
         .eq('brand_id', brandId)
         .order('created_at', { ascending: false })
+        // Cap at 200 most-recent posts per query. Brands with months of
+        // research can otherwise pull thousands of rows on every page mount.
+        .limit(200)
 
       if (competitorId) {
         query = query.eq('competitor_id', competitorId)

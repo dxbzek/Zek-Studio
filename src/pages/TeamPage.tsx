@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { UserPlus, Trash2, X, Plus, Check, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -68,7 +68,19 @@ function groupPeople(members: TeamMember[], brands: BrandProfile[]): Person[] {
 
 // ─── Row ──────────────────────────────────────────────────────────────────────
 
-function PersonRow({
+// Memoized: parent renders a list of people and re-renders on selection,
+// busy flips, and form input. Stable callbacks come in via the parent's
+// useCallback so memo's shallow equality holds.
+interface PersonRowProps {
+  person: Person
+  availableBrands: BrandProfile[]
+  onRevoke: (member: TeamMember) => void
+  onGrant: (email: string, brandId: string) => void
+  onRemoveAll: (person: Person) => void
+  onChangeRole: (member: TeamMember, role: TeamRole) => void
+  busy: boolean
+}
+const PersonRow = memo(function PersonRow({
   person,
   availableBrands,
   onRevoke,
@@ -76,15 +88,7 @@ function PersonRow({
   onRemoveAll,
   onChangeRole,
   busy,
-}: {
-  person: Person
-  availableBrands: BrandProfile[]
-  onRevoke: (member: TeamMember) => void
-  onGrant: (brandId: string) => void
-  onRemoveAll: () => void
-  onChangeRole: (member: TeamMember, role: TeamRole) => void
-  busy: boolean
-}) {
+}: PersonRowProps) {
   const hasAccess = new Set(person.access.map((a) => a.brand.id))
   const grantable = availableBrands.filter((b) => !hasAccess.has(b.id))
 
@@ -141,7 +145,7 @@ function PersonRow({
                   <DropdownMenuItem
                     key={brand.id}
                     className="gap-2"
-                    onClick={() => onGrant(brand.id)}
+                    onClick={() => onGrant(person.email, brand.id)}
                   >
                     <BrandAvatar brand={brand} size={20} rounded="full" />
                     <span className="truncate">{brand.name}</span>
@@ -158,7 +162,7 @@ function PersonRow({
         variant="ghost"
         size="icon"
         className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-        onClick={onRemoveAll}
+        onClick={() => onRemoveAll(person)}
         disabled={busy}
         title="Remove from all brands"
         aria-label={`Remove ${person.email} from all brands`}
@@ -167,7 +171,7 @@ function PersonRow({
       </Button>
     </div>
   )
-}
+})
 
 function BrandChip({
   brand,
@@ -427,7 +431,9 @@ export default function TeamPage() {
     }
   }
 
-  async function handleRevoke(member: TeamMember) {
+  // useCallback so PersonRow's memo equality holds when the parent re-renders
+  // for unrelated reasons (busy flips, dialogs, list changes).
+  const handleRevoke = useCallback(async (member: TeamMember) => {
     setWorking(true)
     try {
       await revokeAccess.mutateAsync(member.id)
@@ -437,9 +443,9 @@ export default function TeamPage() {
     } finally {
       setWorking(false)
     }
-  }
+  }, [revokeAccess.mutateAsync])
 
-  async function handleGrant(email: string, brandId: string) {
+  const handleGrant = useCallback(async (email: string, brandId: string) => {
     setWorking(true)
     try {
       await grantAccess.mutateAsync({ email, brandId, role: 'editor' })
@@ -449,9 +455,9 @@ export default function TeamPage() {
     } finally {
       setWorking(false)
     }
-  }
+  }, [grantAccess.mutateAsync])
 
-  async function handleChangeRole(member: TeamMember, role: TeamRole) {
+  const handleChangeRole = useCallback(async (member: TeamMember, role: TeamRole) => {
     if (member.role === role) return
     setWorking(true)
     try {
@@ -462,7 +468,7 @@ export default function TeamPage() {
     } finally {
       setWorking(false)
     }
-  }
+  }, [updateRole.mutateAsync])
 
   async function handleRemoveAll(person: Person) {
     setWorking(true)
@@ -538,8 +544,8 @@ export default function TeamPage() {
                 person={person}
                 availableBrands={brands}
                 onRevoke={handleRevoke}
-                onGrant={(brandId) => handleGrant(person.email, brandId)}
-                onRemoveAll={() => setConfirmRemove(person)}
+                onGrant={handleGrant}
+                onRemoveAll={setConfirmRemove}
                 onChangeRole={handleChangeRole}
                 busy={working}
               />

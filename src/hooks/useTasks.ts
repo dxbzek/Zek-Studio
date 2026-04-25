@@ -29,6 +29,9 @@ export function useTasks(brandId: string | null) {
       return (data ?? []) as unknown as Task[]
     },
     enabled: !!brandId,
+    // Realtime channel handles live updates; 1 minute cache stops route
+    // bounces (Tasks → Calendar → Tasks) from refetching the board.
+    staleTime: 60_000,
   })
 
   useEffect(() => {
