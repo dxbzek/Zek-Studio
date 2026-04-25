@@ -53,12 +53,20 @@ Deno.serve(async (req) => {
       .eq('id', brand_id)
       .single()
 
-    const prompt = `You are a social media content expert for ${brand.name}, a ${brand.niche} brand.
+    const prompt = `You are repurposing social media content for ${brand.name}, a ${brand.niche} brand.
 
 ORIGINAL ${(content_type as string).toUpperCase()} (written for ${original_platform}):
 "${original_content}"
 
-Rewrite this ${content_type} for each platform below, adapting length, tone, hashtags, and format to fit platform norms. Keep the core message — make it native to each platform.
+Rewrite this ${content_type} for each platform below, adapting length, hashtags, and format to fit platform norms. Keep the core message — make it native to each platform.
+
+VOICE — match the original's voice; do not "improve" it:
+- If the original is plain and direct, do not add hype, filler emojis, or "🔥 Big news!" intros.
+- Real person tone. Short sentences. Contractions. No corporate or motivational framing.
+- No buzzwords: thriving, unlock, leverage, dynamic, synergy, game-changer, journey, empower, curated, seamless, cutting-edge, innovative, robust.
+- No filler closers like "What are your thoughts?" / "Let me know in the comments!" unless the original ends that way.
+- LinkedIn does NOT need to start with "🚀" or "Excited to share" — write it like a competent person, not a LinkedIn parody.
+- Max 1-2 emojis per variant, only if the platform truly expects them.
 
 ${REPURPOSE_PLATFORMS.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 

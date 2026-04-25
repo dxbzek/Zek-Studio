@@ -42,6 +42,14 @@ Deno.serve(async (req) => {
     if (mode === 'ideas') {
       const prompt = `Generate 5 blog post title ideas for a ${niche} brand called "${brandName}".
 Focus on topics that rank well in traditional SEO, appear in AI-generated answers (AEO), and get cited in generative engine results (GEO).
+
+VOICE — these are real working titles, not SEO-bait listicles:
+- Sound like a knowledgeable Dubai real estate professional, not a content farm.
+- No "Top X" / "Ultimate Guide to" / "X Things You Need to Know" / "You Won't Believe" patterns unless the topic genuinely calls for a list.
+- No "In 2025" / "In Today's Market" filler tacked onto the end.
+- Banned words: thriving, unlock, leverage, dynamic, synergy, game-changer, journey, empower, curated, seamless, cutting-edge, innovative, robust.
+- Specific beats generic. "Why JVC rents are softening in Q2" beats "Trends in Dubai's Rental Market".
+
 Return ONLY a JSON array of 5 strings, nothing else. Example: ["Title 1", "Title 2"]`
 
       const raw = await groq(prompt, 512)
@@ -54,7 +62,16 @@ Return ONLY a JSON array of 5 strings, nothing else. Example: ["Title 1", "Title
 
     if (mode === 'draft') {
       const kwHint = targetKeyword ? ` Target keyword: "${targetKeyword}".` : ''
-      const prompt = `Write a comprehensive, publish-ready blog post for "${brandName}" (a ${niche} brand) with the title: "${title}".${kwHint}
+      const prompt = `Write a publish-ready blog post for "${brandName}" (a ${niche} brand) with the title: "${title}".${kwHint}
+
+VOICE — write like a real Dubai real estate person who's actually closed deals, not like ChatGPT:
+- Plain everyday language. Short sentences. Contractions. First person where natural.
+- No motivational openers. No breathless adjectives. No "In today's fast-paced world," "Whether you're a seasoned investor or just starting," "It's no secret that," "In conclusion," or any other AI-blog filler.
+- No "Game-changing," "You won't believe," "ultimate guide," "must-know" framing.
+- Banned words: thriving, unlock, leverage, dynamic, synergy, game-changer, journey, empower, curated, seamless, cutting-edge, innovative, robust.
+- Be specific and concrete. Real numbers, real areas, real situations beat generic advice.
+- Don't start the post with "Welcome to" or by restating the title. Just begin.
+- No emojis anywhere in the body.
 
 Requirements:
 - Output ONLY clean HTML using these tags: <h1>, <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>. No other tags.

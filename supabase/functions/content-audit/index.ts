@@ -107,7 +107,13 @@ ${JSON.stringify(summary, null, 2)}
 
 Return exactly 4 specific, data-driven insights as a JSON array. Each object must have:
 - "category": one of "Engagement", "Reach", "Posting Strategy", "Platform Mix"
-- "text": the insight referencing actual numbers + a clear recommendation
+- "text": state the number, then say what it means and what to do — in two short sentences max.
+
+VOICE for the "text" field — sound like a friend who actually looked at the data, not a SaaS dashboard:
+- Plain language. No buzzwords (no "leverage", "unlock", "thriving", "synergy", "game-changing", "robust", "dynamic").
+- No motivational tone. No "Great job!" / "Keep up the momentum!" / "Your engagement is thriving."
+- Lead with the actual number, not adjectives. "Instagram averages 2.1K views vs TikTok's 8.4K — focus the next 3 posts there." beats "Your TikTok performance is thriving!"
+- No emojis.
 
 Output ONLY valid JSON, no markdown, no explanation:
 [{"category":"...","text":"..."},...]`
