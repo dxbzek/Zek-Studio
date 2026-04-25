@@ -16,6 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useTasks } from '@/hooks/useTasks'
 import { useTeam } from '@/hooks/useTeam'
@@ -306,7 +307,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
           <div className="eyebrow mb-1.5">Collaborate</div>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Tasks</h1>
@@ -322,7 +323,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       </div>
 
       {/* Stats ribbon */}
-      <div className="px-6 pb-3 flex items-center gap-4 flex-wrap text-xs text-muted-foreground shrink-0">
+      <div className="px-4 sm:px-6 pb-3 flex items-center gap-4 flex-wrap text-xs text-muted-foreground shrink-0">
         {COLUMNS.map((c) => (
           <span key={c.id} className="flex items-center gap-1.5">
             <span className={`h-1.5 w-1.5 rounded-full ${TASK_STATUS_DOT[c.id]}`} />
@@ -340,7 +341,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
 
       {/* Filter bar */}
       {!isSpecialist && (
-        <div className="px-6 pb-3 flex items-center gap-2 flex-wrap border-b border-border shrink-0">
+        <div className="px-4 sm:px-6 pb-3 flex items-center gap-2 flex-wrap border-b border-border shrink-0">
           <Select value={filterAssignee} onValueChange={setFilterAssignee}>
             <SelectTrigger className="h-7 text-xs w-auto min-w-[100px] max-w-[160px]">
               <SelectValue placeholder="All assignees" />
@@ -399,7 +400,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       )}
 
       {/* Board */}
-      <div className="flex-1 min-h-0 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
+      <div className="flex-1 min-h-0 overflow-hidden px-4 sm:px-6 pb-6 pt-4 flex flex-col">
         <DndContext
           sensors={sensors}
           // MeasuringStrategy.Always caches droppable rects up-front so
@@ -482,12 +483,11 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
           </div>
         )}
         {!rawTasks.isLoading && !rawTasks.isError && allTasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">
-              {isSpecialist ? 'No tasks assigned to you yet.' : 'No tasks yet. Create your first task.'}
-            </p>
-          </div>
+          <EmptyState
+            icon={AlertCircle}
+            title={isSpecialist ? 'No tasks assigned to you yet.' : 'No tasks yet'}
+            description={isSpecialist ? undefined : 'Create your first task to get started.'}
+          />
         )}
       </div>
 

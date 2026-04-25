@@ -560,7 +560,7 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
           <div className="eyebrow mb-1.5">Performance overview · {activeBrand.name}</div>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>
@@ -574,7 +574,7 @@ export default function AnalyticsPage() {
 
       {/* Editorial hero card */}
       {summary && (
-        <div className="px-6 pb-4 shrink-0">
+        <div className="px-4 sm:px-6 pb-4 shrink-0">
           <div className="rounded-xl border border-border bg-card overflow-hidden grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr]">
             {/* Left — big reach number */}
             <div className="p-5 border-b lg:border-b-0 lg:border-r border-border">
@@ -652,7 +652,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-6">
         {/* Brand Accounts */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2 justify-between">

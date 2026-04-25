@@ -1,6 +1,8 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Outlet, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, Download, X as XIcon, Plus, CalendarDays, ListChecks, Megaphone } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
+import { useUiState } from '@/stores/uiState'
 import { Sidebar } from './Sidebar'
 import { SpecialistShell } from './SpecialistShell'
 import { ThemeToggle } from './ThemeToggle'
@@ -81,6 +83,10 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
 function MobileQuickAdd() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  // Hide while the calendar is in bulk-edit mode — its action bar shares the
+  // bottom-right zone and the user is mid-action, not browsing.
+  const calendarSelectMode = useUiState((s) => s.calendarSelectMode)
+  if (calendarSelectMode) return null
 
   return (
     <div className="sm:hidden fixed bottom-4 right-4 z-30">
@@ -179,7 +185,7 @@ export function AppShell() {
   if (authLoading || (user && roleLoading)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <LoadingState variant="page" />
       </div>
     )
   }
@@ -214,13 +220,7 @@ export function AppShell() {
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <div className="mx-auto w-full max-w-[1400px]">
-            <Suspense
-              fallback={
-                <div className="flex min-h-[40vh] items-center justify-center">
-                  <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden />
-                </div>
-              }
-            >
+            <Suspense fallback={<LoadingState variant="page" />}>
               <Outlet />
             </Suspense>
           </div>

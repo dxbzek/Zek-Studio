@@ -486,7 +486,7 @@ export default function TeamPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
           <div className="eyebrow mb-1.5">Collaborate</div>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>
@@ -502,7 +502,7 @@ export default function TeamPage() {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
         {brands.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">Create a brand first before inviting specialists.</p>

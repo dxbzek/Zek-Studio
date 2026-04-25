@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
+import { useUiState } from '@/stores/uiState'
 import { useCalendar } from '@/hooks/useCalendar'
 import { useTeam } from '@/hooks/useTeam'
 import { useTasks } from '@/hooks/useTasks'
@@ -94,6 +95,13 @@ export function ContentCalendarPage() {
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false)
+  // Surface select-mode to the AppShell so the mobile FAB can hide while
+  // the bulk-edit bar is visible — they share the bottom-right area.
+  const setUiSelectMode = useUiState((s) => s.setCalendarSelectMode)
+  useEffect(() => {
+    setUiSelectMode(selectMode)
+    return () => setUiSelectMode(false)
+  }, [selectMode, setUiSelectMode])
   useEffect(() => {
     if (typeof window === 'undefined') return
     const mq = window.matchMedia('(max-width: 767px)')

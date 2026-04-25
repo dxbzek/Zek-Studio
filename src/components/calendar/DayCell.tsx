@@ -58,7 +58,7 @@ export function DayCell({
         )}
       </div>
       {isUpcomingEmpty && (
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50 self-start px-1 py-0.5 rounded border border-dashed border-muted-foreground/20">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground self-start px-1 py-0.5 rounded border border-dashed border-border">
           No post
         </span>
       )}

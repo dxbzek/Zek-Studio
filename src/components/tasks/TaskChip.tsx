@@ -43,7 +43,7 @@ function TaskChipImpl({ task, linkedEntry, isDragging }: TaskChipProps) {
         <span className="text-xs text-foreground leading-snug line-clamp-2 flex-1 flex items-center gap-1">
           {linkedEntry && (
             <Link2
-              className="h-3 w-3 shrink-0 text-muted-foreground/70"
+              className="h-3 w-3 shrink-0 text-muted-foreground"
               aria-label="Linked to calendar entry"
             />
           )}

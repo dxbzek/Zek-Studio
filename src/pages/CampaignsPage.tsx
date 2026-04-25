@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
-import { Pencil, Trash2, Loader2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
+import { LoadingState } from '@/components/ui/loading-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -145,7 +147,7 @@ export default function CampaignsPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 flex items-start justify-between gap-4 shrink-0">
         <div>
           <div className="eyebrow mb-1.5">Collaborate</div>
           <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 500, lineHeight: 1.05, letterSpacing: '-0.025em' }}>Campaigns</h1>
@@ -155,20 +157,21 @@ export default function CampaignsPage() {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
         {campaigns.isLoading ? (
-          <div className="flex items-center gap-2 py-6 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Loading campaigns…</span>
+          <div className="py-6">
+            <LoadingState variant="inline" label="Loading campaigns…" />
           </div>
         ) : list.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-muted-foreground text-sm">No campaigns yet.</p>
-            <p className="text-muted-foreground text-xs mt-1">Create your first campaign to group calendar entries together.</p>
-            <Button size="sm" variant="outline" className="mt-4" onClick={openCreate}>
-              New Campaign
-            </Button>
-          </div>
+          <EmptyState
+            title="No campaigns yet"
+            description="Create your first campaign to group calendar entries together."
+            cta={
+              <Button size="sm" variant="outline" onClick={openCreate}>
+                New Campaign
+              </Button>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {list.map((campaign) => (

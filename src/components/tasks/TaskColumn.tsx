@@ -91,7 +91,7 @@ export function TaskColumn({
           </>
         )}
         {isEmpty && !isLoading && (
-          <div className="rounded border border-dashed border-border/60 px-2 py-3 text-[11px] text-muted-foreground/70 text-center leading-snug">
+          <div className="rounded border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground text-center leading-snug">
             {column.empty}
           </div>
         )}
