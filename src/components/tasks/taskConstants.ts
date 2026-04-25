@@ -11,7 +11,7 @@ export const COLUMNS: {
   { id: 'todo',        label: 'To Do',       icon: Circle,       empty: 'Nothing queued' },
   { id: 'in_progress', label: 'In Progress', icon: Loader2,      empty: 'Pick something up →' },
   { id: 'scheduled',   label: 'Scheduled',   icon: Clock,        empty: 'Drop here to schedule' },
-  { id: 'done',        label: 'Done',        icon: CheckCircle2, empty: 'Ship something 🚀' },
+  { id: 'done',        label: 'Done',        icon: CheckCircle2, empty: 'Nothing shipped yet.' },
 ]
 
 export const TASK_TYPES: { value: TaskType; label: string; icon: typeof Circle }[] = [

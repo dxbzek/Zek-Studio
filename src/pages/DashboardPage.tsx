@@ -227,10 +227,10 @@ export function DashboardPage() {
         </div>
         <div>
           <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 500, letterSpacing: '-0.025em' }}>
-            Welcome to Zek Studio
+            Add a brand to begin.
           </h2>
           <p className="mt-2 text-[13px] text-muted-foreground">
-            Create your first brand profile to get started.
+            One profile per client or brand you create for. Add as many as you need.
           </p>
         </div>
         <Button asChild>
@@ -278,7 +278,7 @@ export function DashboardPage() {
                 <Link to="/calendar"><CalendarDays className="h-3.5 w-3.5" /> This Week</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link to="/content"><Sparkles className="h-3.5 w-3.5" /> Ask Zek</Link>
+                <Link to="/content"><Sparkles className="h-3.5 w-3.5" /> Generate post</Link>
               </Button>
             </div>
           </div>

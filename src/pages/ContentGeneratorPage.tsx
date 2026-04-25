@@ -504,7 +504,7 @@ export function ContentGeneratorPage() {
           {sourceMode === 'manual' && (
             <div className="space-y-1">
               <Textarea
-                placeholder="Describe your content idea… (e.g. 'Why Palm Jumeirah villas are the best investment in 2025')"
+                placeholder="What's the post about? A topic, an angle, or a rough hook works."
                 value={manualBrief}
                 onChange={(e) => setManualBrief(e.target.value)}
                 onKeyDown={(e) => {

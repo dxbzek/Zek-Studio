@@ -122,7 +122,7 @@ export function CompetitorResearchPage() {
     setSavingPostId(postId)
     try {
       await saveHook.mutateAsync({ text, source_post_id: postId, platform })
-      toast.success('Hook saved!')
+      toast.success('Hook saved')
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -156,7 +156,7 @@ export function CompetitorResearchPage() {
     setTranscribingPostId(postId)
     try {
       await transcribePost.mutateAsync({ postId, videoUrl })
-      toast.success('Script transcribed!')
+      toast.success('Script transcribed')
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
