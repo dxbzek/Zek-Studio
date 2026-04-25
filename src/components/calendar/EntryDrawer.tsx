@@ -16,6 +16,7 @@ import { PlatformPill } from '@/lib/platformBrand'
 import {
   APPROVAL_STATUS_LABEL, APPROVAL_STATUS_SOLID, CALENDAR_STATUS_CHIP,
 } from '@/lib/statusTokens'
+import { useActiveBrand } from '@/stores/activeBrand'
 import {
   CONTENT_THEMES, PLATFORMS,
 } from '@/types'
@@ -109,10 +110,13 @@ const INITIAL: EntryFormValues = {
   character: '',
 }
 
+const ALL_PLATFORMS = PLATFORMS.map((p) => p.value)
+
 export function EntryDrawer({
   open, onOpenChange, mode, group, defaultDate, members, campaigns, pillars,
   saving, deleting, onSave, onDelete, onDuplicate, duplicating, onGenerateCaption,
 }: EntryDrawerProps) {
+  const { activeBrand } = useActiveBrand()
   const [values, setValues] = useState<EntryFormValues>(INITIAL)
   const [generating, setGenerating] = useState(false)
   // True once the user has explicitly clicked the corresponding chip. While
@@ -149,12 +153,19 @@ export function EntryDrawer({
       typeManuallyPicked.current = false
       campaignManuallyPicked.current = false
       pillarManuallyPicked.current = false
+      // Pre-select the brand's connected platforms so the user doesn't tap
+      // through them every time. Fall back to all platforms if the brand
+      // hasn't configured any, so the form is never empty.
+      const brandPlatforms = activeBrand?.platforms?.length
+        ? (activeBrand.platforms as Platform[])
+        : ALL_PLATFORMS
       setValues({
         ...INITIAL,
+        platforms: brandPlatforms,
         date: defaultDate ?? format(new Date(), 'yyyy-MM-dd'),
       })
     }
-  }, [open, mode, group, defaultDate])
+  }, [open, mode, group, defaultDate, activeBrand])
 
   // Auto-fill content type, campaign, and pillar from the title (create
   // mode only, and only until the user explicitly picks each chip). Silent
