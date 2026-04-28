@@ -1,4 +1,4 @@
-import type { ApprovalStatus, CalendarStatus, TaskPriority, TaskStatus, TaskType } from '@/types'
+import type { ApprovalStatus, CalendarStatus, ContentFormat, TaskPriority, TaskStatus, TaskType } from '@/types'
 
 // Unified status palette. "Scheduled" uses the same amber across Calendar and
 // Tasks so the concept reads the same on either surface. Todo maps to the
@@ -21,6 +21,30 @@ export const CALENDAR_STATUS_DOT: Record<CalendarStatus, string> = {
   draft:     'bg-zinc-400',
   scheduled: 'bg-amber-400',
   published: 'bg-emerald-500',
+}
+
+// Content-format palette. Reel=purple, Carousel=blue, Static=emerald,
+// Emergency Backup=red. Tints are deliberately faint (5%) so they layer
+// under existing status borders without competing with them on the grid.
+export const CONTENT_FORMAT_CHIP: Record<ContentFormat, string> = {
+  reel:             'bg-purple-500/10 text-purple-700 dark:text-purple-300',
+  carousel:         'bg-blue-500/10 text-blue-700 dark:text-blue-300',
+  static:           'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  emergency_backup: 'bg-red-500/10 text-red-700 dark:text-red-300',
+}
+
+export const CONTENT_FORMAT_TINT: Record<ContentFormat, string> = {
+  reel:             'bg-purple-500/[0.06]',
+  carousel:         'bg-blue-500/[0.06]',
+  static:           'bg-emerald-500/[0.06]',
+  emergency_backup: 'bg-red-500/[0.08]',
+}
+
+export const CONTENT_FORMAT_SOLID: Record<ContentFormat, string> = {
+  reel:             'bg-purple-500 text-white border-purple-500',
+  carousel:         'bg-blue-500 text-white border-blue-500',
+  static:           'bg-emerald-500 text-white border-emerald-500',
+  emergency_backup: 'bg-red-500 text-white border-red-500',
 }
 
 export const TASK_STATUS_CHIP: Record<TaskStatus, string> = {

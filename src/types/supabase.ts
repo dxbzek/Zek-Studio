@@ -214,6 +214,7 @@ export type Database = {
           body: string | null
           script: string | null
           notes: string | null
+          format: string | null
           scheduled_date: string
           status: string
           generated_content_id: string | null
@@ -237,6 +238,7 @@ export type Database = {
           body?: string | null
           script?: string | null
           notes?: string | null
+          format?: string | null
           scheduled_date: string
           status?: string
           generated_content_id?: string | null
@@ -259,6 +261,7 @@ export type Database = {
           body?: string | null
           script?: string | null
           notes?: string | null
+          format?: string | null
           scheduled_date?: string
           status?: string
           generated_content_id?: string | null

@@ -168,6 +168,18 @@ export const CONTENT_THEMES: { value: ContentTheme; label: string; desc: string 
   { value: 'area_spotlight',    label: 'Area Spotlight',    desc: 'Dubai neighborhood guide' },
 ]
 
+// Format = how the post is delivered (orthogonal to content theme).
+// Emergency Backup is for evergreen fallback assets (mainly static or carousel,
+// max 4 slides) — flagged with its own color so it stands out on the calendar.
+export type ContentFormat = 'reel' | 'carousel' | 'static' | 'emergency_backup'
+
+export const CONTENT_FORMATS: { value: ContentFormat; label: string; short: string; desc: string }[] = [
+  { value: 'reel',             label: 'Reel',             short: 'R',  desc: 'Vertical short-form video' },
+  { value: 'carousel',         label: 'Carousel',         short: 'C',  desc: 'Multi-slide swipe post' },
+  { value: 'static',           label: 'Static',           short: 'S',  desc: 'Single image' },
+  { value: 'emergency_backup', label: 'Emergency Backup', short: 'EB', desc: 'Evergreen backup. Static or carousel, max 4 slides.' },
+]
+
 export type GenerateSource =
   | { type: 'trending_topic'; title: string; summary: string }
   | { type: 'competitor_post'; caption: string | null; hook: string | null; views: number | null; likes: number | null; comments: number | null; shares: number | null; platform: string | null; transcript: string | null }
@@ -198,6 +210,7 @@ export interface CalendarEntry {
   body: string | null
   script: string | null
   notes: string | null
+  format: ContentFormat | null
   scheduled_date: string
   status: CalendarStatus
   generated_content_id: string | null

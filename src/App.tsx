@@ -23,6 +23,7 @@ const AnalyticsPage          = lazy(() => import('@/pages/AnalyticsPage'))
 const CampaignsPage          = lazy(() => import('@/pages/CampaignsPage'))
 const PublicReportPage       = lazy(() => import('@/pages/PublicReportPage'))
 const PublicApprovalPage     = lazy(() => import('@/pages/PublicApprovalPage'))
+const PrintEntryPage         = lazy(() => import('@/pages/PrintEntryPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +54,7 @@ export default function App() {
                 <Route path="/reset" element={<ResetPasswordPage />} />
                 <Route path="/report/:token" element={<PublicReportPage />} />
                 <Route path="/approve/:token" element={<PublicApprovalPage />} />
+                <Route path="/print/entry/:id" element={<PrintEntryPage />} />
                 <Route element={<AppShell />}>
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/brands" element={<BrandProfilesPage />} />

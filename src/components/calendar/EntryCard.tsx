@@ -3,9 +3,16 @@ import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import {
   APPROVAL_STATUS_DOT, CALENDAR_STATUS_BORDER, CALENDAR_STATUS_DOT,
+  CONTENT_FORMAT_CHIP, CONTENT_FORMAT_TINT,
 } from '@/lib/statusTokens'
+import { CONTENT_FORMATS } from '@/types'
+import type { ContentFormat } from '@/types'
 import { PlatformStack } from './PlatformStack'
 import type { EntryGroup } from './entryGroups'
+
+const FORMAT_SHORT: Record<ContentFormat, string> = Object.fromEntries(
+  CONTENT_FORMATS.map((f) => [f.value, f.short]),
+) as Record<ContentFormat, string>
 
 interface EntryCardProps {
   group: EntryGroup
@@ -24,6 +31,9 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
     useDraggable({ id: group.id, disabled: selectMode })
 
   const approvalDot = rep.approval_status ? APPROVAL_STATUS_DOT[rep.approval_status] : null
+  const fmt = rep.format as ContentFormat | null
+  const tintClass = fmt ? CONTENT_FORMAT_TINT[fmt] : 'bg-card'
+  const formatPillClass = fmt ? CONTENT_FORMAT_CHIP[fmt] : ''
 
   const handleClick = (e: MouseEvent) => {
     e.stopPropagation()
@@ -38,7 +48,7 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
       {...(selectMode ? {} : listeners)}
       {...(selectMode ? {} : attributes)}
       onClick={handleClick}
-      className={`${selectMode ? 'cursor-pointer' : 'cursor-pointer'} rounded border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} bg-card px-1.5 py-1 text-xs ${selectMode && isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
+      className={`${selectMode ? 'cursor-pointer' : 'cursor-pointer'} rounded border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} ${tintClass} px-1.5 py-1 text-xs ${selectMode && isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
     >
       {/* Mobile: single row — status dot + title */}
       <div className="flex items-center gap-1.5 sm:hidden">
@@ -51,6 +61,11 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
           </span>
         )}
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${CALENDAR_STATUS_DOT[rep.status]}`} />
+        {fmt && (
+          <span className={`shrink-0 px-1 rounded text-[9px] font-semibold leading-tight ${formatPillClass}`}>
+            {FORMAT_SHORT[fmt]}
+          </span>
+        )}
         <span className="text-foreground line-clamp-1 text-[11px] leading-tight flex-1">{rep.title}</span>
       </div>
       {/* Desktop: platform stack + metadata dots + title */}
@@ -65,6 +80,11 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
             </span>
           )}
           <PlatformStack platforms={group.platforms} />
+          {fmt && (
+            <span className={`shrink-0 px-1 rounded text-[9px] font-semibold leading-tight ${formatPillClass}`}>
+              {FORMAT_SHORT[fmt]}
+            </span>
+          )}
           <span className="ml-auto flex items-center gap-1 shrink-0">
             {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
             {approvalDot && <span className={`h-1.5 w-1.5 rounded-full ${approvalDot}`} />}

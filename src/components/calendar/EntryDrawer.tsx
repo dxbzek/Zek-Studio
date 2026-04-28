@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { inferByNameMatch, inferContentType } from '@/lib/inferContentType'
-import { Copy, ExternalLink, Loader2, Sparkles } from 'lucide-react'
+import { Copy, ExternalLink, FileText, Loader2, Printer, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,13 +19,14 @@ import {
 import { PlatformPill } from '@/lib/platformBrand'
 import {
   APPROVAL_STATUS_LABEL, APPROVAL_STATUS_SOLID, CALENDAR_STATUS_CHIP,
+  CONTENT_FORMAT_SOLID,
 } from '@/lib/statusTokens'
 import { useActiveBrand } from '@/stores/activeBrand'
 import {
-  CONTENT_THEMES, PLATFORMS,
+  CONTENT_FORMATS, CONTENT_THEMES, PLATFORMS,
 } from '@/types'
 import type {
-  ApprovalStatus, CalendarStatus, ContentPillar, ContentTheme, Platform,
+  ApprovalStatus, CalendarStatus, ContentFormat, ContentPillar, ContentTheme, Platform,
 } from '@/types'
 import { GeneratedContentPreview } from './GeneratedContentPreview'
 import { RolePicker } from './RolePicker'
@@ -37,6 +38,7 @@ export interface EntryFormValues {
   body: string
   script: string
   notes: string
+  format: ContentFormat | null
   date: string
   platforms: Platform[]
   contentType: ContentTheme
@@ -83,6 +85,33 @@ function extractLinks(text: string): string[] {
   return Array.from(new Set(cleaned))
 }
 
+// Short-form scripts run 30–40 seconds at speaking pace. We use 2.7 words/sec
+// (~165 wpm) which is the conservative end of natural delivery — voiceover
+// pros go faster, on-camera talent typically slower.
+const TARGET_MIN_SEC = 30
+const TARGET_MAX_SEC = 40
+const WORDS_PER_SEC = 2.7
+
+function ScriptCounter({ text }: { text: string }) {
+  const lines = text.split('\n').filter((l) => l.trim().length > 0).length
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0
+  if (words === 0) return null
+  const seconds = Math.round(words / WORDS_PER_SEC)
+  const inTarget = seconds >= TARGET_MIN_SEC && seconds <= TARGET_MAX_SEC
+  const chipClass = inTarget
+    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+    : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+      <span className="tabular-nums">Lines: {lines}</span>
+      <span className="tabular-nums">Words: {words}</span>
+      <span className={`tabular-nums px-1.5 py-0.5 rounded font-medium ${chipClass}`}>
+        ~{seconds}s · target {TARGET_MIN_SEC}–{TARGET_MAX_SEC}s
+      </span>
+    </div>
+  )
+}
+
 function LinksRow({ text }: { text: string }) {
   const urls = extractLinks(text)
   if (urls.length === 0) return null
@@ -111,6 +140,7 @@ const INITIAL: EntryFormValues = {
   body: '',
   script: '',
   notes: '',
+  format: null,
   date: format(new Date(), 'yyyy-MM-dd'),
   platforms: ['instagram'],
   contentType: 'property_tour',
@@ -159,6 +189,7 @@ export function EntryDrawer({
         body: rep.body ?? '',
         script: rep.script ?? '',
         notes: rep.notes ?? '',
+        format: rep.format ?? null,
         date: rep.scheduled_date,
         platforms: group.platforms,
         contentType: (rep.content_type as ContentTheme) ?? 'property_tour',
@@ -283,6 +314,26 @@ export function EntryDrawer({
     onOpenChange(false)
   }
 
+  function handlePrintPdf() {
+    if (mode !== 'edit' || !group) return
+    window.open(`/print/entry/${group.representative.id}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const [exportingWord, setExportingWord] = useState(false)
+  async function handleExportWord() {
+    if (mode !== 'edit' || !group) return
+    setExportingWord(true)
+    try {
+      const { exportEntryToWord } = await import('@/lib/exportWordEntry')
+      await exportEntryToWord({ entry: group.representative, platforms: group.platforms })
+      toast.success('Word document downloaded')
+    } catch (err) {
+      toast.error('Couldn\'t export', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setExportingWord(false)
+    }
+  }
+
   async function handleGenerateCaption() {
     if (!onGenerateCaption) return
     if (!values.title.trim()) {
@@ -377,9 +428,10 @@ export function EntryDrawer({
               value={values.script}
               onChange={(e) => set('script', e.target.value)}
               rows={8}
-              className="resize-y min-h-[180px]"
-              placeholder="Hook, talking points, shot list, voiceover. Brief for whoever shoots and edits."
+              className="resize-y min-h-[180px] font-mono text-[13px] leading-6"
+              placeholder={'One line per beat — hook, point, point, CTA.\nAim for 30–40s of speaking time.'}
             />
+            <ScriptCounter text={values.script} />
             <LinksRow text={values.script} />
           </div>
 
@@ -489,6 +541,44 @@ export function EntryDrawer({
                   }`}
                 >
                   {ct.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Format */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Format{' '}
+              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => set('format', null)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  values.format === null
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                None
+              </button>
+              {CONTENT_FORMATS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  title={f.desc}
+                  aria-label={`${f.label}: ${f.desc}`}
+                  aria-pressed={values.format === f.value}
+                  onClick={() => set('format', f.value)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    values.format === f.value
+                      ? CONTENT_FORMAT_SOLID[f.value]
+                      : 'border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {f.label}
                 </button>
               ))}
             </div>
@@ -629,7 +719,7 @@ export function EntryDrawer({
           )}
         </div>
 
-        <SheetFooter className="border-t border-border px-6 py-4 flex-row gap-2">
+        <SheetFooter className="border-t border-border px-6 py-4 flex-row gap-2 flex-wrap">
           {mode === 'edit' && (
             <>
               <Button
@@ -649,6 +739,25 @@ export function EntryDrawer({
               >
                 <Copy className="h-3.5 w-3.5 mr-1" />
                 Duplicate
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintPdf}
+                title="Open a printable brief — use Ctrl/⌘ P → Save as PDF"
+              >
+                <Printer className="h-3.5 w-3.5 mr-1" />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportWord}
+                disabled={exportingWord}
+                title="Download a .docx of this brief"
+              >
+                <FileText className="h-3.5 w-3.5 mr-1" />
+                {exportingWord ? 'Exporting…' : 'Word'}
               </Button>
             </>
           )}
