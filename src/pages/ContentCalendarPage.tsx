@@ -21,7 +21,10 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, FileText, Printer, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Download, FileText, Loader2, Search, X } from 'lucide-react'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -673,43 +676,54 @@ export function ContentCalendarPage() {
   }, [activeBrand, lastWeekEntries, createEntry])
 
   // ── Calendar export ───────────────────────────────────────────────────────
-  // PDF: opens a printable route in a new tab and auto-fires the print
-  // dialog so the user can Save as PDF — no PDF library, real selectable
-  // text. Word: lazy-loads `docx` and builds a multi-page .docx.
-  const [exportingWord, setExportingWord] = useState(false)
-  const handleExportPdf = useCallback(() => {
-    if (!activeBrand) return
-    // Route uses 1–12 for human readability; viewMonth is 0–11.
-    window.open(
-      `/print/calendar/${activeBrand.id}/${viewYear}/${viewMonth + 1}`,
-      '_blank',
-      'noopener,noreferrer',
-    )
-  }, [activeBrand, viewYear, viewMonth])
+  // Real PDF (selectable text via @react-pdf/renderer) and real .docx (via
+  // docx). Both libs are dynamically imported so they only ship to clients
+  // who actually export. Single Export menu in the toolbar offers both.
+  const [exporting, setExporting] = useState<'pdf' | 'word' | null>(null)
 
-  const handleExportWord = useCallback(async () => {
-    if (!activeBrand) return
-    setExportingWord(true)
-    try {
-      const monthStart = format(startOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
-      const monthEnd   = format(endOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
-      const monthEntries = (entries.data ?? []).filter(
-        (e) => e.scheduled_date >= monthStart && e.scheduled_date <= monthEnd,
-      )
-      const monthGroups = groupEntries(monthEntries)
-      const { exportCalendarToWord } = await import('@/lib/exportCalendarToWord')
-      await exportCalendarToWord({
-        brandName: activeBrand.name,
-        monthLabel: format(new Date(viewYear, viewMonth), 'MMMM yyyy'),
-        groups: monthGroups,
-      })
-      toast.success('Calendar exported')
-    } catch (err) {
-      toast.error("Couldn't export", { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setExportingWord(false)
+  const buildExportInput = useCallback(() => {
+    if (!activeBrand) return null
+    const monthStart = format(startOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
+    const monthEnd   = format(endOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
+    const monthEntries = (entries.data ?? []).filter(
+      (e) => e.scheduled_date >= monthStart && e.scheduled_date <= monthEnd,
+    )
+    return {
+      brandName: activeBrand.name,
+      monthLabel: format(new Date(viewYear, viewMonth), 'MMMM yyyy'),
+      groups: groupEntries(monthEntries),
     }
   }, [activeBrand, entries.data, viewYear, viewMonth])
+
+  const handleExportPdf = useCallback(async () => {
+    const input = buildExportInput()
+    if (!input) return
+    setExporting('pdf')
+    try {
+      const { exportCalendarToPdf } = await import('@/lib/exportCalendarToPdf')
+      await exportCalendarToPdf(input)
+      toast.success('PDF downloaded')
+    } catch (err) {
+      toast.error("Couldn't export PDF", { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setExporting(null)
+    }
+  }, [buildExportInput])
+
+  const handleExportWord = useCallback(async () => {
+    const input = buildExportInput()
+    if (!input) return
+    setExporting('word')
+    try {
+      const { exportCalendarToWord } = await import('@/lib/exportCalendarToWord')
+      await exportCalendarToWord(input)
+      toast.success('Word document downloaded')
+    } catch (err) {
+      toast.error("Couldn't export Word", { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setExporting(null)
+    }
+  }, [buildExportInput])
 
   const handleAddPillar = useCallback(async (input: { label: string; target_pct: number; color: string }) => {
     if (!activeBrand) return
@@ -887,25 +901,32 @@ export function ContentCalendarPage() {
         </button>
         {!selectMode && (
           <div className="ml-auto flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={handleExportPdf}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
-              title="Open a printable view of this month — use Ctrl/⌘ P → Save as PDF"
-            >
-              <Printer className="h-3 w-3" aria-hidden />
-              PDF
-            </button>
-            <button
-              type="button"
-              onClick={handleExportWord}
-              disabled={exportingWord}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Download this month as a .docx"
-            >
-              <FileText className="h-3 w-3" aria-hidden />
-              {exportingWord ? 'Exporting…' : 'Word'}
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!!exporting}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Export this month as PDF or Word"
+                >
+                  {exporting ? (
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                  ) : (
+                    <Download className="h-3 w-3" aria-hidden />
+                  )}
+                  {exporting === 'pdf' ? 'Building PDF…' : exporting === 'word' ? 'Building Word…' : 'Export'}
+                  <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[160px]">
+                <DropdownMenuItem onSelect={handleExportPdf} disabled={!!exporting}>
+                  <FileText className="h-3.5 w-3.5 mr-2" /> Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleExportWord} disabled={!!exporting}>
+                  <FileText className="h-3.5 w-3.5 mr-2" /> Export as Word
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {lastWeekEntries.length > 0 && (
               <button
                 type="button"
