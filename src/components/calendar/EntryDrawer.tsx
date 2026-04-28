@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { inferByNameMatch, inferContentType } from '@/lib/inferContentType'
-import { Copy, ExternalLink, FileText, Loader2, Printer, Sparkles } from 'lucide-react'
+import { Copy, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -312,26 +312,6 @@ export function EntryDrawer({
   function discardAndClose() {
     setConfirmDiscard(false)
     onOpenChange(false)
-  }
-
-  function handlePrintPdf() {
-    if (mode !== 'edit' || !group) return
-    window.open(`/print/entry/${group.representative.id}`, '_blank', 'noopener,noreferrer')
-  }
-
-  const [exportingWord, setExportingWord] = useState(false)
-  async function handleExportWord() {
-    if (mode !== 'edit' || !group) return
-    setExportingWord(true)
-    try {
-      const { exportEntryToWord } = await import('@/lib/exportWordEntry')
-      await exportEntryToWord({ entry: group.representative, platforms: group.platforms })
-      toast.success('Word document downloaded')
-    } catch (err) {
-      toast.error('Couldn\'t export', { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setExportingWord(false)
-    }
   }
 
   async function handleGenerateCaption() {
@@ -739,25 +719,6 @@ export function EntryDrawer({
               >
                 <Copy className="h-3.5 w-3.5 mr-1" />
                 Duplicate
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrintPdf}
-                title="Open a printable brief — use Ctrl/⌘ P → Save as PDF"
-              >
-                <Printer className="h-3.5 w-3.5 mr-1" />
-                PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportWord}
-                disabled={exportingWord}
-                title="Download a .docx of this brief"
-              >
-                <FileText className="h-3.5 w-3.5 mr-1" />
-                {exportingWord ? 'Exporting…' : 'Word'}
               </Button>
             </>
           )}

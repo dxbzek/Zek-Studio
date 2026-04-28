@@ -21,7 +21,7 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, Printer, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -672,6 +672,45 @@ export function ContentCalendarPage() {
     }
   }, [activeBrand, lastWeekEntries, createEntry])
 
+  // ── Calendar export ───────────────────────────────────────────────────────
+  // PDF: opens a printable route in a new tab and auto-fires the print
+  // dialog so the user can Save as PDF — no PDF library, real selectable
+  // text. Word: lazy-loads `docx` and builds a multi-page .docx.
+  const [exportingWord, setExportingWord] = useState(false)
+  const handleExportPdf = useCallback(() => {
+    if (!activeBrand) return
+    // Route uses 1–12 for human readability; viewMonth is 0–11.
+    window.open(
+      `/print/calendar/${activeBrand.id}/${viewYear}/${viewMonth + 1}`,
+      '_blank',
+      'noopener,noreferrer',
+    )
+  }, [activeBrand, viewYear, viewMonth])
+
+  const handleExportWord = useCallback(async () => {
+    if (!activeBrand) return
+    setExportingWord(true)
+    try {
+      const monthStart = format(startOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
+      const monthEnd   = format(endOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
+      const monthEntries = (entries.data ?? []).filter(
+        (e) => e.scheduled_date >= monthStart && e.scheduled_date <= monthEnd,
+      )
+      const monthGroups = groupEntries(monthEntries)
+      const { exportCalendarToWord } = await import('@/lib/exportCalendarToWord')
+      await exportCalendarToWord({
+        brandName: activeBrand.name,
+        monthLabel: format(new Date(viewYear, viewMonth), 'MMMM yyyy'),
+        groups: monthGroups,
+      })
+      toast.success('Calendar exported')
+    } catch (err) {
+      toast.error("Couldn't export", { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setExportingWord(false)
+    }
+  }, [activeBrand, entries.data, viewYear, viewMonth])
+
   const handleAddPillar = useCallback(async (input: { label: string; target_pct: number; color: string }) => {
     if (!activeBrand) return
     await createPillar.mutateAsync({
@@ -846,15 +885,38 @@ export function ContentCalendarPage() {
         >
           Today
         </button>
-        {lastWeekEntries.length > 0 && !selectMode && (
-          <button
-            type="button"
-            onClick={() => setDupWeekConfirm(true)}
-            className="ml-auto text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
-            title={`Copy last week's ${lastWeekEntries.length} entries forward 7 days`}
-          >
-            Duplicate last week
-          </button>
+        {!selectMode && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+              title="Open a printable view of this month — use Ctrl/⌘ P → Save as PDF"
+            >
+              <Printer className="h-3 w-3" aria-hidden />
+              PDF
+            </button>
+            <button
+              type="button"
+              onClick={handleExportWord}
+              disabled={exportingWord}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Download this month as a .docx"
+            >
+              <FileText className="h-3 w-3" aria-hidden />
+              {exportingWord ? 'Exporting…' : 'Word'}
+            </button>
+            {lastWeekEntries.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setDupWeekConfirm(true)}
+                className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+                title={`Copy last week's ${lastWeekEntries.length} entries forward 7 days`}
+              >
+                Duplicate last week
+              </button>
+            )}
+          </div>
         )}
         <button
           type="button"
@@ -862,7 +924,7 @@ export function ContentCalendarPage() {
             if (selectMode) exitSelectMode()
             else setSelectMode(true)
           }}
-          className={`${lastWeekEntries.length > 0 && !selectMode ? '' : 'ml-auto'} text-xs border rounded px-2 py-0.5 transition-colors ${
+          className={`${selectMode ? 'ml-auto' : ''} text-xs border rounded px-2 py-0.5 transition-colors ${
             selectMode
               ? 'bg-primary text-primary-foreground border-primary'
               : 'border-border text-muted-foreground hover:text-foreground'
