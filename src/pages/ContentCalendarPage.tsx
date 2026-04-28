@@ -344,12 +344,14 @@ export function ContentCalendarPage() {
         }
 
         // Every calendar entry gets a linked task — assignee optional.
+        // Description carries the script so specialists see the brief on
+        // their task without round-tripping back to the calendar.
         const firstEntry = created[0] ?? null
         if (firstEntry) {
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
             title: v.title.trim(),
-            description: null,
+            description: v.script.trim() || null,
             type: 'content',
             status: deriveTaskStatus(v.status),
             priority: 'medium',
@@ -399,6 +401,7 @@ export function ContentCalendarPage() {
             id: existingTask.id,
             patch: {
               title: v.title.trim(),
+              description: v.script.trim() || null,
               status: derivedStatus,
               assignee_id: specialistId,
               assignee_email: specialist || null,
@@ -409,7 +412,7 @@ export function ContentCalendarPage() {
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
             title: v.title.trim(),
-            description: null,
+            description: v.script.trim() || null,
             type: 'content',
             status: derivedStatus,
             priority: 'medium',
