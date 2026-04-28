@@ -248,7 +248,7 @@ export function EntryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-xl">
+      <SheetContent side="right" className="flex flex-col gap-0 p-0 w-[92vw] sm:max-w-3xl">
         <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
           <div className="eyebrow">
             {mode === 'create'
