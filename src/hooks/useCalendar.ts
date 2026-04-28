@@ -7,7 +7,7 @@ import type { CalendarEntry, CalendarEntryInsert, CalendarEntryUpdate } from '@/
 // Explicit column list (not select *) so a schema addition requires an
 // intentional update here and accidental additions don't bloat the payload.
 const ENTRY_COLUMNS =
-  'id, brand_id, platform, content_type, title, body, scheduled_date, ' +
+  'id, brand_id, platform, content_type, title, body, script, notes, scheduled_date, ' +
   'status, generated_content_id, campaign_id, pillar_id, ' +
   'approval_status, approval_note, assigned_editor, assigned_shooter, ' +
   'assigned_talent, character, created_at, updated_at'

@@ -151,6 +151,8 @@ export function ContentCalendarPage() {
       result = result.filter((e) =>
         e.title.toLowerCase().includes(q) ||
         (e.body ?? '').toLowerCase().includes(q) ||
+        (e.script ?? '').toLowerCase().includes(q) ||
+        (e.notes ?? '').toLowerCase().includes(q) ||
         e.content_type.toLowerCase().includes(q),
       )
     }
@@ -283,6 +285,8 @@ export function ContentCalendarPage() {
       content_type: v.contentType as ContentType,
       title: v.title.trim(),
       body: v.body.trim() || null,
+      script: v.script.trim() || null,
+      notes: v.notes.trim() || null,
       scheduled_date: v.date,
       status: v.status,
       campaign_id: v.campaignId,
@@ -544,6 +548,8 @@ export function ContentCalendarPage() {
           content_type: e.content_type,
           title: `${e.title} (copy)`,
           body: e.body,
+          script: e.script,
+          notes: e.notes,
           scheduled_date: e.scheduled_date,
           status: 'draft',
           generated_content_id: null,
@@ -636,6 +642,8 @@ export function ContentCalendarPage() {
           content_type: e.content_type,
           title: e.title,
           body: e.body,
+          script: e.script,
+          notes: e.notes,
           scheduled_date: newDate,
           status: 'draft',
           generated_content_id: null,

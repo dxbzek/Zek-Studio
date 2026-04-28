@@ -212,6 +212,8 @@ export type Database = {
           content_type: string
           title: string
           body: string | null
+          script: string | null
+          notes: string | null
           scheduled_date: string
           status: string
           generated_content_id: string | null
@@ -233,6 +235,8 @@ export type Database = {
           content_type: string
           title: string
           body?: string | null
+          script?: string | null
+          notes?: string | null
           scheduled_date: string
           status?: string
           generated_content_id?: string | null
@@ -253,6 +257,8 @@ export type Database = {
           content_type?: string
           title?: string
           body?: string | null
+          script?: string | null
+          notes?: string | null
           scheduled_date?: string
           status?: string
           generated_content_id?: string | null

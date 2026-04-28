@@ -196,6 +196,8 @@ export interface CalendarEntry {
   content_type: ContentType
   title: string
   body: string | null
+  script: string | null
+  notes: string | null
   scheduled_date: string
   status: CalendarStatus
   generated_content_id: string | null

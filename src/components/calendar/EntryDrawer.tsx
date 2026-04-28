@@ -31,6 +31,8 @@ import { STATUSES } from './entryGroups'
 export interface EntryFormValues {
   title: string
   body: string
+  script: string
+  notes: string
   date: string
   platforms: Platform[]
   contentType: ContentTheme
@@ -79,18 +81,17 @@ const PLATFORM_CHAR_LIMITS: Record<Platform, { label: string; limit: number }> =
 function CaptionLimits({ body, platforms }: { body: string; platforms: Platform[] }) {
   if (platforms.length === 0) return null
   const len = body.length
+  const over = platforms
+    .map((p) => ({ p, ...PLATFORM_CHAR_LIMITS[p] }))
+    .filter(({ limit }) => len > limit)
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-      <span className="tabular-nums">{len} chars</span>
-      {platforms.map((p) => {
-        const { label, limit } = PLATFORM_CHAR_LIMITS[p]
-        const over = len > limit
-        return (
-          <span key={p} className={`tabular-nums ${over ? 'text-destructive font-medium' : ''}`}>
-            {over ? '⚠' : '✓'} {label} {len}/{limit}
-          </span>
-        )
-      })}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+      <span className="tabular-nums">{len.toLocaleString()} chars</span>
+      {over.map(({ p, label, limit }) => (
+        <span key={p} className="tabular-nums text-destructive font-medium">
+          ⚠ Over {label} ({limit.toLocaleString()})
+        </span>
+      ))}
     </div>
   )
 }
@@ -98,6 +99,8 @@ function CaptionLimits({ body, platforms }: { body: string; platforms: Platform[
 const INITIAL: EntryFormValues = {
   title: '',
   body: '',
+  script: '',
+  notes: '',
   date: format(new Date(), 'yyyy-MM-dd'),
   platforms: ['instagram'],
   contentType: 'property_tour',
@@ -138,6 +141,8 @@ export function EntryDrawer({
       setValues({
         title: rep.title,
         body: rep.body ?? '',
+        script: rep.script ?? '',
+        notes: rep.notes ?? '',
         date: rep.scheduled_date,
         platforms: group.platforms,
         contentType: (rep.content_type as ContentTheme) ?? 'property_tour',
@@ -243,7 +248,7 @@ export function EntryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
+      <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-xl">
         <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
           <div className="eyebrow">
             {mode === 'create'
@@ -275,11 +280,11 @@ export function EntryDrawer({
             />
           </div>
 
-          {/* Caption / Notes */}
+          {/* Caption */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">
-                Caption / Notes{' '}
+                Caption{' '}
                 <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               {onGenerateCaption && (
@@ -302,11 +307,41 @@ export function EntryDrawer({
             <Textarea
               value={values.body}
               onChange={(e) => set('body', e.target.value)}
-              rows={5}
-              className="resize-none"
-              placeholder="Full caption, hook text, script notes…"
+              rows={8}
+              className="resize-y min-h-[180px]"
+              placeholder="The on-platform caption — what gets posted with the asset."
             />
             <CaptionLimits body={values.body} platforms={values.platforms} />
+          </div>
+
+          {/* Script / Concept */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Script / Concept{' '}
+              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            </label>
+            <Textarea
+              value={values.script}
+              onChange={(e) => set('script', e.target.value)}
+              rows={6}
+              className="resize-y min-h-[140px]"
+              placeholder="Hook, talking points, shot list, voiceover — the brief for whoever shoots/edits this."
+            />
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Notes{' '}
+              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            </label>
+            <Textarea
+              value={values.notes}
+              onChange={(e) => set('notes', e.target.value)}
+              rows={4}
+              className="resize-y min-h-[100px]"
+              placeholder="Reference links, location notes, props, anything internal. Paste URLs here."
+            />
           </div>
 
           {/* Date */}
