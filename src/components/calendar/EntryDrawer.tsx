@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { inferByNameMatch, inferContentType } from '@/lib/inferContentType'
-import { Copy, Loader2, Sparkles } from 'lucide-react'
+import { Copy, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,37 +60,43 @@ interface EntryDrawerProps {
   onDelete: () => void
   onDuplicate: () => Promise<void>
   duplicating?: boolean
-  // Optional: when provided, a Generate button appears next to the
-  // Caption/Notes label. Parent is responsible for calling the AI generator
-  // and returning the text to paste into the body field.
+  // Optional: when provided, a Generate button appears next to the Script
+  // label. Parent is responsible for calling the AI generator and returning
+  // the text to paste into the script field.
   onGenerateCaption?: (args: { title: string; platform: Platform; theme: ContentTheme }) => Promise<string | null>
 }
 
-// Practical per-platform caption limits. Facebook/TikTok/YouTube have very
-// high ceilings in practice and are only listed so the user sees them
-// present in the check; the meaningful warning is almost always Twitter/X.
-const PLATFORM_CHAR_LIMITS: Record<Platform, { label: string; limit: number }> = {
-  instagram: { label: 'IG', limit: 2200 },
-  facebook:  { label: 'FB', limit: 63206 },
-  tiktok:    { label: 'TikTok', limit: 2200 },
-  youtube:   { label: 'YT', limit: 5000 },
-  linkedin:  { label: 'LI', limit: 3000 },
-  twitter:   { label: 'X', limit: 280 },
+// Auto-detect URLs in plain-text fields so a pasted reference link is
+// actually clickable. Excludes parens/brackets so markdown-style
+// `[label](url)` and parenthetical `(see https://x.com)` work cleanly.
+const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/gi
+
+function extractLinks(text: string): string[] {
+  const matches = text.match(URL_RE) ?? []
+  const cleaned = matches
+    .map((u) => u.replace(/[.,;:!?]+$/, ''))
+    .filter(Boolean)
+  return Array.from(new Set(cleaned))
 }
 
-function CaptionLimits({ body, platforms }: { body: string; platforms: Platform[] }) {
-  if (platforms.length === 0) return null
-  const len = body.length
-  const over = platforms
-    .map((p) => ({ p, ...PLATFORM_CHAR_LIMITS[p] }))
-    .filter(({ limit }) => len > limit)
+function LinksRow({ text }: { text: string }) {
+  const urls = extractLinks(text)
+  if (urls.length === 0) return null
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-      <span className="tabular-nums">{len.toLocaleString()} chars</span>
-      {over.map(({ p, label, limit }) => (
-        <span key={p} className="tabular-nums text-destructive font-medium">
-          ⚠ Over {label} ({limit.toLocaleString()})
-        </span>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+      <span className="text-muted-foreground">Links:</span>
+      {urls.map((u) => (
+        <a
+          key={u}
+          href={u}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={u}
+          className="inline-flex items-center gap-1 max-w-[280px] text-primary hover:underline"
+        >
+          <span className="truncate">{u.replace(/^https?:\/\/(www\.)?/, '')}</span>
+          <ExternalLink className="h-3 w-3 shrink-0" />
+        </a>
       ))}
     </div>
   )
@@ -236,11 +242,11 @@ export function EntryDrawer({
         theme: values.contentType,
       })
       if (result) {
-        setValues((prev) => ({ ...prev, body: result }))
-        toast.success('Caption drafted')
+        setValues((prev) => ({ ...prev, script: result }))
+        toast.success('Script drafted')
       }
     } catch (err) {
-      toast.error('Couldn\'t draft caption', { description: err instanceof Error ? err.message : String(err) })
+      toast.error('Couldn\'t draft script', { description: err instanceof Error ? err.message : String(err) })
     } finally {
       setGenerating(false)
     }
@@ -248,7 +254,7 @@ export function EntryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0 w-[92vw] sm:max-w-3xl">
+      <SheetContent side="right" className="flex flex-col gap-0 p-0 w-[94vw] sm:max-w-6xl">
         <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
           <div className="eyebrow">
             {mode === 'create'
@@ -265,7 +271,7 @@ export function EntryDrawer({
           <SheetDescription className="sr-only">
             {mode === 'create'
               ? 'Create a new calendar entry for this brand.'
-              : 'Edit this calendar entry’s title, body, platforms, schedule, and assignments.'}
+              : 'Edit this calendar entry.'}
           </SheetDescription>
         </SheetHeader>
 
@@ -280,12 +286,12 @@ export function EntryDrawer({
             />
           </div>
 
-          {/* Caption */}
+          {/* Script / Concept */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">
-                Caption{' '}
-                <span className="text-muted-foreground font-normal">(optional)</span>
+                Script / Concept{' '}
+                <span className="text-muted-foreground font-normal text-xs">(optional)</span>
               </label>
               {onGenerateCaption && (
                 <button
@@ -305,28 +311,13 @@ export function EntryDrawer({
               )}
             </div>
             <Textarea
-              value={values.body}
-              onChange={(e) => set('body', e.target.value)}
-              rows={8}
-              className="resize-y min-h-[180px]"
-              placeholder="The on-platform caption — what gets posted with the asset."
-            />
-            <CaptionLimits body={values.body} platforms={values.platforms} />
-          </div>
-
-          {/* Script / Concept */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              Script / Concept{' '}
-              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-            </label>
-            <Textarea
               value={values.script}
               onChange={(e) => set('script', e.target.value)}
-              rows={6}
-              className="resize-y min-h-[140px]"
-              placeholder="Hook, talking points, shot list, voiceover — the brief for whoever shoots/edits this."
+              rows={8}
+              className="resize-y min-h-[180px]"
+              placeholder="Hook, talking points, shot list, voiceover. Brief for whoever shoots and edits."
             />
+            <LinksRow text={values.script} />
           </div>
 
           {/* Notes */}
@@ -340,8 +331,9 @@ export function EntryDrawer({
               onChange={(e) => set('notes', e.target.value)}
               rows={4}
               className="resize-y min-h-[100px]"
-              placeholder="Reference links, location notes, props, anything internal. Paste URLs here."
+              placeholder="Links, location notes, props, anything internal."
             />
+            <LinksRow text={values.notes} />
           </div>
 
           {/* Date */}
@@ -392,7 +384,7 @@ export function EntryDrawer({
                   key={ct.value}
                   type="button"
                   title={ct.desc}
-                  aria-label={`${ct.label} — ${ct.desc}`}
+                  aria-label={`${ct.label}: ${ct.desc}`}
                   aria-pressed={values.contentType === ct.value}
                   onClick={() => {
                     typeManuallyPicked.current = true
@@ -432,7 +424,7 @@ export function EntryDrawer({
             </div>
             {isPastDate && (
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Scheduled date is in the past — entry will save as Published.
+                Date is in the past. Will save as Published.
               </p>
             )}
           </div>
