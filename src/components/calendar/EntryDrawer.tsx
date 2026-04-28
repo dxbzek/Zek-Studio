@@ -12,6 +12,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { PlatformPill } from '@/lib/platformBrand'
 import {
   APPROVAL_STATUS_LABEL, APPROVAL_STATUS_SOLID, CALENDAR_STATUS_CHIP,
@@ -128,6 +132,11 @@ export function EntryDrawer({
   const { activeBrand } = useActiveBrand()
   const [values, setValues] = useState<EntryFormValues>(INITIAL)
   const [generating, setGenerating] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  // Snapshot of the values when the drawer opened, so we can detect dirty
+  // edits and guard the close action.
+  const initialValuesRef = useRef<EntryFormValues>(INITIAL)
+  const titleInputRef = useRef<HTMLInputElement>(null)
   // True once the user has explicitly clicked the corresponding chip. While
   // false, the title-watch effect auto-fills that field from the title so
   // the user doesn't have to duplicate the work. In edit mode all three
@@ -139,12 +148,13 @@ export function EntryDrawer({
 
   useEffect(() => {
     if (!open) return
+    let next: EntryFormValues
     if (mode === 'edit' && group) {
       const rep = group.representative
       typeManuallyPicked.current = true
       campaignManuallyPicked.current = true
       pillarManuallyPicked.current = true
-      setValues({
+      next = {
         title: rep.title,
         body: rep.body ?? '',
         script: rep.script ?? '',
@@ -159,7 +169,7 @@ export function EntryDrawer({
         approvalNote: rep.approval_note ?? '',
         talent: rep.assigned_talent ?? '',
         character: rep.character ?? '',
-      })
+      }
     } else {
       typeManuallyPicked.current = false
       campaignManuallyPicked.current = false
@@ -170,13 +180,23 @@ export function EntryDrawer({
       const brandPlatforms = activeBrand?.platforms?.length
         ? (activeBrand.platforms as Platform[])
         : ALL_PLATFORMS
-      setValues({
+      next = {
         ...INITIAL,
         platforms: brandPlatforms,
         date: defaultDate ?? format(new Date(), 'yyyy-MM-dd'),
-      })
+      }
     }
+    setValues(next)
+    initialValuesRef.current = next
   }, [open, mode, group, defaultDate, activeBrand])
+
+  // Autofocus the title input when creating. Sheet animates in, so wait one
+  // tick before grabbing focus or the radix focus-trap will pull it back.
+  useEffect(() => {
+    if (!open || mode !== 'create') return
+    const t = setTimeout(() => titleInputRef.current?.focus(), 80)
+    return () => clearTimeout(t)
+  }, [open, mode])
 
   // Auto-fill content type, campaign, and pillar from the title (create
   // mode only, and only until the user explicitly picks each chip). Silent
@@ -210,8 +230,11 @@ export function EntryDrawer({
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const isPastDate = values.date < today
+  const isValid = values.title.trim().length > 0 && values.date.length > 0
+  const isDirty = JSON.stringify(values) !== JSON.stringify(initialValuesRef.current)
 
   async function handleSave() {
+    if (!isValid || saving) return
     // Past-dated entries are forced to 'published' so the calendar doesn't
     // show historical posts as still "Scheduled". DB trigger (migration 037)
     // enforces this server-side too.
@@ -219,6 +242,45 @@ export function EntryDrawer({
       ? { ...values, status: 'published' }
       : values
     await onSave(final)
+  }
+
+  // Keep handleSave in a ref so the keydown listener doesn't have to re-bind
+  // every render, and never reads a stale closure.
+  const handleSaveRef = useRef(handleSave)
+  handleSaveRef.current = handleSave
+
+  // Cmd/Ctrl+Enter saves from anywhere in the drawer (including inside a
+  // textarea — plain Enter still inserts a newline).
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        handleSaveRef.current()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  // Intercept close so we can confirm if there are unsaved edits. The Sheet
+  // component itself routes Esc, X-button, and outside-click clicks all
+  // through onOpenChange.
+  function handleSheetOpenChange(next: boolean) {
+    if (next) {
+      onOpenChange(true)
+      return
+    }
+    if (isDirty && !saving) {
+      setConfirmDiscard(true)
+      return
+    }
+    onOpenChange(false)
+  }
+
+  function discardAndClose() {
+    setConfirmDiscard(false)
+    onOpenChange(false)
   }
 
   async function handleGenerateCaption() {
@@ -253,7 +315,7 @@ export function EntryDrawer({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
       <SheetContent side="right" className="flex flex-col gap-0 p-0 w-[94vw] sm:max-w-6xl">
         <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
           <div className="eyebrow">
@@ -280,6 +342,7 @@ export function EntryDrawer({
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Title</label>
             <Input
+              ref={titleInputRef}
               value={values.title}
               onChange={(e) => set('title', e.target.value)}
               placeholder="Entry title…"
@@ -336,15 +399,44 @@ export function EntryDrawer({
             <LinksRow text={values.notes} />
           </div>
 
-          {/* Date */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Scheduled date</label>
-            <input
-              type="date"
-              value={values.date}
-              onChange={(e) => set('date', e.target.value)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            />
+          {/* Date + Status (paired on wider screens) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Scheduled date</label>
+              <input
+                type="date"
+                value={values.date}
+                onChange={(e) => set('date', e.target.value)}
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+            </div>
+
+            {/* Status */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Status</label>
+              <div className="flex gap-1.5">
+                {STATUSES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => set('status', s.value)}
+                    disabled={isPastDate && s.value !== 'published'}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                      (isPastDate ? 'published' : values.status) === s.value
+                        ? `${CALENDAR_STATUS_CHIP[s.value]} border-transparent`
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {isPastDate && (
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Date is in the past. Will save as Published.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Platform */}
@@ -402,33 +494,6 @@ export function EntryDrawer({
             </div>
           </div>
 
-          {/* Status */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Status</label>
-            <div className="flex gap-1.5">
-              {STATUSES.map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => set('status', s.value)}
-                  disabled={isPastDate && s.value !== 'published'}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                    (isPastDate ? 'published' : values.status) === s.value
-                      ? `${CALENDAR_STATUS_CHIP[s.value]} border-transparent`
-                      : 'border-border text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            {isPastDate && (
-              <p className="text-[11px] text-muted-foreground leading-snug">
-                Date is in the past. Will save as Published.
-              </p>
-            )}
-          </div>
-
           {/* Client Approval */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
@@ -467,37 +532,51 @@ export function EntryDrawer({
                     : 'Note for reviewer (optional)…'
                 }
                 rows={2}
-                className="resize-none text-sm"
+                className="resize-y text-sm min-h-[60px]"
               />
             )}
           </div>
 
-          {/* Campaign */}
-          {campaigns.length > 0 && (
+          {/* Campaign + Specialist (paired on wider screens) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {campaigns.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  Campaign{' '}
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </label>
+                <Select
+                  value={values.campaignId ?? '__none__'}
+                  onValueChange={(v) => {
+                    campaignManuallyPicked.current = true
+                    set('campaignId', v === '__none__' ? null : v)
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {campaigns.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                Campaign{' '}
+                Assigned Specialist{' '}
                 <span className="text-muted-foreground font-normal text-xs">(optional)</span>
               </label>
-              <Select
-                value={values.campaignId ?? '__none__'}
-                onValueChange={(v) => {
-                  campaignManuallyPicked.current = true
-                  set('campaignId', v === '__none__' ? null : v)
-                }}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {campaigns.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <RolePicker
+                value={values.talent}
+                onChange={(v) => set('talent', v)}
+                members={members}
+              />
             </div>
-          )}
+          </div>
 
           {/* Pillar */}
           {pillars.length > 0 && (
@@ -545,19 +624,6 @@ export function EntryDrawer({
             </div>
           )}
 
-          {/* Assigned Specialist */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              Assigned Specialist{' '}
-              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-            </label>
-            <RolePicker
-              value={values.talent}
-              onChange={(v) => set('talent', v)}
-              members={members}
-            />
-          </div>
-
           {mode === 'edit' && group?.representative.generated_content_id && (
             <GeneratedContentPreview id={group.representative.generated_content_id} />
           )}
@@ -589,16 +655,36 @@ export function EntryDrawer({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleSheetOpenChange(false)}
             className="ml-auto"
           >
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !isValid}
+            title={!isValid ? 'Title and date are required' : undefined}
+          >
             {saving ? 'Saving…' : 'Save'}
           </Button>
         </SheetFooter>
       </SheetContent>
+
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved edits on this entry. Closing now will lose them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction onClick={discardAndClose}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   )
 }
