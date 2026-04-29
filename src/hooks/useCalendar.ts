@@ -50,7 +50,13 @@ export function useCalendar(brandId: string | null, year: number, month: number)
     const channel = supabase
       .channel(`calendar-entries:${brandId}:${year}-${month}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_entries', filter: `brand_id=eq.${brandId}` },
-        () => queryClient.invalidateQueries({ queryKey }))
+        () => {
+          queryClient.invalidateQueries({ queryKey })
+          // Emergency Backup lane is brand-scoped and not date-bounded —
+          // invalidate it on any change so newly-created backups appear and
+          // edits propagate.
+          queryClient.invalidateQueries({ queryKey: ['emergency-backup', brandId] })
+        })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [brandId, year, month]) // eslint-disable-line react-hooks/exhaustive-deps

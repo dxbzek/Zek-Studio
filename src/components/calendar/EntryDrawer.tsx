@@ -56,6 +56,9 @@ interface EntryDrawerProps {
   mode: 'create' | 'edit'
   group: EntryGroup | null
   defaultDate?: string
+  // When opening "create" from the Emergency Backup lane, pre-select the
+  // Emergency Backup format chip. Null means use INITIAL.format (none).
+  defaultFormat?: ContentFormat | null
   members: { id: string; email: string }[]
   campaigns: { id: string; name: string }[]
   pillars: ContentPillar[]
@@ -154,7 +157,7 @@ const INITIAL: EntryFormValues = {
 const ALL_PLATFORMS = PLATFORMS.map((p) => p.value)
 
 export function EntryDrawer({
-  open, onOpenChange, mode, group, defaultDate, members, campaigns, pillars,
+  open, onOpenChange, mode, group, defaultDate, defaultFormat, members, campaigns, pillars,
   saving, deleting, onSave, onDelete, onDuplicate, duplicating, onGenerateCaption,
 }: EntryDrawerProps) {
   const { activeBrand } = useActiveBrand()
@@ -211,12 +214,13 @@ export function EntryDrawer({
       next = {
         ...INITIAL,
         platforms: brandPlatforms,
+        format: defaultFormat ?? INITIAL.format,
         date: defaultDate ?? format(new Date(), 'yyyy-MM-dd'),
       }
     }
     setValues(next)
     initialValuesRef.current = next
-  }, [open, mode, group, defaultDate, activeBrand])
+  }, [open, mode, group, defaultDate, defaultFormat, activeBrand])
 
   // Autofocus the title input when creating. Sheet animates in, so wait one
   // tick before grabbing focus or the radix focus-trap will pull it back.

@@ -1,5 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import {
   DndContext,
   DragOverlay,
@@ -126,6 +128,30 @@ export function ContentCalendarPage() {
     viewYear,
     viewMonth,
   )
+
+  // Emergency Backup library — evergreen fallback content. Lives in its own
+  // lane above the grid, not in the dated calendar. Fetched separately so
+  // it spans all months (not just the currently-visible window).
+  const emergencyBackups = useQuery({
+    queryKey: ['emergency-backup', activeBrand?.id],
+    queryFn: async () => {
+      if (!activeBrand) return [] as CalendarEntry[]
+      const { data, error } = await supabase
+        .from('calendar_entries')
+        .select('id, brand_id, platform, content_type, title, body, script, notes, format, scheduled_date, status, generated_content_id, campaign_id, pillar_id, approval_status, approval_note, assigned_editor, assigned_shooter, assigned_talent, character, created_at, updated_at')
+        .eq('brand_id', activeBrand.id)
+        .eq('format', 'emergency_backup')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return (data ?? []) as unknown as CalendarEntry[]
+    },
+    enabled: !!activeBrand,
+    staleTime: 60_000,
+  })
+  const emergencyGroups = useMemo(
+    () => groupEntries(emergencyBackups.data ?? []),
+    [emergencyBackups.data],
+  )
   const { members } = useTeam(activeBrand?.id ?? null)
   const { tasks, createTask, updateTask } = useTasks(activeBrand?.id ?? null)
   const { campaigns } = useCampaigns(activeBrand?.id ?? null)
@@ -165,20 +191,30 @@ export function ContentCalendarPage() {
   }, [entries.data, filterPlatforms, filterStatus, filterFormat, deferredSearch])
 
   const allGroups = useMemo(() => groupEntries(filteredEntries), [filteredEntries])
+  // Emergency Backup entries live in their own lane above the grid — they're
+  // evergreen fallback content, not tied to a specific publish date. Pull
+  // them out of the dated grid so the grid stays clean. Exception: if the
+  // user explicitly filters to format=emergency_backup, show them on the
+  // grid so the filter behaves as expected.
+  const dateGridGroups = useMemo(() => (
+    filterFormat === 'emergency_backup'
+      ? allGroups
+      : allGroups.filter((g) => g.representative.format !== 'emergency_backup')
+  ), [allGroups, filterFormat])
   // Bucket groups by their scheduled_date once instead of running an
   // O(groups) filter for each of the 42 day cells on every render. Cuts
   // selection-toggle / drag-tick re-render cost from ~2k filter ops on a
   // 50-entry brand to a constant-time Map lookup.
   const groupsByDate = useMemo(() => {
     const m = new Map<string, EntryGroup[]>()
-    for (const g of allGroups) {
+    for (const g of dateGridGroups) {
       const key = g.representative.scheduled_date
       const list = m.get(key)
       if (list) list.push(g)
       else m.set(key, [g])
     }
     return m
-  }, [allGroups])
+  }, [dateGridGroups])
   const groupsForDay = (day: Date) => groupsByDate.get(format(day, 'yyyy-MM-dd')) ?? []
 
   const firstDay  = startOfMonth(new Date(viewYear, viewMonth))
@@ -259,11 +295,13 @@ export function ContentCalendarPage() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const lastTriggerRef = useRef<HTMLElement | null>(null)
 
-  const openCreate = useCallback((date?: string) => {
+  const [defaultFormat, setDefaultFormat] = useState<ContentFormat | null>(null)
+  const openCreate = useCallback((date?: string, fmt?: ContentFormat | null) => {
     lastTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setDrawerMode('create')
     setEditingGroup(null)
     setDefaultDate(date)
+    setDefaultFormat(fmt ?? null)
     setDrawerOpen(true)
   }, [])
 
@@ -783,23 +821,33 @@ export function ContentCalendarPage() {
         >
           All
         </button>
-        {CONTENT_FORMATS.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            title={f.desc}
-            onClick={() => setFilterFormat((prev) => prev === f.value ? 'all' : f.value)}
-            aria-pressed={filterFormat === f.value}
-            aria-label={`Filter: ${f.label}`}
-            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-              filterFormat === f.value
-                ? `${CONTENT_FORMAT_SOLID[f.value]} border-transparent`
-                : 'border-border text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        {CONTENT_FORMATS.map((f) => {
+          const dotColor: Record<typeof f.value, string> = {
+            reel: 'bg-purple-500',
+            carousel: 'bg-blue-500',
+            static: 'bg-emerald-500',
+            emergency_backup: 'bg-red-500',
+          }
+          const active = filterFormat === f.value
+          return (
+            <button
+              key={f.value}
+              type="button"
+              title={f.desc}
+              onClick={() => setFilterFormat((prev) => prev === f.value ? 'all' : f.value)}
+              aria-pressed={active}
+              aria-label={`Filter: ${f.label}`}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                active
+                  ? `${CONTENT_FORMAT_SOLID[f.value]} border-transparent`
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-white/80' : dotColor[f.value]}`} aria-hidden />
+              {f.label}
+            </button>
+          )
+        })}
         <div className="sm:ml-auto relative shrink-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
@@ -941,6 +989,56 @@ export function ContentCalendarPage() {
         </div>
       </div>
 
+      {/* Emergency Backup lane — evergreen fallback content. Hidden when the
+          user has filtered to a non-emergency format (the grid is the focus
+          there) so the lane doesn't compete for attention. */}
+      {filterFormat !== 'emergency_backup' && filterFormat === 'all' && (
+        <div className="border-b border-border bg-red-500/[0.03] px-4 sm:px-6 py-2 shrink-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.08em] text-red-700 dark:text-red-400">
+              Emergency Backup
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              ({emergencyGroups.length}) · Evergreen content, used when scheduled posts fall through
+            </span>
+            <button
+              type="button"
+              onClick={() => openCreate(format(today, 'yyyy-MM-dd'), 'emergency_backup')}
+              className="ml-auto text-[11px] font-medium text-red-700 dark:text-red-400 hover:underline"
+              title="Create a new emergency backup entry"
+            >
+              + New
+            </button>
+          </div>
+          {emergencyGroups.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground py-1">
+              No emergency backup content yet. Create static or carousel-style fallback posts (max 4 slides) so you always have something ready.
+            </p>
+          ) : (
+            <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+              {emergencyGroups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => openEdit(g)}
+                  className="shrink-0 w-[180px] text-left px-2.5 py-1.5 rounded border border-red-500/20 bg-card hover:bg-red-500/[0.06] hover:border-red-500/40 transition-colors"
+                  title={g.representative.title}
+                >
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <span className="px-1 rounded text-[9px] font-semibold leading-tight bg-red-500/10 text-red-700 dark:text-red-300">EB</span>
+                    <span className="text-[10px] text-muted-foreground capitalize">{g.representative.status}</span>
+                  </div>
+                  <div className="text-xs font-medium text-foreground line-clamp-2 leading-tight">
+                    {g.representative.title}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Day name headers */}
       <div className="grid grid-cols-7 border-b border-border px-4 sm:px-6 shrink-0">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
@@ -987,6 +1085,7 @@ export function ContentCalendarPage() {
         mode={drawerMode}
         group={editingGroup}
         defaultDate={defaultDate}
+        defaultFormat={defaultFormat}
         members={teamMembers}
         campaigns={campaigns.data ?? []}
         pillars={pillars.data ?? []}

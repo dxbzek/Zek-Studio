@@ -37,25 +37,23 @@ export function DayCell({
   return (
     <div
       ref={setNodeRef}
-      onClick={() => { if (isCurrentMonth && !selectMode) onAddClick() }}
-      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20' : selectMode ? '' : 'cursor-pointer hover:bg-accent/30'} ${isOver ? 'bg-primary/5' : ''}`}
+      onClick={() => { if (!selectMode) onAddClick() }}
+      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/5' : ''}`}
     >
       <div className="flex items-center justify-between">
         <span
-          className={`font-mono text-[11px] sm:text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full tabular-nums ${todayFlag ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
+          className={`font-mono text-[11px] sm:text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full tabular-nums ${todayFlag ? 'bg-primary text-primary-foreground' : isCurrentMonth ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}
         >
           {format(day, 'd')}
         </span>
-        {isCurrentMonth && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onAddClick() }}
-            className="sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-foreground text-sm leading-none h-5 w-5 flex items-center justify-center rounded hover:bg-accent transition-opacity"
-            aria-label="Add entry"
-          >
-            +
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onAddClick() }}
+          className="sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-foreground text-sm leading-none h-5 w-5 flex items-center justify-center rounded hover:bg-accent transition-opacity"
+          aria-label="Add entry"
+        >
+          +
+        </button>
       </div>
       {isUpcomingEmpty && (
         <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground self-start px-1 py-0.5 rounded border border-dashed border-border">
