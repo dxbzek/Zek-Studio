@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter,
-} from '@/components/ui/sheet'
+  Dialog, DialogContent, DialogDescription, DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -343,9 +343,9 @@ export function EntryDrawer({
   }
 
   return (
-    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0 w-[96vw] sm:max-w-7xl">
-        <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
+    <Dialog open={open} onOpenChange={handleSheetOpenChange}>
+      <DialogContent className="flex flex-col gap-0 p-0 w-[92vw] sm:max-w-[1400px] h-[92vh] max-h-[92vh] overflow-hidden">
+        <div className="border-b border-border px-6 py-4 space-y-1">
           <div className="eyebrow">
             {mode === 'create'
               ? 'New entry'
@@ -353,17 +353,17 @@ export function EntryDrawer({
               ? format(parseISO(values.date), 'EEE · MMM d, yyyy')
               : 'Edit entry'}
           </div>
-          <SheetTitle className="font-heading font-medium tracking-tight text-[22px] leading-tight truncate">
+          <DialogTitle className="font-heading font-medium tracking-tight text-[22px] leading-tight truncate">
             {mode === 'create'
               ? 'Draft a post'
               : values.title.trim() || 'Untitled entry'}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
+          </DialogTitle>
+          <DialogDescription className="sr-only">
             {mode === 'create'
               ? 'Create a new calendar entry for this brand.'
               : 'Edit this calendar entry.'}
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Title */}
@@ -700,7 +700,7 @@ export function EntryDrawer({
           )}
         </div>
 
-        <SheetFooter className="border-t border-border px-6 py-4 flex-row gap-2 flex-wrap">
+        <div className="border-t border-border px-6 py-4 flex flex-row gap-2 flex-wrap items-center">
           {mode === 'edit' && (
             <>
               <Button
@@ -739,8 +739,8 @@ export function EntryDrawer({
           >
             {saving ? 'Saving…' : 'Save'}
           </Button>
-        </SheetFooter>
-      </SheetContent>
+        </div>
+      </DialogContent>
 
       <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
         <AlertDialogContent>
@@ -756,6 +756,6 @@ export function EntryDrawer({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Sheet>
+    </Dialog>
   )
 }
