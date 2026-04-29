@@ -39,22 +39,21 @@ const FORMAT_HEX: Record<ContentFormat, string> = {
   emergency_backup: 'EF4444',
 }
 
-interface ExportInput {
+export type ExportSections = {
+  groupBy: 'date' | 'format' | 'talent'
+  sections: { heading: string; entries: EntryGroup[] }[]
+  rangeLabel: string
   brandName: string
-  monthLabel: string  // e.g. "April 2026"
-  groups: EntryGroup[]
 }
 
-// Builds and downloads a multi-entry .docx for a calendar month. Dynamically
-// imports `docx` so the ~200KB only ships to clients who export.
-export async function exportCalendarToWord({ brandName, monthLabel, groups }: ExportInput): Promise<void> {
+export async function exportCalendarToWord({ brandName, rangeLabel, sections, groupBy }: ExportSections): Promise<void> {
   const docx = await import('docx')
   const {
     Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType,
-    ExternalHyperlink, ShadingType,
+    ExternalHyperlink, ShadingType, Footer, PageNumber,
   } = docx
 
-  function dayHeader(text: string) {
+  function sectionH(text: string) {
     return new Paragraph({
       heading: HeadingLevel.HEADING_3,
       spacing: { before: 320, after: 120 },
@@ -62,15 +61,7 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
     })
   }
 
-  // Group entries by date
-  const byDate = new Map<string, EntryGroup[]>()
-  for (const g of groups) {
-    const d = g.representative.scheduled_date
-    if (!byDate.has(d)) byDate.set(d, [])
-    byDate.get(d)!.push(g)
-  }
-  const dates = Array.from(byDate.keys()).sort()
-
+  const totalEntries = sections.reduce((acc, s) => acc + s.entries.length, 0)
   const docChildren: InstanceType<typeof Paragraph>[] = []
 
   // Title block
@@ -83,13 +74,13 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
       spacing: { after: 100 },
-      children: [new TextRun({ text: `${brandName} · ${monthLabel}`, bold: true, size: 36 })],
+      children: [new TextRun({ text: `${brandName} · ${rangeLabel}`, bold: true, size: 36 })],
     }),
     new Paragraph({
       spacing: { after: 280 },
       children: [
         new TextRun({
-          text: `${groups.length} ${groups.length === 1 ? 'entry' : 'entries'} · generated ${format(new Date(), 'MMM d, yyyy')}`,
+          text: `${totalEntries} ${totalEntries === 1 ? 'entry' : 'entries'} · grouped by ${groupBy} · generated ${format(new Date(), 'MMM d, yyyy')}`,
           color: '777777',
           size: 20,
         }),
@@ -97,32 +88,26 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
     }),
   )
 
-  if (dates.length === 0) {
+  if (sections.length === 0) {
     docChildren.push(new Paragraph({
-      children: [new TextRun({ text: 'No entries scheduled for this month.', italics: true, color: '999999', size: 22 })],
+      children: [new TextRun({ text: 'No entries match the selected range and filters.', italics: true, color: '999999', size: 22 })],
     }))
   }
 
-  for (const d of dates) {
-    docChildren.push(dayHeader(format(parseISO(d), 'EEEE · MMM d')))
+  for (const s of sections) {
+    docChildren.push(sectionH(s.heading))
 
-    const dayGroups = byDate.get(d) ?? []
-    for (const g of dayGroups) {
+    for (const g of s.entries) {
       const r: CalendarEntry = g.representative
       const fmt = r.format as ContentFormat | null
       const beats = lineBeats(r.script ?? '')
       const links = extractLinks(`${r.script ?? ''}\n${r.notes ?? ''}`)
 
-      // Title with optional format pill (text only — docx doesn't render
-      // arbitrary inline blocks like HTML, but we can approximate with a
-      // shaded text run).
       const titleRuns: InstanceType<typeof TextRun>[] = []
       if (fmt) {
         titleRuns.push(new TextRun({
           text: ` ${formatLabel(fmt).toUpperCase()} `,
-          bold: true,
-          color: 'FFFFFF',
-          size: 18,
+          bold: true, color: 'FFFFFF', size: 18,
           shading: { type: ShadingType.SOLID, color: FORMAT_HEX[fmt], fill: FORMAT_HEX[fmt] },
         }))
         titleRuns.push(new TextRun({ text: '  ', size: 22 }))
@@ -130,19 +115,17 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
       titleRuns.push(new TextRun({ text: r.title, bold: true, size: 26 }))
 
       docChildren.push(
-        new Paragraph({
-          spacing: { before: 180, after: 60 },
-          children: titleRuns,
-        }),
+        new Paragraph({ spacing: { before: 180, after: 60 }, children: titleRuns }),
       )
 
-      // Meta line
       const metaParts = [
         themeLabel(r.content_type),
         platformsLabel(g.platforms),
         r.status.charAt(0).toUpperCase() + r.status.slice(1),
       ]
       if (r.assigned_talent) metaParts.push(`Talent: ${r.assigned_talent}`)
+      if (groupBy !== 'date') metaParts.unshift(format(parseISO(r.scheduled_date), 'MMM d'))
+
       docChildren.push(
         new Paragraph({
           spacing: { after: 80 },
@@ -150,7 +133,6 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
         }),
       )
 
-      // Script beats
       if (beats.length > 0) {
         docChildren.push(new Paragraph({
           spacing: { before: 60, after: 40 },
@@ -170,7 +152,6 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
         })
       }
 
-      // Notes
       if (r.notes && r.notes.trim().length > 0) {
         docChildren.push(new Paragraph({
           spacing: { before: 60, after: 40 },
@@ -187,7 +168,6 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
         })
       }
 
-      // Links
       if (links.length > 0) {
         docChildren.push(new Paragraph({
           spacing: { before: 60, after: 40 },
@@ -211,33 +191,34 @@ export async function exportCalendarToWord({ brandName, monthLabel, groups }: Ex
     }
   }
 
-  // Footer note
-  docChildren.push(
-    new Paragraph({
-      spacing: { before: 320 },
-      border: { top: { color: 'EEEEEE', space: 1, style: 'single', size: 6 } },
-      children: [
-        new TextRun({
-          text: `Exported from Zek Studio on ${format(new Date(), 'MMM d, yyyy · HH:mm')}.`,
-          color: '999999',
-          italics: true,
-          size: 18,
-        }),
-      ],
-    }),
-  )
-
   const doc = new Document({
     creator: 'Zek Studio',
-    title: `${brandName} · ${monthLabel}`,
-    sections: [{ properties: {}, children: docChildren }],
+    title: `${brandName} · ${rangeLabel}`,
+    sections: [{
+      properties: {},
+      footers: {
+        default: new Footer({
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({ text: 'Page ', color: '999999', size: 18 }),
+              new TextRun({ children: [PageNumber.CURRENT], color: '999999', size: 18 }),
+              new TextRun({ text: ' of ', color: '999999', size: 18 }),
+              new TextRun({ children: [PageNumber.TOTAL_PAGES], color: '999999', size: 18 }),
+            ],
+          })],
+        }),
+      },
+      children: docChildren,
+    }],
   })
 
   const blob = await Packer.toBlob(doc)
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${safeFilename(`${brandName}_${monthLabel}_calendar`)}.docx`
+  const stamp = format(new Date(), 'yyyy-MM-dd')
+  a.download = `${safeFilename(`${brandName}_${rangeLabel}_calendar`)}_${stamp}.docx`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

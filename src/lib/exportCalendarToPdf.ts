@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfWeek } from 'date-fns'
 import { CONTENT_FORMATS, CONTENT_THEMES } from '@/types'
 import type { CalendarEntry, ContentFormat, ContentTheme, Platform } from '@/types'
 import type { EntryGroup } from '@/components/calendar/entryGroups'
@@ -39,26 +39,23 @@ const FORMAT_BG: Record<ContentFormat, string> = {
   emergency_backup: '#ef4444',
 }
 
-interface ExportInput {
+export type ExportSections = {
+  groupBy: 'date' | 'format' | 'talent'
+  sections: { heading: string; entries: EntryGroup[] }[]
+  rangeLabel: string
   brandName: string
-  monthLabel: string
-  groups: EntryGroup[]
 }
 
-// Builds and downloads a real PDF (selectable text, real pages — not a
-// print-to-PDF). @react-pdf/renderer is heavy (~800KB), so it's
-// dynamically imported here and only loads when the user actually exports.
-export async function exportCalendarToPdf({ brandName, monthLabel, groups }: ExportInput): Promise<void> {
+export async function exportCalendarToPdf({ brandName, rangeLabel, sections, groupBy }: ExportSections): Promise<void> {
   const { Document, Page, Text, View, Link, StyleSheet, pdf } = await import('@react-pdf/renderer')
-  // React import is needed for JSX; we use it via the renderer's runtime.
   const React = await import('react')
 
   const styles = StyleSheet.create({
-    page: { paddingTop: 40, paddingBottom: 40, paddingHorizontal: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#111111' },
+    page: { paddingTop: 40, paddingBottom: 50, paddingHorizontal: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#111111' },
     eyebrow: { fontSize: 8, color: '#666666', letterSpacing: 1, textTransform: 'uppercase' },
     h1: { fontSize: 22, fontFamily: 'Helvetica-Bold', marginTop: 2, marginBottom: 4 },
     summary: { fontSize: 9, color: '#555555', marginBottom: 18 },
-    dayHeader: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#444444', textTransform: 'uppercase', letterSpacing: 1, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: '#dddddd', marginTop: 14, marginBottom: 6 },
+    sectionHeader: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#444444', textTransform: 'uppercase', letterSpacing: 1, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: '#dddddd', marginTop: 14, marginBottom: 6 },
     entry: { padding: 10, marginVertical: 5, backgroundColor: '#fafafa', borderLeftWidth: 3, borderLeftColor: '#bbbbbb', borderRadius: 3 },
     title: { fontSize: 12, fontFamily: 'Helvetica-Bold', marginBottom: 3 },
     meta: { fontSize: 9, color: '#555555', marginBottom: 6, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
@@ -74,14 +71,7 @@ export async function exportCalendarToPdf({ brandName, monthLabel, groups }: Exp
     footer: { position: 'absolute', bottom: 22, left: 40, right: 40, fontSize: 8, color: '#999999', borderTopWidth: 1, borderTopColor: '#eeeeee', paddingTop: 6 },
   })
 
-  // Group entries by date
-  const byDate = new Map<string, EntryGroup[]>()
-  for (const g of groups) {
-    const d = g.representative.scheduled_date
-    if (!byDate.has(d)) byDate.set(d, [])
-    byDate.get(d)!.push(g)
-  }
-  const dates = Array.from(byDate.keys()).sort()
+  const totalEntries = sections.reduce((acc, s) => acc + s.entries.length, 0)
 
   function entryBlock(g: EntryGroup) {
     const r: CalendarEntry = g.representative
@@ -90,6 +80,12 @@ export async function exportCalendarToPdf({ brandName, monthLabel, groups }: Exp
     const links = extractLinks(`${r.script ?? ''}\n${r.notes ?? ''}`)
     const metaParts = [themeLabel(r.content_type), platformsLabel(g.platforms), r.status.charAt(0).toUpperCase() + r.status.slice(1)]
     if (r.assigned_talent) metaParts.push(`Talent: ${r.assigned_talent}`)
+    // When grouping by date, the date is in the section header. For other
+    // groupings, surface the date inside the meta line so each entry is
+    // self-locating.
+    if (groupBy !== 'date') {
+      metaParts.unshift(format(parseISO(r.scheduled_date), 'MMM d'))
+    }
 
     return React.createElement(View, {
       key: g.id,
@@ -119,25 +115,41 @@ export async function exportCalendarToPdf({ brandName, monthLabel, groups }: Exp
     ])
   }
 
-  function dayBlock(date: string) {
-    const dayGroups = byDate.get(date) ?? []
-    return React.createElement(View, { key: date, wrap: true }, [
-      React.createElement(Text, { key: 'h', style: styles.dayHeader }, format(parseISO(date), 'EEEE · MMM d').toUpperCase()),
-      ...dayGroups.map((g) => entryBlock(g)),
+  // When grouping by date, compute which sections are the start of a new
+  // calendar week so we can insert page breaks between them. Other
+  // groupings flow continuously.
+  const sectionStartsNewWeek: boolean[] = sections.map((s, i) => {
+    if (groupBy !== 'date') return false
+    if (i === 0) return false
+    const first = s.entries[0]?.representative.scheduled_date
+    const prevFirst = sections[i - 1]?.entries[0]?.representative.scheduled_date
+    if (!first || !prevFirst) return false
+    const w1 = format(startOfWeek(parseISO(first), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+    const w2 = format(startOfWeek(parseISO(prevFirst), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+    return w1 !== w2
+  })
+
+  function sectionBlock(s: { heading: string; entries: EntryGroup[] }, isPageBreak: boolean) {
+    return React.createElement(View, {
+      key: s.heading,
+      break: isPageBreak,
+    }, [
+      React.createElement(Text, { key: 'h', style: styles.sectionHeader }, s.heading.toUpperCase()),
+      ...s.entries.map((g) => entryBlock(g)),
     ])
   }
 
   const doc = React.createElement(Document, {},
     React.createElement(Page, { size: 'A4', style: styles.page }, [
       React.createElement(Text, { key: 'eb', style: styles.eyebrow }, 'CONTENT CALENDAR'),
-      React.createElement(Text, { key: 'h1', style: styles.h1 }, `${brandName} · ${monthLabel}`),
+      React.createElement(Text, { key: 'h1', style: styles.h1 }, `${brandName} · ${rangeLabel}`),
       React.createElement(Text, { key: 'sm', style: styles.summary },
-        `${groups.length} ${groups.length === 1 ? 'entry' : 'entries'} · generated ${format(new Date(), 'MMM d, yyyy')}`,
+        `${totalEntries} ${totalEntries === 1 ? 'entry' : 'entries'} · grouped by ${groupBy} · generated ${format(new Date(), 'MMM d, yyyy')}`,
       ),
-      dates.length === 0
-        ? React.createElement(Text, { key: 'em', style: styles.empty }, 'No entries scheduled for this month.')
+      sections.length === 0
+        ? React.createElement(Text, { key: 'em', style: styles.empty }, 'No entries match the selected range and filters.')
         : null,
-      ...dates.map((d) => dayBlock(d)),
+      ...sections.map((s, i) => sectionBlock(s, sectionStartsNewWeek[i])),
       React.createElement(
         Text,
         {
@@ -155,7 +167,8 @@ export async function exportCalendarToPdf({ brandName, monthLabel, groups }: Exp
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${safeFilename(`${brandName}_${monthLabel}_calendar`)}.pdf`
+  const stamp = format(new Date(), 'yyyy-MM-dd')
+  a.download = `${safeFilename(`${brandName}_${rangeLabel}_calendar`)}_${stamp}.pdf`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

@@ -21,10 +21,7 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, ChevronDown, Download, FileText, Loader2, Search, X } from 'lucide-react'
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ChevronLeft, ChevronRight, Download, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,6 +65,7 @@ import {
   EntryDrawer,
   type EntryFormValues,
 } from '@/components/calendar/EntryDrawer'
+import { ExportCalendarDialog } from '@/components/calendar/ExportCalendarDialog'
 import { PillarConfigDrawer } from '@/components/calendar/PillarConfigDrawer'
 import {
   deriveTaskStatus,
@@ -676,54 +674,9 @@ export function ContentCalendarPage() {
   }, [activeBrand, lastWeekEntries, createEntry])
 
   // ── Calendar export ───────────────────────────────────────────────────────
-  // Real PDF (selectable text via @react-pdf/renderer) and real .docx (via
-  // docx). Both libs are dynamically imported so they only ship to clients
-  // who actually export. Single Export menu in the toolbar offers both.
-  const [exporting, setExporting] = useState<'pdf' | 'word' | null>(null)
-
-  const buildExportInput = useCallback(() => {
-    if (!activeBrand) return null
-    const monthStart = format(startOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
-    const monthEnd   = format(endOfMonth(new Date(viewYear, viewMonth)), 'yyyy-MM-dd')
-    const monthEntries = (entries.data ?? []).filter(
-      (e) => e.scheduled_date >= monthStart && e.scheduled_date <= monthEnd,
-    )
-    return {
-      brandName: activeBrand.name,
-      monthLabel: format(new Date(viewYear, viewMonth), 'MMMM yyyy'),
-      groups: groupEntries(monthEntries),
-    }
-  }, [activeBrand, entries.data, viewYear, viewMonth])
-
-  const handleExportPdf = useCallback(async () => {
-    const input = buildExportInput()
-    if (!input) return
-    setExporting('pdf')
-    try {
-      const { exportCalendarToPdf } = await import('@/lib/exportCalendarToPdf')
-      await exportCalendarToPdf(input)
-      toast.success('PDF downloaded')
-    } catch (err) {
-      toast.error("Couldn't export PDF", { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setExporting(null)
-    }
-  }, [buildExportInput])
-
-  const handleExportWord = useCallback(async () => {
-    const input = buildExportInput()
-    if (!input) return
-    setExporting('word')
-    try {
-      const { exportCalendarToWord } = await import('@/lib/exportCalendarToWord')
-      await exportCalendarToWord(input)
-      toast.success('Word document downloaded')
-    } catch (err) {
-      toast.error("Couldn't export Word", { description: err instanceof Error ? err.message : String(err) })
-    } finally {
-      setExporting(null)
-    }
-  }, [buildExportInput])
+  // Dialog with range / filter / group-by options. The actual fetch and
+  // helper invocation live in ExportCalendarDialog.
+  const [exportOpen, setExportOpen] = useState(false)
 
   const handleAddPillar = useCallback(async (input: { label: string; target_pct: number; color: string }) => {
     if (!activeBrand) return
@@ -901,32 +854,15 @@ export function ContentCalendarPage() {
         </button>
         {!selectMode && (
           <div className="ml-auto flex items-center gap-1.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  disabled={!!exporting}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Export this month as PDF or Word"
-                >
-                  {exporting ? (
-                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                  ) : (
-                    <Download className="h-3 w-3" aria-hidden />
-                  )}
-                  {exporting === 'pdf' ? 'Building PDF…' : exporting === 'word' ? 'Building Word…' : 'Export'}
-                  <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[160px]">
-                <DropdownMenuItem onSelect={handleExportPdf} disabled={!!exporting}>
-                  <FileText className="h-3.5 w-3.5 mr-2" /> Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleExportWord} disabled={!!exporting}>
-                  <FileText className="h-3.5 w-3.5 mr-2" /> Export as Word
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+              title="Export the calendar as PDF or Word"
+            >
+              <Download className="h-3 w-3" aria-hidden />
+              Export
+            </button>
             {lastWeekEntries.length > 0 && (
               <button
                 type="button"
@@ -1085,6 +1021,20 @@ export function ContentCalendarPage() {
             Done
           </button>
         </div>
+      )}
+
+      {activeBrand && (
+        <ExportCalendarDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          brandId={activeBrand.id}
+          brandName={activeBrand.name}
+          viewYear={viewYear}
+          viewMonth={viewMonth}
+          filterPlatforms={filterPlatforms}
+          filterStatus={filterStatus}
+          searchQuery={search}
+        />
       )}
 
       <AlertDialog open={dupWeekConfirm} onOpenChange={setDupWeekConfirm}>
