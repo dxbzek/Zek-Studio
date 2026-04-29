@@ -44,15 +44,16 @@ import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
 import { useGenerator } from '@/hooks/useGenerator'
-import { PLATFORMS } from '@/types'
+import { CONTENT_FORMATS, PLATFORMS } from '@/types'
 import { PlatformPill } from '@/lib/platformBrand'
 import {
-  CALENDAR_STATUS_CHIP,
+  CALENDAR_STATUS_CHIP, CONTENT_FORMAT_SOLID,
 } from '@/lib/statusTokens'
 import type {
   CalendarEntry,
   CalendarEntryInsert,
   CalendarStatus,
+  ContentFormat,
   ContentPillar,
   ContentTheme,
   ContentType,
@@ -135,6 +136,7 @@ export function ContentCalendarPage() {
 
   const [filterPlatforms, setFilterPlatforms] = useState<Platform[]>(() => PLATFORMS.map((p) => p.value))
   const [filterStatus, setFilterStatus]       = useState<CalendarStatus | 'all'>('all')
+  const [filterFormat, setFilterFormat]       = useState<ContentFormat | 'all'>('all')
   const [search, setSearch]                   = useState('')
   // Defer the search filter so each keystroke doesn't re-run filteredEntries
   // synchronously. The input updates instantly; the calendar grid catches up
@@ -147,6 +149,8 @@ export function ContentCalendarPage() {
       result = result.filter((e) => filterPlatforms.includes(e.platform))
     if (filterStatus !== 'all')
       result = result.filter((e) => e.status === filterStatus)
+    if (filterFormat !== 'all')
+      result = result.filter((e) => e.format === filterFormat)
     if (deferredSearch.trim()) {
       const q = deferredSearch.trim().toLowerCase()
       result = result.filter((e) =>
@@ -158,7 +162,7 @@ export function ContentCalendarPage() {
       )
     }
     return result
-  }, [entries.data, filterPlatforms, filterStatus, deferredSearch])
+  }, [entries.data, filterPlatforms, filterStatus, filterFormat, deferredSearch])
 
   const allGroups = useMemo(() => groupEntries(filteredEntries), [filteredEntries])
   // Bucket groups by their scheduled_date once instead of running an
@@ -285,7 +289,6 @@ export function ContentCalendarPage() {
     return {
       content_type: v.contentType as ContentType,
       title: v.title.trim(),
-      body: v.body.trim() || null,
       script: v.script.trim() || null,
       notes: v.notes.trim() || null,
       format: v.format,
@@ -764,6 +767,37 @@ export function ContentCalendarPage() {
             }`}
           >
             {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+        <div className="w-px h-4 bg-border mx-2 shrink-0" />
+        <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Format</span>
+        <button
+          type="button"
+          onClick={() => setFilterFormat('all')}
+          aria-pressed={filterFormat === 'all'}
+          className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+            filterFormat === 'all'
+              ? 'bg-foreground text-background border-transparent'
+              : 'border-border text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          All
+        </button>
+        {CONTENT_FORMATS.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            title={f.desc}
+            onClick={() => setFilterFormat((prev) => prev === f.value ? 'all' : f.value)}
+            aria-pressed={filterFormat === f.value}
+            aria-label={`Filter: ${f.label}`}
+            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+              filterFormat === f.value
+                ? `${CONTENT_FORMAT_SOLID[f.value]} border-transparent`
+                : 'border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {f.label}
           </button>
         ))}
         <div className="sm:ml-auto relative shrink-0">

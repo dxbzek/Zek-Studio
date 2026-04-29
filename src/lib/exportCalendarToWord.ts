@@ -39,6 +39,32 @@ const FORMAT_HEX: Record<ContentFormat, string> = {
   emergency_backup: 'EF4444',
 }
 
+type CoverStats = {
+  total: number
+  byFormat: Record<ContentFormat | 'unset', number>
+  byStatus: Record<'draft' | 'scheduled' | 'published', number>
+}
+
+function computeCoverStats(sections: { entries: EntryGroup[] }[]): CoverStats {
+  const stats: CoverStats = {
+    total: 0,
+    byFormat: { reel: 0, carousel: 0, static: 0, emergency_backup: 0, unset: 0 },
+    byStatus: { draft: 0, scheduled: 0, published: 0 },
+  }
+  for (const s of sections) {
+    for (const g of s.entries) {
+      stats.total += 1
+      const f = (g.representative.format as ContentFormat | null) ?? 'unset'
+      stats.byFormat[f] = (stats.byFormat[f] ?? 0) + 1
+      const st = g.representative.status
+      if (st === 'draft' || st === 'scheduled' || st === 'published') {
+        stats.byStatus[st] += 1
+      }
+    }
+  }
+  return stats
+}
+
 export type ExportSections = {
   groupBy: 'date' | 'format' | 'talent'
   sections: { heading: string; entries: EntryGroup[] }[]
@@ -50,7 +76,7 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   const docx = await import('docx')
   const {
     Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType,
-    ExternalHyperlink, ShadingType, Footer, PageNumber,
+    ExternalHyperlink, ShadingType, Footer, PageNumber, PageBreak,
   } = docx
 
   function sectionH(text: string) {
@@ -61,30 +87,92 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
     })
   }
 
-  const totalEntries = sections.reduce((acc, s) => acc + s.entries.length, 0)
+  const cover = computeCoverStats(sections)
   const docChildren: InstanceType<typeof Paragraph>[] = []
 
-  // Title block
+  // ── Cover page ───────────────────────────────────────────────────────────
   docChildren.push(
     new Paragraph({
-      alignment: AlignmentType.LEFT,
-      spacing: { after: 60 },
-      children: [new TextRun({ text: 'CONTENT CALENDAR', color: '888888', size: 18, allCaps: true })],
+      spacing: { before: 1200, after: 120 },
+      children: [new TextRun({ text: 'CONTENT CALENDAR', color: '888888', size: 22, allCaps: true })],
     }),
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
-      spacing: { after: 100 },
-      children: [new TextRun({ text: `${brandName} · ${rangeLabel}`, bold: true, size: 36 })],
+      spacing: { after: 80 },
+      children: [new TextRun({ text: brandName, bold: true, size: 60 })],
     }),
     new Paragraph({
-      spacing: { after: 280 },
-      children: [
-        new TextRun({
-          text: `${totalEntries} ${totalEntries === 1 ? 'entry' : 'entries'} · grouped by ${groupBy} · generated ${format(new Date(), 'MMM d, yyyy')}`,
-          color: '777777',
-          size: 20,
-        }),
-      ],
+      spacing: { after: 480 },
+      children: [new TextRun({ text: rangeLabel, size: 28, color: '555555' })],
+    }),
+  )
+
+  function statSection(label: string, lines: { name: string; count: number; hex: string }[]) {
+    docChildren.push(new Paragraph({
+      spacing: { before: 240, after: 60 },
+      children: [new TextRun({ text: label.toUpperCase(), color: '666666', size: 18, allCaps: true, bold: true })],
+    }))
+    for (const l of lines) {
+      if (l.count === 0) continue
+      docChildren.push(new Paragraph({
+        spacing: { after: 40 },
+        children: [
+          new TextRun({
+            text: '  ●  ',
+            color: l.hex,
+            size: 28,
+            bold: true,
+          }),
+          new TextRun({ text: l.name, size: 22 }),
+          new TextRun({ text: '  ', size: 22 }),
+          new TextRun({ text: String(l.count), size: 22, bold: true, color: '222222' }),
+        ],
+      }))
+    }
+  }
+
+  // Total entries headline
+  docChildren.push(new Paragraph({
+    spacing: { before: 120, after: 40 },
+    children: [new TextRun({ text: 'TOTAL ENTRIES', color: '666666', size: 18, allCaps: true, bold: true })],
+  }))
+  docChildren.push(new Paragraph({
+    spacing: { after: 200 },
+    children: [new TextRun({ text: String(cover.total), bold: true, size: 60, color: '222222' })],
+  }))
+
+  statSection('By format', [
+    { name: 'Reels',            count: cover.byFormat.reel,             hex: 'A855F7' },
+    { name: 'Carousels',        count: cover.byFormat.carousel,         hex: '3B82F6' },
+    { name: 'Static',           count: cover.byFormat.static,           hex: '10B981' },
+    { name: 'Emergency Backup', count: cover.byFormat.emergency_backup, hex: 'EF4444' },
+    { name: 'Format unset',     count: cover.byFormat.unset,            hex: '9CA3AF' },
+  ])
+
+  statSection('By status', [
+    { name: 'Draft',     count: cover.byStatus.draft,     hex: 'A1A1AA' },
+    { name: 'Scheduled', count: cover.byStatus.scheduled, hex: 'F59E0B' },
+    { name: 'Published', count: cover.byStatus.published, hex: '10B981' },
+  ])
+
+  docChildren.push(new Paragraph({
+    spacing: { before: 360 },
+    children: [
+      new TextRun({ text: `Grouped by ${groupBy} · generated ${format(new Date(), 'MMM d, yyyy')}`, color: '888888', italics: true, size: 18 }),
+    ],
+  }))
+
+  // Force a page break so content starts on its own page.
+  docChildren.push(new Paragraph({
+    children: [new PageBreak()],
+  }))
+
+  // ── Content page header ──────────────────────────────────────────────────
+  docChildren.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      spacing: { after: 240 },
+      children: [new TextRun({ text: `${brandName} · ${rangeLabel}`, bold: true, size: 28 })],
     }),
   )
 

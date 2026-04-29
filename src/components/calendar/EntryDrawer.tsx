@@ -35,7 +35,6 @@ import { STATUSES } from './entryGroups'
 
 export interface EntryFormValues {
   title: string
-  body: string
   script: string
   notes: string
   format: ContentFormat | null
@@ -137,7 +136,6 @@ function LinksRow({ text }: { text: string }) {
 
 const INITIAL: EntryFormValues = {
   title: '',
-  body: '',
   script: '',
   notes: '',
   format: null,
@@ -186,7 +184,6 @@ export function EntryDrawer({
       pillarManuallyPicked.current = true
       next = {
         title: rep.title,
-        body: rep.body ?? '',
         script: rep.script ?? '',
         notes: rep.notes ?? '',
         format: rep.format ?? null,
@@ -347,7 +344,7 @@ export function EntryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0 w-[94vw] sm:max-w-6xl">
+      <SheetContent side="right" className="flex flex-col gap-0 p-0 w-[96vw] sm:max-w-7xl">
         <SheetHeader className="border-b border-border px-6 py-4 space-y-1">
           <div className="eyebrow">
             {mode === 'create'
@@ -380,55 +377,59 @@ export function EntryDrawer({
             />
           </div>
 
-          {/* Script / Concept */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
+          {/* Script + Notes — paired side-by-side on wide drawers so the
+              brief and the production notes read together. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Script / Concept */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">
+                  Script / Concept{' '}
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </label>
+                {onGenerateCaption && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateCaption}
+                    disabled={generating || !values.title.trim() || values.platforms.length === 0}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Use the AI generator with the title as the brief"
+                  >
+                    {generating ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    {generating ? 'Drafting…' : 'Generate'}
+                  </button>
+                )}
+              </div>
+              <Textarea
+                value={values.script}
+                onChange={(e) => set('script', e.target.value)}
+                rows={10}
+                className="resize-y min-h-[220px] font-mono text-[13px] leading-6"
+                placeholder={'One line per beat — hook, point, point, CTA.\nAim for 30–40s of speaking time.'}
+              />
+              <ScriptCounter text={values.script} />
+              <LinksRow text={values.script} />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                Script / Concept{' '}
+                Notes{' '}
                 <span className="text-muted-foreground font-normal text-xs">(optional)</span>
               </label>
-              {onGenerateCaption && (
-                <button
-                  type="button"
-                  onClick={handleGenerateCaption}
-                  disabled={generating || !values.title.trim() || values.platforms.length === 0}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="Use the AI generator with the title as the brief"
-                >
-                  {generating ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3 w-3" />
-                  )}
-                  {generating ? 'Drafting…' : 'Generate'}
-                </button>
-              )}
+              <Textarea
+                value={values.notes}
+                onChange={(e) => set('notes', e.target.value)}
+                rows={10}
+                className="resize-y min-h-[220px]"
+                placeholder="Links, location notes, props, anything internal."
+              />
+              <LinksRow text={values.notes} />
             </div>
-            <Textarea
-              value={values.script}
-              onChange={(e) => set('script', e.target.value)}
-              rows={8}
-              className="resize-y min-h-[180px] font-mono text-[13px] leading-6"
-              placeholder={'One line per beat — hook, point, point, CTA.\nAim for 30–40s of speaking time.'}
-            />
-            <ScriptCounter text={values.script} />
-            <LinksRow text={values.script} />
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              Notes{' '}
-              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
-            </label>
-            <Textarea
-              value={values.notes}
-              onChange={(e) => set('notes', e.target.value)}
-              rows={4}
-              className="resize-y min-h-[100px]"
-              placeholder="Links, location notes, props, anything internal."
-            />
-            <LinksRow text={values.notes} />
           </div>
 
           {/* Date + Status (paired on wider screens) */}
