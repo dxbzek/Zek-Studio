@@ -33,7 +33,7 @@ function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
 
   return (
     <header
-      className="sticky top-0 z-30 flex h-[52px] shrink-0 items-center gap-3 border-b border-border bg-background px-4"
+      className="glass-surface sticky top-0 z-30 flex h-[52px] shrink-0 items-center gap-3 border-b border-border/70 px-4"
       style={{
         paddingTop: 'env(safe-area-inset-top)',
         paddingLeft: 'max(1rem, env(safe-area-inset-left))',

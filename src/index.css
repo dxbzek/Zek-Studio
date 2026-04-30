@@ -237,6 +237,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(1200px 600px at 90% -10%, oklch(0.96 0.02 80 / 0.45), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, oklch(0.96 0.02 60 / 0.30), transparent 60%);
+    background-attachment: fixed;
+  }
+  .dark body {
+    background-image:
+      radial-gradient(1200px 600px at 90% -10%, oklch(0.30 0.02 245 / 0.55), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, oklch(0.20 0.01 245 / 0.55), transparent 60%);
   }
   html {
     @apply font-sans;
@@ -260,6 +269,35 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+  }
+  /* Glassy translucent surface for sticky topbars and floating chrome. */
+  .glass-surface {
+    background-color: color-mix(in oklch, var(--background) 72%, transparent);
+    backdrop-filter: saturate(160%) blur(10px);
+    -webkit-backdrop-filter: saturate(160%) blur(10px);
+  }
+  /* Subtle inner highlight + outer ring for premium card surfaces. */
+  .premium-card {
+    background:
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 96%, white 4%) 0%, var(--card) 38%);
+    box-shadow:
+      0 1px 0 0 color-mix(in oklch, var(--foreground) 4%, transparent) inset,
+      0 1px 2px -1px color-mix(in oklch, var(--foreground) 8%, transparent),
+      0 8px 24px -16px color-mix(in oklch, var(--foreground) 18%, transparent);
+  }
+  .dark .premium-card {
+    background:
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 88%, white 6%) 0%, var(--card) 42%);
+    box-shadow:
+      0 1px 0 0 color-mix(in oklch, white 5%, transparent) inset,
+      0 1px 2px -1px black,
+      0 8px 24px -16px black;
+  }
+  /* Soft warm-to-cool top wash applied to dashboard hero / page headers. */
+  .editorial-wash {
+    background:
+      radial-gradient(80% 120% at 0% 0%, color-mix(in oklch, var(--accent) 70%, transparent) 0%, transparent 60%),
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 60%, transparent) 0%, transparent 100%);
   }
 }
 

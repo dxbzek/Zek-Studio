@@ -99,8 +99,10 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
   return (
     <aside
       className={cn(
-        'flex w-[232px] flex-col border-r border-border bg-sidebar',
+        'relative flex w-[232px] flex-col border-r border-sidebar-border/80 bg-sidebar',
         'fixed inset-y-0 left-0 z-50 h-full transition-transform duration-200',
+        // Subtle vertical wash to separate from main content without harsh contrast
+        'before:absolute before:inset-0 before:pointer-events-none before:bg-gradient-to-b before:from-transparent before:via-transparent before:to-foreground/[0.02] dark:before:to-black/30',
         open ? 'translate-x-0' : '-translate-x-full',
         desktopHidden ? 'sm:hidden' : 'sm:relative sm:translate-x-0',
       )}
@@ -111,23 +113,26 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
       }}
     >
       {/* Logo */}
-      <div className="flex h-[52px] items-center gap-2.5 border-b border-border px-4 shrink-0">
-        <img src="/logo.png" alt="Zek" className="h-[18px] w-auto dark:invert" />
+      <div className="relative flex h-[52px] items-center gap-2.5 border-b border-sidebar-border/80 px-4 shrink-0">
+        <img src="/logo.png" alt="Zek" className="h-[18px] w-auto dark:invert transition-transform duration-200 ease-out hover:scale-105" />
         <span style={{ fontFamily: 'var(--font-heading)', fontSize: 15, letterSpacing: '-0.02em' }}>
           Studio
         </span>
-        <span className="ml-auto rounded border border-border px-1.5 py-0.5 text-[9.5px] font-semibold text-muted-foreground">
+        <span
+          className="ml-auto rounded-[5px] border border-border/80 bg-card/60 px-1.5 py-[1px] text-[9px] font-semibold tracking-[0.08em] text-muted-foreground"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        >
           BETA
         </span>
       </div>
 
       {/* Brand Switcher */}
-      <div className="border-b border-border p-2.5">
+      <div className="relative border-b border-sidebar-border/80 p-2.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-between px-2.5 h-11 sm:h-[38px] hover:bg-sidebar-accent border border-border rounded-[10px]"
+              className="w-full justify-between px-2.5 h-11 sm:h-[40px] hover:bg-sidebar-accent border border-border/80 bg-card/40 rounded-[10px] shadow-[0_1px_0_0_color-mix(in_oklch,white_50%,transparent)_inset] transition-all duration-150 hover:border-foreground/15 hover:-translate-y-px hover:shadow-[0_1px_0_0_color-mix(in_oklch,white_60%,transparent)_inset,0_2px_8px_-2px_color-mix(in_oklch,black_10%,transparent)] active:translate-y-0 dark:bg-input/20 dark:shadow-none"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <BrandAvatar brand={activeBrand} size={22} rounded="full" />
@@ -166,10 +171,13 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-1">
+      <nav className="relative flex-1 overflow-y-auto py-1">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.09em] text-muted-foreground/60">
+            <div
+              className="px-3 pt-3 pb-1 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/55"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
               {group.label}
             </div>
             {group.items.map(({ to, label, icon: Icon, end }) => (
@@ -180,15 +188,26 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
                 onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-2.5 h-11 sm:h-[30px] mx-1.5 px-2.5 rounded-[7px] text-[12.5px] font-medium transition-colors',
+                    'group/nav relative flex items-center gap-2.5 h-11 sm:h-[32px] mx-1.5 px-2.5 rounded-[8px] text-[12.5px] font-medium transition-all duration-150 ease-out',
+                    // Left accent bar — visible on active, subtle on hover
+                    'before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:rounded-r-full before:transition-all before:duration-200',
                     isActive
-                      ? 'bg-accent/60 text-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      ? 'bg-gradient-to-r from-accent to-accent/30 text-foreground shadow-[0_1px_0_0_color-mix(in_oklch,white_50%,transparent)_inset] before:h-5 before:bg-foreground dark:shadow-none'
+                      : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground hover:translate-x-px before:h-0 before:bg-foreground/40 hover:before:h-3'
                   )
                 }
               >
-                <Icon className="h-[15px] w-[15px] shrink-0" />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <Icon
+                      className={cn(
+                        'h-[15px] w-[15px] shrink-0 transition-colors',
+                        isActive ? 'text-foreground' : 'text-muted-foreground/70 group-hover/nav:text-foreground',
+                      )}
+                    />
+                    <span>{label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </div>
@@ -196,9 +215,15 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border p-2.5 flex items-center gap-2">
+      <div className="relative border-t border-sidebar-border/80 p-2.5 flex items-center gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="h-[26px] w-[26px] rounded-full bg-muted text-foreground flex items-center justify-center text-[10px] font-semibold shrink-0">
+          <div
+            className="h-[26px] w-[26px] rounded-full text-foreground flex items-center justify-center text-[10px] font-semibold shrink-0 ring-1 ring-border/60 shadow-[0_1px_0_0_color-mix(in_oklch,white_60%,transparent)_inset]"
+            style={{
+              background:
+                'linear-gradient(135deg, color-mix(in oklch, var(--accent) 60%, var(--card)) 0%, var(--muted) 100%)',
+            }}
+          >
             {user?.email?.slice(0, 2).toUpperCase() ?? 'ZS'}
           </div>
           <div className="min-w-0 flex-1">
