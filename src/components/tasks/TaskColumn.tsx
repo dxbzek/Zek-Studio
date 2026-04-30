@@ -24,9 +24,9 @@ interface TaskColumnProps {
 // so columns don't flash "Nothing waiting here" before the data arrives.
 function TaskChipSkeleton() {
   return (
-    <div className="rounded border border-border/60 bg-muted/40 p-2.5 animate-pulse">
-      <div className="h-3 w-2/3 rounded bg-muted-foreground/20 mb-2" />
-      <div className="h-2.5 w-1/2 rounded bg-muted-foreground/15" />
+    <div className="rounded-md border border-border/60 bg-card/40 p-2.5 motion-safe:animate-pulse">
+      <div className="h-3 w-2/3 rounded bg-muted-foreground/15 mb-2" />
+      <div className="h-2.5 w-1/2 rounded bg-muted-foreground/10" />
     </div>
   )
 }
@@ -48,10 +48,10 @@ export function TaskColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`h-full flex flex-col gap-2 p-3 rounded-xl border border-border border-t-2 ${TASK_STATUS_ACCENT[column.id]} transition-colors ${
+      className={`group/column relative h-full flex flex-col gap-2 p-3 rounded-xl border border-border/80 border-t-2 ${TASK_STATUS_ACCENT[column.id]} transition-all duration-200 ease-out shadow-[0_1px_2px_-1px_color-mix(in_oklch,black_6%,transparent),0_1px_0_0_color-mix(in_oklch,white_50%,transparent)_inset] dark:shadow-none ${
         isOver
-          ? 'bg-primary/5 border-primary/30'
-          : TASK_STATUS_COLUMN_TINT[column.id]
+          ? 'bg-primary/[0.06] border-primary/40 ring-2 ring-primary/30 ring-inset'
+          : `${TASK_STATUS_COLUMN_TINT[column.id]} hover:border-border`
       }`}
     >
       <div className="flex items-center justify-between mb-1 shrink-0">
@@ -61,9 +61,9 @@ export function TaskColumn({
               column.id === 'in_progress' ? 'animate-spin [animation-duration:4s]' : ''
             }`}
           />
-          <span className="text-sm font-semibold text-foreground">{column.label}</span>
+          <span className="text-sm font-semibold text-foreground tracking-tight">{column.label}</span>
         </span>
-        <span className={`text-[11px] rounded-full px-1.5 py-0.5 font-medium tabular-nums ${TASK_STATUS_CHIP[column.id]}`}>
+        <span className={`text-[11px] rounded-full px-1.5 py-0.5 font-semibold tabular-nums shadow-[0_1px_0_0_color-mix(in_oklch,white_30%,transparent)_inset] ${TASK_STATUS_CHIP[column.id]}`}>
           {tasks.length}
         </span>
       </div>
@@ -91,7 +91,7 @@ export function TaskColumn({
           </>
         )}
         {isEmpty && !isLoading && (
-          <div className="rounded border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground text-center leading-snug">
+          <div className="rounded-md border border-dashed border-border/60 px-2 py-4 text-[11px] text-muted-foreground/70 text-center leading-snug">
             {column.empty}
           </div>
         )}
@@ -100,7 +100,7 @@ export function TaskColumn({
         <button
           type="button"
           onClick={onAddClick}
-          className="shrink-0 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground py-1 px-1 rounded hover:bg-accent transition-colors"
+          className="shrink-0 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground py-1 px-1 rounded hover:bg-accent/60 transition-all duration-150 hover:translate-x-px"
         >
           <Plus className="h-3 w-3" />
           With details…
@@ -109,4 +109,3 @@ export function TaskColumn({
     </div>
   )
 }
-

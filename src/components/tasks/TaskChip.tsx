@@ -33,10 +33,12 @@ function TaskChipImpl({ task, linkedEntry, isDragging }: TaskChipProps) {
   // everywhere else — keep the border/shadow hover feedback only.
   return (
     <div
-      className={`rounded border border-border border-l-4 ${TASK_STATUS_BORDER[task.status]} ${urgencyTint} px-2 py-1.5 space-y-1.5 ${
-        isDragging ? '' : 'transition-colors duration-150 hover:border-border/80 hover:shadow-sm'
+      className={`rounded-md border border-border border-l-[3px] ${TASK_STATUS_BORDER[task.status]} ${urgencyTint} px-2 py-1.5 space-y-1.5 shadow-[0_1px_0_0_color-mix(in_oklch,white_50%,transparent)_inset] dark:shadow-none ${
+        isDragging
+          ? ''
+          : 'transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out hover:-translate-y-[1px] hover:border-foreground/15 hover:shadow-[0_4px_10px_-4px_color-mix(in_oklch,black_12%,transparent),0_1px_0_0_color-mix(in_oklch,white_60%,transparent)_inset] active:translate-y-0 active:shadow-sm motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-300'
       } ${
-        isDone ? 'opacity-75' : ''
+        isDone ? 'opacity-70' : ''
       }`}
     >
       <div className="flex items-start justify-between gap-1.5">

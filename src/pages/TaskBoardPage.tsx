@@ -323,17 +323,21 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
       </div>
 
       {/* Stats ribbon */}
-      <div className="px-4 sm:px-6 pb-3 flex items-center gap-4 flex-wrap text-xs text-muted-foreground shrink-0">
+      <div className="px-4 sm:px-6 pb-3 flex items-center gap-3 flex-wrap text-xs text-muted-foreground shrink-0">
         {COLUMNS.map((c) => (
-          <span key={c.id} className="flex items-center gap-1.5">
+          <span
+            key={c.id}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-card/40 ring-1 ring-border/60 transition-colors hover:bg-card/80 hover:ring-border"
+          >
             <span className={`h-1.5 w-1.5 rounded-full ${TASK_STATUS_DOT[c.id]}`} />
-            <span className="tabular-nums font-medium text-foreground">{statusCounts[c.id]}</span>
-            <span>{c.label}</span>
+            <span className="tabular-nums font-semibold text-foreground mono-num">{statusCounts[c.id]}</span>
+            <span className="text-muted-foreground/80">{c.label}</span>
           </span>
         ))}
-        <span className="ml-auto text-[11px]">
-          Shipped this week:{' '}
-          <span className="tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+        <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md bg-emerald-500/[0.06] ring-1 ring-emerald-500/20">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" aria-hidden />
+          <span className="text-muted-foreground">Shipped this week</span>
+          <span className="tabular-nums font-semibold text-emerald-600 dark:text-emerald-400 mono-num">
             {shippedThisWeek}
           </span>
         </span>

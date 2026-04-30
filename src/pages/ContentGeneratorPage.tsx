@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { ExternalLink, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
+import { ExternalLink, ChevronDown, ChevronUp, RefreshCw, Sparkles } from 'lucide-react'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { Button } from '@/components/ui/button'
@@ -167,7 +167,7 @@ function HistoryItem({ item }: { item: GeneratedContent }) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="premium-card rounded-xl ring-1 ring-border/80">
       <button
         type="button"
         className="w-full flex items-center gap-3 px-4 py-3 text-left"
@@ -375,7 +375,7 @@ export function ContentGeneratorPage() {
       </div>
 
       {/* Source Mode Tabs */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
         <div className="flex border-b border-border">
           {([
             { value: 'trending_topic', label: 'Trending Topics', count: trendingTopics.length },
@@ -520,7 +520,7 @@ export function ContentGeneratorPage() {
       </div>
 
       {/* Settings */}
-      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+      <div className="premium-card rounded-xl ring-1 ring-border/80 p-5 space-y-4 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-500">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Content Theme</label>
           <p className="text-xs text-muted-foreground">Each theme generates a full package: Hook · Caption · Video Script · Call to Action</p>
@@ -558,9 +558,20 @@ export function ContentGeneratorPage() {
         <Button
           onClick={handleGenerate}
           disabled={generate.isPending}
-          className="w-full"
+          size="lg"
+          className="w-full gap-2 text-[13.5px] font-semibold"
         >
-          {generate.isPending ? 'Generating package…' : 'Generate Content Package'}
+          {generate.isPending ? (
+            <>
+              <span className="h-3.5 w-3.5 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full animate-spin" />
+              Generating package…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3.5 w-3.5" />
+              Generate content package
+            </>
+          )}
         </Button>
       </div>
 
@@ -607,7 +618,7 @@ export function ContentGeneratorPage() {
             </div>
 
             {/* Post card: Hook + Caption + CTA */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+            <div className="premium-card rounded-xl ring-1 ring-border/80 p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Post</span>
                 <Button
@@ -694,7 +705,7 @@ export function ContentGeneratorPage() {
             </div>
 
             {/* Video Script card */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="premium-card rounded-xl ring-1 ring-border/80 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Video Script</span>
                 <CharCount text={script} platform={platform} />

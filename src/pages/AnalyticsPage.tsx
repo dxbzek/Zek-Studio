@@ -65,12 +65,20 @@ function engagementRate(m: PostMetric): string {
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="h-4 w-4" />
+    <div className="premium-card group relative overflow-hidden rounded-xl ring-1 ring-border/80 p-4 space-y-1 transition-all duration-300 ease-out hover:-translate-y-px hover:ring-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-500">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-12 -right-12 h-32 w-32 rounded-full opacity-50 transition-opacity duration-500 group-hover:opacity-100"
+        style={{
+          background:
+            'radial-gradient(closest-side, color-mix(in oklch, var(--accent) 65%, transparent) 0%, transparent 75%)',
+        }}
+      />
+      <div className="relative flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
         <span className="eyebrow" style={{ fontSize: 10 }}>{label}</span>
       </div>
-      <p className="mono-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 24, fontWeight: 500 }}>{value}</p>
+      <p className="relative mono-num" style={{ fontFamily: 'var(--font-heading)', fontSize: 26, fontWeight: 500, letterSpacing: '-0.02em' }}>{value}</p>
     </div>
   )
 }
@@ -575,7 +583,7 @@ export default function AnalyticsPage() {
       {/* Editorial hero card */}
       {summary && (
         <div className="px-4 sm:px-6 pb-4 shrink-0">
-          <div className="rounded-xl border border-border bg-card overflow-hidden grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr]">
+          <div className="premium-card rounded-xl ring-1 ring-border/80 overflow-hidden grid grid-cols-1 lg:grid-cols-[1.2fr_1fr_1fr] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-500">
             {/* Left — big reach number */}
             <div className="p-5 border-b lg:border-b-0 lg:border-r border-border">
               <div className="eyebrow mb-3">Total reach</div>
@@ -654,7 +662,7 @@ export default function AnalyticsPage() {
 
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-6">
         {/* Brand Accounts */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-2 justify-between">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand Accounts</p>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -740,7 +748,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Share Links */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Share Links</p>
           </div>
@@ -1111,7 +1119,7 @@ export default function AnalyticsPage() {
         )}
 
         {/* AI Content Audit */}
-        <section className="rounded-xl border border-border bg-card overflow-hidden">
+        <section className="premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
             <div className="flex items-start justify-between gap-4 mb-3">
               <div>
@@ -1224,7 +1232,7 @@ export default function AnalyticsPage() {
 
         {/* Channel breakdown table */}
         {channelStats.length > 0 && (
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
             <div className="px-4 py-3 border-b border-border">
               <div className="eyebrow">Channel breakdown</div>
             </div>
@@ -1302,7 +1310,7 @@ export default function AnalyticsPage() {
 
         {/* Metrics table */}
         {displayed.length > 0 && (
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
             {/* Card stack — below md: */}
             <div className="md:hidden divide-y divide-border">
               {displayed.slice(0, metricsLimit).map((m) => (
