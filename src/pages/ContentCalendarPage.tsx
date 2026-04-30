@@ -23,7 +23,7 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Download, Keyboard, Search, Share2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Keyboard, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,7 +42,6 @@ import { useActiveBrand } from '@/stores/activeBrand'
 import { useUiState } from '@/stores/uiState'
 import { useCalendar } from '@/hooks/useCalendar'
 import { useTeam } from '@/hooks/useTeam'
-import { useShareTokens } from '@/hooks/useShareTokens'
 import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
@@ -189,7 +188,6 @@ export function ContentCalendarPage() {
     [emergencyBackups.data],
   )
   const { members } = useTeam(activeBrand?.id ?? null)
-  const { createToken: createShareToken } = useShareTokens(activeBrand?.id ?? null)
   const { tasks, createTask, updateTask } = useTasks(activeBrand?.id ?? null)
   const { campaigns } = useCampaigns(activeBrand?.id ?? null)
   const { pillars, createPillar, deletePillar } = useContentPillars(activeBrand?.id ?? null)
@@ -592,6 +590,17 @@ export function ContentCalendarPage() {
     })
   }, [])
 
+  // Day-level toggle: selects or deselects every group on a given day in
+  // one click. Driven from the day-number checkbox in DayCell.
+  const toggleSelectDay = useCallback((groupIds: string[], to: 'select' | 'deselect') => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev)
+      if (to === 'select') groupIds.forEach((id) => next.add(id))
+      else groupIds.forEach((id) => next.delete(id))
+      return next
+    })
+  }, [])
+
   const exitSelectMode = useCallback(() => {
     setSelectMode(false)
     setSelectedGroupIds(new Set())
@@ -695,21 +704,6 @@ export function ContentCalendarPage() {
     // user sees on the Generator page as the primary.
     return result.output?.[0] ?? null
   }, [generateContent])
-
-  // Generate a public approval link for the active brand and copy to
-  // clipboard. The PublicApprovalPage / submit-approval edge function
-  // already handle the token; we just create a row and hand the URL over.
-  const handleShareApproval = useCallback(async () => {
-    if (!activeBrand) return
-    try {
-      const token = await createShareToken.mutateAsync({ type: 'approval' })
-      const url = `${window.location.origin}/approve/${token.token}`
-      await navigator.clipboard.writeText(url)
-      toast.success('Approval link copied', { description: 'Send it to the client to approve / reject entries.' })
-    } catch (err) {
-      toast.error('Could not create link', { description: err instanceof Error ? err.message : String(err) })
-    }
-  }, [activeBrand, createShareToken])
 
   // Quick-action handler for the ⋯ menu on each entry card. Each action
   // operates on every row in the group (multi-platform entries are stored
@@ -1147,25 +1141,15 @@ export function ContentCalendarPage() {
             >
               <Keyboard className="h-3 w-3" aria-hidden />
             </button>
-            <button
+            <Button
               type="button"
-              onClick={handleShareApproval}
-              disabled={createShareToken.isPending}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              title="Generate a client-facing approval link and copy it to clipboard"
-            >
-              <Share2 className="h-3 w-3" aria-hidden />
-              {createShareToken.isPending ? 'Creating…' : 'Share for review'}
-            </button>
-            <button
-              type="button"
+              size="xs"
               onClick={() => setExportOpen(true)}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95"
               title="Export the calendar as PDF or Word"
             >
               <Download className="h-3 w-3" aria-hidden />
               Export
-            </button>
+            </Button>
             {lastWeekEntries.length > 0 && (
               <button
                 type="button"
@@ -1311,6 +1295,7 @@ export function ContentCalendarPage() {
               selectMode={selectMode}
               selectedGroupIds={selectedGroupIds}
               onToggleSelect={toggleSelect}
+              onToggleSelectDay={toggleSelectDay}
               onQuickAction={handleQuickAction}
             />
           ))}

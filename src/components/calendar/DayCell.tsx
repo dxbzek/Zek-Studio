@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { format, isSameDay, startOfDay } from 'date-fns'
 import {
@@ -9,6 +10,8 @@ import type { EntryGroup } from './entryGroups'
 
 const MAX_VISIBLE = 3
 
+export type DaySelection = 'none' | 'some' | 'all'
+
 interface DayCellProps {
   day: Date
   groups: EntryGroup[]
@@ -19,12 +22,14 @@ interface DayCellProps {
   selectMode?: boolean
   selectedGroupIds?: Set<string>
   onToggleSelect?: (groupId: string) => void
+  // Click on the day-number toggles every group in this day on/off.
+  onToggleSelectDay?: (groupIds: string[], to: 'select' | 'deselect') => void
   onQuickAction?: (group: EntryGroup, action: EntryQuickAction) => void
 }
 
 export function DayCell({
   day, groups, isCurrentMonth, tall, onGroupClick, onAddClick,
-  selectMode, selectedGroupIds, onToggleSelect, onQuickAction,
+  selectMode, selectedGroupIds, onToggleSelect, onToggleSelectDay, onQuickAction,
 }: DayCellProps) {
   const dateStr = format(day, 'yyyy-MM-dd')
   const { isOver, setNodeRef } = useDroppable({ id: dateStr })
@@ -36,27 +41,69 @@ export function DayCell({
   const isUpcomingEmpty =
     groups.length === 0 && isCurrentMonth && startOfDay(day) >= startOfDay(new Date())
 
+  // Tri-state day-selection. Computed against the per-group selection set
+  // so the day-number checkbox stays in sync with individual card toggles.
+  const dayGroupIds = groups.map((g) => g.id)
+  const selectedCount = selectMode && selectedGroupIds
+    ? dayGroupIds.filter((id) => selectedGroupIds.has(id)).length
+    : 0
+  const daySelection: DaySelection =
+    selectedCount === 0 ? 'none'
+    : selectedCount === dayGroupIds.length ? 'all'
+    : 'some'
+
+  // Hover-controlled popover for the "+N more" overflow. Small open delay
+  // and a close delay covers the gap between trigger and content so the
+  // popover doesn't flicker shut while the cursor crosses.
+  const [moreOpen, setMoreOpen] = useState(false)
+
   return (
     <div
       ref={setNodeRef}
       onClick={() => { if (!selectMode) onAddClick() }}
-      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-[background-color,box-shadow] duration-200 ease-out ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset shadow-[inset_0_0_0_2px_rgba(0,0,0,0.02)]' : ''} ${
-        // Heatmap: dense days get a subtle warm tint so over-loaded
-        // posting days are obvious at a glance. Disabled out-of-month and
-        // when DnD is hovering (would clash with the primary tint).
-        isCurrentMonth && !isOver
-          ? groups.length >= 5 ? 'bg-amber-500/[0.07]'
-          : groups.length >= 3 ? 'bg-amber-500/[0.04]'
-          : ''
-          : ''
-      }`}
+      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-[background-color,box-shadow] duration-200 ease-out ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset shadow-[inset_0_0_0_2px_rgba(0,0,0,0.02)]' : ''}`}
     >
       <div className="flex items-center justify-between">
-        <span
-          className={`font-mono text-[11px] sm:text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full tabular-nums ${todayFlag ? 'bg-primary text-primary-foreground' : isCurrentMonth ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}
-        >
-          {format(day, 'd')}
-        </span>
+        {selectMode && groups.length > 0 ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleSelectDay?.(dayGroupIds, daySelection === 'all' ? 'deselect' : 'select')
+            }}
+            title={daySelection === 'all' ? 'Deselect day' : 'Select all on this day'}
+            className={`group/day flex items-center gap-1 rounded-full px-1 py-0.5 transition-colors ${daySelection !== 'none' ? 'bg-primary/10' : 'hover:bg-accent'}`}
+          >
+            <span
+              className={`h-3 w-3 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                daySelection === 'all'
+                  ? 'bg-primary border-primary'
+                  : daySelection === 'some'
+                    ? 'bg-primary/60 border-primary'
+                    : 'border-muted-foreground/40 group-hover/day:border-foreground/60'
+              }`}
+              aria-hidden
+            >
+              {daySelection === 'all' && (
+                <span className="text-[8px] leading-none text-primary-foreground">✓</span>
+              )}
+              {daySelection === 'some' && (
+                <span className="block h-[2px] w-1.5 bg-primary-foreground rounded" />
+              )}
+            </span>
+            <span
+              className={`font-mono text-[11px] sm:text-xs font-medium tabular-nums ${todayFlag ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              {format(day, 'd')}
+            </span>
+          </button>
+        ) : (
+          <span
+            className={`font-mono text-[11px] sm:text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full tabular-nums ${todayFlag ? 'bg-primary text-primary-foreground' : isCurrentMonth ? 'text-muted-foreground' : 'text-muted-foreground/60'}`}
+          >
+            {format(day, 'd')}
+          </span>
+        )}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onAddClick() }}
@@ -83,9 +130,13 @@ export function DayCell({
         />
       ))}
       {groups.length > MAX_VISIBLE && (
-        <Popover>
+        <Popover open={moreOpen} onOpenChange={setMoreOpen}>
           <PopoverTrigger
             onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setMoreOpen(true)}
+            onMouseLeave={() => setMoreOpen(false)}
+            onFocus={() => setMoreOpen(true)}
+            onBlur={() => setMoreOpen(false)}
             className="text-[10px] text-muted-foreground hover:text-foreground px-1 font-mono tabular-nums text-left self-start rounded hover:bg-accent/50 transition-colors"
           >
             +{groups.length - MAX_VISIBLE} more
@@ -94,6 +145,8 @@ export function DayCell({
             align="start"
             className="w-64 max-h-[320px] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setMoreOpen(true)}
+            onMouseLeave={() => setMoreOpen(false)}
           >
             <div className="text-[11px] font-medium text-muted-foreground px-1 pb-1.5 uppercase tracking-wide">
               {format(day, 'EEE, MMM d')}
