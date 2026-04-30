@@ -82,7 +82,7 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
       {...(selectMode ? {} : attributes)}
       onClick={handleClick}
       title={previewTitle}
-      className={`group/card ${selectMode ? 'cursor-pointer' : 'cursor-pointer'} rounded border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} ${tintClass} px-1.5 py-1 text-xs ${selectMode && isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
+      className={`group/card ${selectMode ? 'cursor-pointer' : 'cursor-pointer'} rounded-md border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} ${tintClass} px-1.5 py-1 text-xs ${selectMode && isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} hover:bg-accent hover:-translate-y-[2px] hover:shadow-[0_4px_14px_-4px_rgba(0,0,0,0.12)] active:translate-y-0 active:shadow-sm transition-[transform,box-shadow,background-color,border-color] duration-200 ease-out select-none motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-300 will-change-transform`}
     >
       {/* Mobile: single row — status dot + title */}
       <div className="flex items-center gap-1.5 sm:hidden">
@@ -128,7 +128,7 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
                     type="button"
                     onClick={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className="opacity-0 group-hover/card:opacity-100 focus:opacity-100 text-muted-foreground hover:text-foreground rounded p-0.5 transition-opacity"
+                    className="opacity-0 group-hover/card:opacity-100 focus:opacity-100 text-muted-foreground hover:text-foreground rounded p-0.5 transition-all duration-150 hover:scale-110 hover:bg-accent active:scale-95"
                     aria-label="Quick actions"
                   >
                     <MoreVertical className="h-3 w-3" />
@@ -172,7 +172,7 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
           <span className="block text-foreground line-clamp-2 text-xs leading-tight flex-1">{rep.title}</span>
         </div>
         {approvalStatus && (
-          <span className={`inline-block mt-1 px-1.5 py-px rounded text-[9px] font-semibold leading-tight ${approvalPillClass}`}>
+          <span className={`inline-block mt-1 px-1.5 py-px rounded text-[9px] font-semibold leading-tight ${approvalPillClass} motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:fade-in-0 motion-safe:duration-200`}>
             {APPROVAL_SHORT[approvalStatus]}
           </span>
         )}

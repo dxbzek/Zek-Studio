@@ -40,7 +40,7 @@ export function DayCell({
     <div
       ref={setNodeRef}
       onClick={() => { if (!selectMode) onAddClick() }}
-      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/5' : ''} ${
+      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-[background-color,box-shadow] duration-200 ease-out ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset shadow-[inset_0_0_0_2px_rgba(0,0,0,0.02)]' : ''} ${
         // Heatmap: dense days get a subtle warm tint so over-loaded
         // posting days are obvious at a glance. Disabled out-of-month and
         // when DnD is hovering (would clash with the primary tint).

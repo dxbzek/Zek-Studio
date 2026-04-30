@@ -101,8 +101,11 @@ function EmergencyChip({ group, onClick }: { group: EntryGroup; onClick: () => v
       onClick={onClick}
       {...listeners}
       {...attributes}
-      style={{ opacity: isDragging ? 0.4 : 1 }}
-      className="shrink-0 max-w-[200px] truncate px-2 py-0.5 rounded text-[11px] border border-red-500/20 bg-card hover:bg-red-500/[0.08] hover:border-red-500/40 transition-colors cursor-grab active:cursor-grabbing"
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        transform: isDragging ? 'scale(1.05)' : undefined,
+      }}
+      className="shrink-0 max-w-[200px] truncate px-2 py-0.5 rounded-md text-[11px] border border-red-500/20 bg-card hover:bg-red-500/[0.08] hover:border-red-500/40 hover:-translate-y-px hover:shadow-[0_3px_10px_-3px_rgba(239,68,68,0.25)] active:translate-y-0 transition-[transform,box-shadow,background-color,border-color,opacity] duration-150 cursor-grab active:cursor-grabbing"
       title={`Drag onto a day to deploy · ${group.representative.title}`}
     >
       {group.representative.title}
@@ -966,12 +969,12 @@ export function ContentCalendarPage() {
             type="button"
             onClick={() => setFilterStatus(s)}
             aria-pressed={filterStatus === s}
-            className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
+            className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
               filterStatus === s
                 ? s === 'all'
-                  ? 'bg-foreground text-background border-transparent'
-                  : `${CALENDAR_STATUS_CHIP[s as CalendarStatus]} border-transparent`
-                : 'border-border text-muted-foreground hover:text-foreground'
+                  ? 'bg-foreground text-background border-transparent shadow-sm'
+                  : `${CALENDAR_STATUS_CHIP[s as CalendarStatus]} border-transparent shadow-sm`
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
             }`}
           >
             {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -982,10 +985,10 @@ export function ContentCalendarPage() {
           type="button"
           onClick={() => setFilterFormat('all')}
           aria-pressed={filterFormat === 'all'}
-          className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
+          className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
             filterFormat === 'all'
-              ? 'bg-foreground text-background border-transparent'
-              : 'border-border text-muted-foreground hover:text-foreground'
+              ? 'bg-foreground text-background border-transparent shadow-sm'
+              : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
           }`}
         >
           All
@@ -1006,10 +1009,10 @@ export function ContentCalendarPage() {
               onClick={() => setFilterFormat((prev) => prev === f.value ? 'all' : f.value)}
               aria-pressed={active}
               aria-label={`Filter: ${f.label}`}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
+              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
                 active
-                  ? `${CONTENT_FORMAT_SOLID[f.value]} border-transparent`
-                  : 'border-border text-muted-foreground hover:text-foreground'
+                  ? `${CONTENT_FORMAT_SOLID[f.value]} border-transparent shadow-sm`
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
               }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-white/80' : dotColor[f.value]}`} aria-hidden />
@@ -1080,37 +1083,40 @@ export function ContentCalendarPage() {
           type="button"
           onClick={prevMonth}
           aria-label="Previous month"
-          className="p-1 rounded hover:bg-accent transition-colors"
+          className="p-1 rounded hover:bg-accent transition-all duration-150 active:scale-90"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden />
         </button>
-        <span className="font-heading text-[15px] sm:text-base font-medium tracking-tight min-w-[110px] sm:min-w-[140px] text-center">
+        <span
+          key={`${viewYear}-${viewMonth}`}
+          className="font-heading text-[15px] sm:text-base font-medium tracking-tight min-w-[110px] sm:min-w-[140px] text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-300"
+        >
           {format(new Date(viewYear, viewMonth), 'MMMM yyyy')}
         </span>
         <button
           type="button"
           onClick={nextMonth}
           aria-label="Next month"
-          className="p-1 rounded hover:bg-accent transition-colors"
+          className="p-1 rounded hover:bg-accent transition-all duration-150 active:scale-90"
         >
           <ChevronRight className="h-4 w-4" aria-hidden />
         </button>
         <button
           type="button"
           onClick={() => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()) }}
-          className="ml-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+          className="ml-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95"
         >
           Today
         </button>
         {/* Format mix mini-chart — stacked bar showing this month's
-            reel/carousel/static/backup balance. Hidden when there are no
-            entries to summarize. */}
+            reel/carousel/static/backup balance. Segments animate width on
+            month change. */}
         {formatMix.total > 0 && (
           <div
-            className="hidden md:flex ml-2 items-center gap-2 text-[11px] text-muted-foreground"
+            className="hidden md:flex ml-2 items-center gap-2 text-[11px] text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
             title={`Reels ${formatMix.counts.reel} · Carousels ${formatMix.counts.carousel} · Static ${formatMix.counts.static} · Backup ${formatMix.counts.emergency_backup}${formatMix.counts.unset > 0 ? ` · Unset ${formatMix.counts.unset}` : ''}`}
           >
-            <div className="flex h-1.5 w-32 rounded-full overflow-hidden border border-border bg-muted">
+            <div className="flex h-2 w-36 rounded-full overflow-hidden border border-border bg-muted/60 shadow-inner">
               {(['reel', 'carousel', 'static', 'emergency_backup', 'unset'] as const).map((k) => {
                 const w = formatMix.total ? (formatMix.counts[k] / formatMix.total) * 100 : 0
                 if (w === 0) return null
@@ -1120,10 +1126,14 @@ export function ContentCalendarPage() {
                   k === 'static' ? 'bg-emerald-500' :
                   k === 'emergency_backup' ? 'bg-red-500' :
                   'bg-zinc-400'
-                return <div key={k} className={`h-full ${bg}`} style={{ width: `${w}%` }} />
+                return <div
+                  key={k}
+                  className={`h-full ${bg} transition-[width] duration-500 ease-out`}
+                  style={{ width: `${w}%` }}
+                />
               })}
             </div>
-            <span className="tabular-nums">{formatMix.total}</span>
+            <span className="tabular-nums font-medium">{formatMix.total}</span>
           </div>
         )}
         {!selectMode && (
@@ -1131,7 +1141,7 @@ export function ContentCalendarPage() {
             <button
               type="button"
               onClick={() => setShortcutsOpen(true)}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95"
               title="Keyboard shortcuts (press ? to toggle)"
               aria-label="Keyboard shortcuts"
             >
@@ -1141,7 +1151,7 @@ export function ContentCalendarPage() {
               type="button"
               onClick={handleShareApproval}
               disabled={createShareToken.isPending}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               title="Generate a client-facing approval link and copy it to clipboard"
             >
               <Share2 className="h-3 w-3" aria-hidden />
@@ -1150,7 +1160,7 @@ export function ContentCalendarPage() {
             <button
               type="button"
               onClick={() => setExportOpen(true)}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95"
               title="Export the calendar as PDF or Word"
             >
               <Download className="h-3 w-3" aria-hidden />
@@ -1160,7 +1170,7 @@ export function ContentCalendarPage() {
               <button
                 type="button"
                 onClick={() => setDupWeekConfirm(true)}
-                className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95"
                 title={`Copy last week's ${lastWeekEntries.length} entries forward 7 days`}
               >
                 Duplicate last week
@@ -1246,7 +1256,7 @@ export function ContentCalendarPage() {
         if (dateGridGroups.length > 0) return null
         if (filtersActive && monthHasAnyNonEmergency) {
           return (
-            <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/30 shrink-0 flex items-center gap-3 text-xs">
+            <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/30 shrink-0 flex items-center gap-3 text-xs motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200">
               <span className="text-muted-foreground">No entries match the current filters.</span>
               <button
                 type="button"
@@ -1256,7 +1266,7 @@ export function ContentCalendarPage() {
                   setFilterFormat('all')
                   setSearch('')
                 }}
-                className="text-foreground font-medium hover:underline"
+                className="text-foreground font-medium hover:underline transition-colors"
               >
                 Clear filters
               </button>
@@ -1265,7 +1275,7 @@ export function ContentCalendarPage() {
         }
         if (!monthHasAnyNonEmergency) {
           return (
-            <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 text-xs text-muted-foreground">
+            <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 text-xs text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200">
               No posts scheduled in {format(new Date(viewYear, viewMonth), 'MMMM yyyy')}. Click any day to draft your first.
             </div>
           )
@@ -1285,7 +1295,10 @@ export function ContentCalendarPage() {
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
-        <div className="grid grid-cols-7 border-l border-t border-border">
+        <div
+          key={`${viewYear}-${viewMonth}`}
+          className="grid grid-cols-7 border-l border-t border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
+        >
           {gridDays.map((day) => (
             <DayCell
               key={format(day, 'yyyy-MM-dd')}

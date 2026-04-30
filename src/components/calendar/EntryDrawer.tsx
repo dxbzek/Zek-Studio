@@ -366,7 +366,7 @@ export function EntryDrawer({
   return (
     <Dialog open={open} onOpenChange={handleSheetOpenChange}>
       <DialogContent className="flex flex-col gap-0 p-0 w-[92vw] sm:max-w-[1400px] h-[92vh] max-h-[92vh] overflow-hidden">
-        <div className="border-b border-border px-6 py-4 space-y-1">
+        <div className="border-b border-border px-6 py-4 space-y-1 bg-gradient-to-b from-muted/30 to-transparent">
           <div className="eyebrow">
             {mode === 'create'
               ? 'New entry'
@@ -518,10 +518,10 @@ export function EntryDrawer({
                     type="button"
                     onClick={() => set('status', s.value)}
                     disabled={isPastDate && s.value !== 'published'}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:scale-100 ${
                       (isPastDate ? 'published' : values.status) === s.value
-                        ? `${CALENDAR_STATUS_CHIP[s.value]} border-transparent`
-                        : 'border-border text-muted-foreground hover:text-foreground'
+                        ? `${CALENDAR_STATUS_CHIP[s.value]} border-transparent shadow-sm`
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                     }`}
                   >
                     {s.label}
@@ -579,10 +579,10 @@ export function EntryDrawer({
                     typeManuallyPicked.current = true
                     set('contentType', ct.value as ContentTheme)
                   }}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
                     values.contentType === ct.value
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'border-border text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                   }`}
                 >
                   {ct.label}
@@ -601,10 +601,10 @@ export function EntryDrawer({
               <button
                 type="button"
                 onClick={() => { formatManuallyPicked.current = true; set('format', null) }}
-                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
                   values.format === null
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-border text-muted-foreground hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                 }`}
               >
                 None
@@ -617,10 +617,10 @@ export function EntryDrawer({
                   aria-label={`${f.label}: ${f.desc}`}
                   aria-pressed={values.format === f.value}
                   onClick={() => { formatManuallyPicked.current = true; set('format', f.value) }}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
                     values.format === f.value
-                      ? CONTENT_FORMAT_SOLID[f.value]
-                      : 'border-border text-muted-foreground hover:text-foreground'
+                      ? `${CONTENT_FORMAT_SOLID[f.value]} shadow-sm`
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                   }`}
                 >
                   {f.label}
@@ -646,8 +646,8 @@ export function EntryDrawer({
                     key={s ?? '__none__'}
                     type="button"
                     onClick={() => set('approvalStatus', s)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      selected ? selectedClass : 'border-border text-muted-foreground hover:text-foreground'
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
+                      selected ? `${selectedClass} shadow-sm` : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                     }`}
                   >
                     {s === null ? 'None' : APPROVAL_STATUS_LABEL[s]}
@@ -727,10 +727,10 @@ export function EntryDrawer({
                     pillarManuallyPicked.current = true
                     set('pillarId', null)
                   }}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
                     !values.pillarId
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'border-border text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                   }`}
                 >
                   None
@@ -748,8 +748,8 @@ export function EntryDrawer({
                         ? { backgroundColor: p.color, color: 'white', borderColor: p.color }
                         : {}
                     }
-                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                      values.pillarId !== p.id ? 'border-border text-muted-foreground hover:text-foreground' : ''
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
+                      values.pillarId !== p.id ? 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40' : 'shadow-sm'
                     }`}
                   >
                     {p.label}
@@ -764,7 +764,7 @@ export function EntryDrawer({
           )}
         </div>
 
-        <div className="border-t border-border px-6 py-4 flex flex-row gap-2 flex-wrap items-center">
+        <div className="border-t border-border px-6 py-4 flex flex-row gap-2 flex-wrap items-center bg-gradient-to-t from-muted/30 to-transparent">
           {mode === 'edit' && (
             <>
               <Button
