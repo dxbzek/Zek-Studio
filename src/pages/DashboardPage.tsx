@@ -234,7 +234,7 @@ export function DashboardPage() {
   [])
 
   if (isLoading) {
-    return <LoadingState variant="page" />
+    return <LoadingState variant="dashboard" />
   }
 
   if (brands.length === 0) {

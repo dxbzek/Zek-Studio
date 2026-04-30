@@ -89,37 +89,34 @@ function MobileQuickAdd() {
   if (calendarSelectMode) return null
 
   return (
-    <div className="sm:hidden fixed bottom-4 right-4 z-30">
+    <div
+      className="sm:hidden fixed bottom-4 right-4 z-30"
+      style={{ bottom: 'max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))' }}
+    >
       {open && (
         <>
           <button
             type="button"
             aria-label="Close quick add"
             onClick={() => setOpen(false)}
-            className="fixed inset-0 bg-black/20 cursor-default"
+            className="fixed inset-0 bg-black/30 supports-backdrop-filter:backdrop-blur-sm cursor-default motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
           />
           <div className="absolute bottom-16 right-0 flex flex-col gap-2 items-end">
-            <button
-              type="button"
-              onClick={() => { navigate('/tasks'); setOpen(false) }}
-              className="flex items-center gap-2 px-3 py-2 rounded-full shadow-lg bg-card border border-border text-xs font-medium"
-            >
-              <ListChecks className="h-3.5 w-3.5" /> New task
-            </button>
-            <button
-              type="button"
-              onClick={() => { navigate('/calendar'); setOpen(false) }}
-              className="flex items-center gap-2 px-3 py-2 rounded-full shadow-lg bg-card border border-border text-xs font-medium"
-            >
-              <CalendarDays className="h-3.5 w-3.5" /> New entry
-            </button>
-            <button
-              type="button"
-              onClick={() => { navigate('/campaigns'); setOpen(false) }}
-              className="flex items-center gap-2 px-3 py-2 rounded-full shadow-lg bg-card border border-border text-xs font-medium"
-            >
-              <Megaphone className="h-3.5 w-3.5" /> New campaign
-            </button>
+            {[
+              { to: '/tasks',     icon: ListChecks,   label: 'New task',     delay: 0 },
+              { to: '/calendar',  icon: CalendarDays, label: 'New entry',    delay: 60 },
+              { to: '/campaigns', icon: Megaphone,    label: 'New campaign', delay: 120 },
+            ].map(({ to, icon: Icon, label, delay }) => (
+              <button
+                key={to}
+                type="button"
+                onClick={() => { navigate(to); setOpen(false) }}
+                className="premium-card flex items-center gap-2 px-3.5 py-2 rounded-full ring-1 ring-border/80 text-[12.5px] font-medium active:scale-95 transition-transform motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-2 motion-safe:duration-300"
+                style={{ animationDelay: `${delay}ms`, animationFillMode: 'backwards' }}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </button>
+            ))}
           </div>
         </>
       )}
@@ -128,9 +125,12 @@ function MobileQuickAdd() {
         aria-label={open ? 'Close quick add' : 'Quick add'}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        className="relative h-14 w-14 rounded-full bg-gradient-to-b from-primary/95 to-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-all duration-150 shadow-[0_1px_0_0_color-mix(in_oklch,white_22%,transparent)_inset,0_4px_12px_-2px_color-mix(in_oklch,black_30%,transparent),0_8px_24px_-8px_color-mix(in_oklch,var(--primary)_60%,transparent)] hover:shadow-[0_1px_0_0_color-mix(in_oklch,white_28%,transparent)_inset,0_6px_16px_-2px_color-mix(in_oklch,black_35%,transparent),0_12px_30px_-8px_color-mix(in_oklch,var(--primary)_70%,transparent)] hover:brightness-110"
       >
-        {open ? <XIcon className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+        <span
+          className={`absolute inset-0 rounded-full transition-transform duration-300 ease-out ${open ? 'rotate-45' : ''}`}
+        />
+        {open ? <XIcon className="h-5 w-5 relative" /> : <Plus className="h-5 w-5 relative" />}
       </button>
     </div>
   )
@@ -202,7 +202,7 @@ export function AppShell() {
     <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 sm:hidden"
+          className="fixed inset-0 z-40 bg-black/40 supports-backdrop-filter:backdrop-blur-sm sm:hidden motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
           onClick={() => setSidebarOpen(false)}
         />
       )}

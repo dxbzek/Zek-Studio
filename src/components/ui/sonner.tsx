@@ -33,12 +33,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--border-radius": "calc(var(--radius) * 1.1)",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast:
+            "cn-toast premium-card !ring-1 !ring-border/80 !shadow-[0_4px_16px_-6px_color-mix(in_oklch,black_18%,transparent),0_1px_0_0_color-mix(in_oklch,white_50%,transparent)_inset] dark:!shadow-[0_8px_24px_-8px_black]",
+          title: "font-heading !text-[13.5px] !font-medium tracking-tight",
+          description: "!text-[12px] !text-muted-foreground",
+          actionButton: "!font-medium",
         },
       }}
       {...props}
