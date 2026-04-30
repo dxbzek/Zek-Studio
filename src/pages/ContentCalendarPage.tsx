@@ -766,10 +766,11 @@ export function ContentCalendarPage() {
         </div>
       </div>
 
-      {/* Filter bar */}
+      {/* Filter bar — visuals first. No eyebrow labels; the chip styling
+          carries the meaning. Three groups separated by thin dividers:
+          platforms · status · format. */}
       <div
         className="relative px-4 sm:px-6 pb-3 flex items-center gap-1.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible border-b border-border shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] [mask-image:linear-gradient(to_right,transparent,black_24px,black_calc(100%-24px),transparent)] sm:[mask-image:none]">
-        <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Platforms</span>
         {PLATFORMS.map((p) => (
           <button
             key={p.value}
@@ -788,15 +789,14 @@ export function ContentCalendarPage() {
             <PlatformPill platform={p.value} label={p.label} active={filterPlatforms.includes(p.value)} />
           </button>
         ))}
-        <div className="w-px h-4 bg-border mx-2 shrink-0" />
-        <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Status</span>
+        <div className="w-px h-4 bg-border mx-1.5 shrink-0" />
         {(['all', 'draft', 'scheduled', 'published'] as const).map((s) => (
           <button
             key={s}
             type="button"
             onClick={() => setFilterStatus(s)}
             aria-pressed={filterStatus === s}
-            className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+            className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
               filterStatus === s
                 ? s === 'all'
                   ? 'bg-foreground text-background border-transparent'
@@ -807,13 +807,12 @@ export function ContentCalendarPage() {
             {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
-        <div className="w-px h-4 bg-border mx-2 shrink-0" />
-        <span className="shrink-0 eyebrow mr-1 hidden sm:inline">Format</span>
+        <div className="w-px h-4 bg-border mx-1.5 shrink-0" />
         <button
           type="button"
           onClick={() => setFilterFormat('all')}
           aria-pressed={filterFormat === 'all'}
-          className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+          className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
             filterFormat === 'all'
               ? 'bg-foreground text-background border-transparent'
               : 'border-border text-muted-foreground hover:text-foreground'
@@ -837,7 +836,7 @@ export function ContentCalendarPage() {
               onClick={() => setFilterFormat((prev) => prev === f.value ? 'all' : f.value)}
               aria-pressed={active}
               aria-label={`Filter: ${f.label}`}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
                 active
                   ? `${CONTENT_FORMAT_SOLID[f.value]} border-transparent`
                   : 'border-border text-muted-foreground hover:text-foreground'
@@ -989,53 +988,34 @@ export function ContentCalendarPage() {
         </div>
       </div>
 
-      {/* Emergency Backup lane — evergreen fallback content. Hidden when the
-          user has filtered to a non-emergency format (the grid is the focus
-          there) so the lane doesn't compete for attention. */}
-      {filterFormat !== 'emergency_backup' && filterFormat === 'all' && (
-        <div className="border-b border-border bg-red-500/[0.03] px-4 sm:px-6 py-2 shrink-0">
-          <div className="flex items-center gap-2 mb-1.5">
+      {/* Emergency Backup lane — evergreen fallback content. One-line strip.
+          Hidden when filtering to a non-emergency format. */}
+      {filterFormat === 'all' && (
+        <div className="border-b border-border bg-red-500/[0.03] px-4 sm:px-6 py-1.5 shrink-0 flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+          <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-700 dark:text-red-400" title="Evergreen fallback content. Static or carousel, max 4 slides.">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
-            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.08em] text-red-700 dark:text-red-400">
-              Emergency Backup
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              ({emergencyGroups.length}) · Evergreen content, used when scheduled posts fall through
-            </span>
+            Backup
+            <span className="text-muted-foreground font-normal">{emergencyGroups.length}</span>
+          </span>
+          {emergencyGroups.map((g) => (
             <button
+              key={g.id}
               type="button"
-              onClick={() => openCreate(format(today, 'yyyy-MM-dd'), 'emergency_backup')}
-              className="ml-auto text-[11px] font-medium text-red-700 dark:text-red-400 hover:underline"
-              title="Create a new emergency backup entry"
+              onClick={() => openEdit(g)}
+              className="shrink-0 max-w-[200px] truncate px-2 py-0.5 rounded text-[11px] border border-red-500/20 bg-card hover:bg-red-500/[0.08] hover:border-red-500/40 transition-colors"
+              title={g.representative.title}
             >
-              + New
+              {g.representative.title}
             </button>
-          </div>
-          {emergencyGroups.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground py-1">
-              No emergency backup content yet. Create static or carousel-style fallback posts (max 4 slides) so you always have something ready.
-            </p>
-          ) : (
-            <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-              {emergencyGroups.map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  onClick={() => openEdit(g)}
-                  className="shrink-0 w-[180px] text-left px-2.5 py-1.5 rounded border border-red-500/20 bg-card hover:bg-red-500/[0.06] hover:border-red-500/40 transition-colors"
-                  title={g.representative.title}
-                >
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <span className="px-1 rounded text-[9px] font-semibold leading-tight bg-red-500/10 text-red-700 dark:text-red-300">EB</span>
-                    <span className="text-[10px] text-muted-foreground capitalize">{g.representative.status}</span>
-                  </div>
-                  <div className="text-xs font-medium text-foreground line-clamp-2 leading-tight">
-                    {g.representative.title}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+          ))}
+          <button
+            type="button"
+            onClick={() => openCreate(format(today, 'yyyy-MM-dd'), 'emergency_backup')}
+            className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium border border-dashed border-red-500/40 text-red-700 dark:text-red-400 hover:bg-red-500/[0.08] transition-colors"
+            title="Create a new emergency backup entry"
+          >
+            + New
+          </button>
         </div>
       )}
 
