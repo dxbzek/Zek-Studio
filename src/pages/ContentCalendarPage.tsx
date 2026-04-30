@@ -138,7 +138,7 @@ export function ContentCalendarPage() {
       if (!activeBrand) return [] as CalendarEntry[]
       const { data, error } = await supabase
         .from('calendar_entries')
-        .select('id, brand_id, platform, content_type, title, body, script, notes, format, scheduled_date, status, generated_content_id, campaign_id, pillar_id, approval_status, approval_note, assigned_editor, assigned_shooter, assigned_talent, character, created_at, updated_at')
+        .select('id, brand_id, platform, content_type, title, body, script, notes, format, reference_image_url, scheduled_date, status, generated_content_id, campaign_id, pillar_id, approval_status, approval_note, assigned_editor, assigned_shooter, assigned_talent, character, created_at, updated_at')
         .eq('brand_id', activeBrand.id)
         .eq('format', 'emergency_backup')
         .order('created_at', { ascending: false })
@@ -330,6 +330,7 @@ export function ContentCalendarPage() {
       script: v.script.trim() || null,
       notes: v.notes.trim() || null,
       format: v.format,
+      reference_image_url: v.referenceImageUrl.trim() || null,
       scheduled_date: v.date,
       status: v.status,
       campaign_id: v.campaignId,
@@ -558,12 +559,13 @@ export function ContentCalendarPage() {
   }, [selectedEntries, deleteEntry, exitSelectMode])
 
   // Bridge the drawer's Generate button to the AI generator. The drawer
-  // knows the per-post info (title, platform, theme); the calendar page
-  // supplies brand + tone defaults.
+  // knows the per-post info (title, platform, theme, format); the calendar
+  // page supplies brand + tone defaults.
   const handleGenerateCaption = useCallback(async (args: {
     title: string
     platform: Platform
     theme: ContentTheme
+    format: ContentFormat | null
   }): Promise<string | null> => {
     // Platform → GeneratorPlatform mapping. Generator has 4 buckets; calendar
     // has 6. Instagram/Facebook/Twitter all route through 'meta' (which is
@@ -572,11 +574,27 @@ export function ContentCalendarPage() {
       args.platform === 'linkedin' ? 'linkedin' :
       args.platform === 'youtube' ? 'youtube' :
       args.platform === 'tiktok' ? 'tiktok' : 'meta'
+    // Format hint stitched into the brief so the model produces the right
+    // shape — line-by-line beats for a reel, sweep-able slides for a
+    // carousel, single-image copy for a static, etc.
+    const formatHint =
+      args.format === 'reel' ?
+        'Output as a 30–40 second short-form video script. One line per beat (hook, talking point, talking point, CTA). Voiceover-ready, conversational.' :
+      args.format === 'carousel' ?
+        'Output as a multi-slide carousel (5–8 slides max). Label each line "Slide N:" and keep each slide one tight idea, 1–2 sentences max.' :
+      args.format === 'static' ?
+        'Output as a single-image post. One short, hook-first caption. No slide structure, no script.' :
+      args.format === 'emergency_backup' ?
+        'Output as evergreen fallback content. Static or short carousel (max 4 slides). Avoid time-bound references — this can run any week.' :
+        ''
+    const brief = formatHint
+      ? `${args.title}\n\nFormat brief: ${formatHint}`
+      : args.title
     const result = await generateContent.mutateAsync({
       theme: args.theme,
       platform: generatorPlatform,
       tone: 'professional',
-      source: { type: 'manual', brief: args.title },
+      source: { type: 'manual', brief },
     })
     // Generator returns an array of variants; first variant is the one the
     // user sees on the Generator page as the primary.
@@ -597,6 +615,7 @@ export function ContentCalendarPage() {
           script: e.script,
           notes: e.notes,
           format: e.format,
+          reference_image_url: e.reference_image_url,
           scheduled_date: e.scheduled_date,
           status: 'draft',
           generated_content_id: null,
@@ -692,6 +711,7 @@ export function ContentCalendarPage() {
           script: e.script,
           notes: e.notes,
           format: e.format,
+          reference_image_url: e.reference_image_url,
           scheduled_date: newDate,
           status: 'draft',
           generated_content_id: null,
@@ -872,7 +892,6 @@ export function ContentCalendarPage() {
       {pillarDist.length > 0 && (
         <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-            <span className="text-xs text-muted-foreground font-medium">Pillars:</span>
             {pillarDist.map((p) => (
               <div key={p.id} className="flex items-center gap-1.5" title={`${p.count} entries this month`}>
                 <div className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />
@@ -1018,6 +1037,49 @@ export function ContentCalendarPage() {
           </button>
         </div>
       )}
+
+      {/* Empty / first-run state — a thin advisory above the grid when the
+          current month/filters yield nothing to render. Two flavors:
+          - filters active and trimmed to zero → offer a Clear filters button
+          - no entries at all this month → orientation hint */}
+      {(() => {
+        const filtersActive =
+          filterPlatforms.length !== PLATFORMS.length ||
+          filterStatus !== 'all' ||
+          filterFormat !== 'all' ||
+          search.trim().length > 0
+        const monthHasAnyNonEmergency = (entries.data ?? []).some(
+          (e) => e.format !== 'emergency_backup',
+        )
+        if (dateGridGroups.length > 0) return null
+        if (filtersActive && monthHasAnyNonEmergency) {
+          return (
+            <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/30 shrink-0 flex items-center gap-3 text-xs">
+              <span className="text-muted-foreground">No entries match the current filters.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterPlatforms(PLATFORMS.map((p) => p.value))
+                  setFilterStatus('all')
+                  setFilterFormat('all')
+                  setSearch('')
+                }}
+                className="text-foreground font-medium hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          )
+        }
+        if (!monthHasAnyNonEmergency) {
+          return (
+            <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 text-xs text-muted-foreground">
+              No posts scheduled in {format(new Date(viewYear, viewMonth), 'MMMM yyyy')}. Click any day to draft your first.
+            </div>
+          )
+        }
+        return null
+      })()}
 
       {/* Day name headers */}
       <div className="grid grid-cols-7 border-b border-border px-4 sm:px-6 shrink-0">

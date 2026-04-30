@@ -13,6 +13,9 @@ type ApprovalEntry = {
   platform: string
   title: string | null
   body: string | null
+  // `script` is the new home for the post brief; `body` is the legacy
+  // column kept for back-compat with old approval tokens.
+  script?: string | null
   scheduled_date: string
   status: string
   approval_status: string | null
@@ -60,7 +63,8 @@ function ApprovalCard({
     }
   }
 
-  const bodyText = entry.body ?? ''
+  // Prefer script (new column); fall back to body for legacy entries.
+  const bodyText = entry.script ?? entry.body ?? ''
   const isLong = bodyText.length > 200
 
   return (

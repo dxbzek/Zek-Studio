@@ -23,7 +23,8 @@ import {
 } from '@/lib/statusTokens'
 import { useActiveBrand } from '@/stores/activeBrand'
 import {
-  CONTENT_FORMATS, CONTENT_THEMES, PLATFORMS,
+  CONTENT_FORMATS, CONTENT_THEMES, FORMAT_BY_CONTENT_THEME,
+  PLATFORMS, SCRIPT_TEMPLATE_BY_CONTENT_THEME,
 } from '@/types'
 import type {
   ApprovalStatus, CalendarStatus, ContentFormat, ContentPillar, ContentTheme, Platform,
@@ -38,6 +39,7 @@ export interface EntryFormValues {
   script: string
   notes: string
   format: ContentFormat | null
+  referenceImageUrl: string
   date: string
   platforms: Platform[]
   contentType: ContentTheme
@@ -70,8 +72,9 @@ interface EntryDrawerProps {
   duplicating?: boolean
   // Optional: when provided, a Generate button appears next to the Script
   // label. Parent is responsible for calling the AI generator and returning
-  // the text to paste into the script field.
-  onGenerateCaption?: (args: { title: string; platform: Platform; theme: ContentTheme }) => Promise<string | null>
+  // the text to paste into the script field. Format is passed through so
+  // the generator can tailor output to reel vs carousel vs static.
+  onGenerateCaption?: (args: { title: string; platform: Platform; theme: ContentTheme; format: ContentFormat | null }) => Promise<string | null>
 }
 
 // Auto-detect URLs in plain-text fields so a pasted reference link is
@@ -142,6 +145,7 @@ const INITIAL: EntryFormValues = {
   script: '',
   notes: '',
   format: null,
+  referenceImageUrl: '',
   date: format(new Date(), 'yyyy-MM-dd'),
   platforms: ['instagram'],
   contentType: 'property_tour',
@@ -176,6 +180,7 @@ export function EntryDrawer({
   const typeManuallyPicked = useRef(false)
   const campaignManuallyPicked = useRef(false)
   const pillarManuallyPicked = useRef(false)
+  const formatManuallyPicked = useRef(false)
 
   useEffect(() => {
     if (!open) return
@@ -185,11 +190,13 @@ export function EntryDrawer({
       typeManuallyPicked.current = true
       campaignManuallyPicked.current = true
       pillarManuallyPicked.current = true
+      formatManuallyPicked.current = true
       next = {
         title: rep.title,
         script: rep.script ?? '',
         notes: rep.notes ?? '',
         format: rep.format ?? null,
+        referenceImageUrl: rep.reference_image_url ?? '',
         date: rep.scheduled_date,
         platforms: group.platforms,
         contentType: (rep.content_type as ContentTheme) ?? 'property_tour',
@@ -205,6 +212,9 @@ export function EntryDrawer({
       typeManuallyPicked.current = false
       campaignManuallyPicked.current = false
       pillarManuallyPicked.current = false
+      // If the parent passes a default format (e.g. "+ New" from Emergency
+      // Backup lane), respect it and don't auto-fill from content_type.
+      formatManuallyPicked.current = defaultFormat != null
       // Pre-select the brand's connected platforms so the user doesn't tap
       // through them every time. Fall back to all platforms if the brand
       // hasn't configured any, so the form is never empty.
@@ -245,6 +255,12 @@ export function EntryDrawer({
       const id = inferByNameMatch(values.title, campaigns)
       if (id && id !== values.campaignId) patch.campaignId = id
     }
+    if (!formatManuallyPicked.current) {
+      // Default format follows the content type — Property Tour ⇒ reel,
+      // Market Update ⇒ carousel, etc. The user can override via the chip.
+      const def = FORMAT_BY_CONTENT_THEME[values.contentType]
+      if (def && def !== values.format) patch.format = def
+    }
     if (!pillarManuallyPicked.current && pillars.length > 0) {
       const id = inferByNameMatch(
         values.title,
@@ -255,7 +271,7 @@ export function EntryDrawer({
     if (Object.keys(patch).length > 0) {
       setValues((prev) => ({ ...prev, ...patch }))
     }
-  }, [values.title, open, campaigns, pillars]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [values.title, values.contentType, open, campaigns, pillars]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof EntryFormValues>(k: K, v: EntryFormValues[K]) =>
     setValues((prev) => ({ ...prev, [k]: v }))
@@ -334,6 +350,7 @@ export function EntryDrawer({
         // variants.
         platform: values.platforms[0],
         theme: values.contentType,
+        format: values.format,
       })
       if (result) {
         setValues((prev) => ({ ...prev, script: result }))
@@ -386,27 +403,44 @@ export function EntryDrawer({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Script / Concept */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <label className="text-sm font-medium">
                   Script / Concept{' '}
                   <span className="text-muted-foreground font-normal text-xs">(optional)</span>
                 </label>
-                {onGenerateCaption && (
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={handleGenerateCaption}
-                    disabled={generating || !values.title.trim() || values.platforms.length === 0}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="Use the AI generator with the title as the brief"
+                    onClick={() => {
+                      const tpl = SCRIPT_TEMPLATE_BY_CONTENT_THEME[values.contentType]
+                      if (!tpl) return
+                      // If the field already has content, ask first — don't
+                      // silently nuke a draft.
+                      if (values.script.trim() && !window.confirm('Replace your current script with the template?')) return
+                      set('script', tpl)
+                    }}
+                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                    title="Drop in a starter skeleton for this content type"
                   >
-                    {generating ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3" />
-                    )}
-                    {generating ? 'Drafting…' : 'Generate'}
+                    Use template
                   </button>
-                )}
+                  {onGenerateCaption && (
+                    <button
+                      type="button"
+                      onClick={handleGenerateCaption}
+                      disabled={generating || !values.title.trim() || values.platforms.length === 0}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Use the AI generator with the title as the brief"
+                    >
+                      {generating ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
+                      )}
+                      {generating ? 'Drafting…' : 'Generate'}
+                    </button>
+                  )}
+                </div>
               </div>
               <Textarea
                 value={values.script}
@@ -433,6 +467,32 @@ export function EntryDrawer({
                 placeholder="Links, location notes, props, anything internal."
               />
               <LinksRow text={values.notes} />
+            </div>
+          </div>
+
+          {/* Reference image — paste a URL (Drive, listing CMS, Pinterest).
+              Renders a thumbnail when the URL looks like an image. */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Reference image{' '}
+              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-start">
+              <Input
+                value={values.referenceImageUrl}
+                onChange={(e) => set('referenceImageUrl', e.target.value)}
+                placeholder="https://… (paste a link to a moodboard or sample image)"
+              />
+              {values.referenceImageUrl.trim() && (
+                <div className="w-32 h-32 rounded-lg border border-border bg-muted/40 overflow-hidden flex items-center justify-center shrink-0">
+                  <img
+                    src={values.referenceImageUrl.trim()}
+                    alt="Reference"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -540,7 +600,7 @@ export function EntryDrawer({
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => set('format', null)}
+                onClick={() => { formatManuallyPicked.current = true; set('format', null) }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                   values.format === null
                     ? 'bg-primary text-primary-foreground border-primary'
@@ -556,7 +616,7 @@ export function EntryDrawer({
                   title={f.desc}
                   aria-label={`${f.label}: ${f.desc}`}
                   aria-pressed={values.format === f.value}
-                  onClick={() => set('format', f.value)}
+                  onClick={() => { formatManuallyPicked.current = true; set('format', f.value) }}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
                     values.format === f.value
                       ? CONTENT_FORMAT_SOLID[f.value]

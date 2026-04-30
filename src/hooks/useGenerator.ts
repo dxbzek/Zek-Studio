@@ -89,7 +89,7 @@ export function useGenerator(brandId: string | null) {
           platform,
           content_type: contentType,
           title,
-          body: output,
+          script: output,
           scheduled_date: scheduledDate,
           status: 'draft',
           generated_content_id: generatedContentId,

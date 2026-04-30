@@ -215,6 +215,7 @@ export type Database = {
           script: string | null
           notes: string | null
           format: string | null
+          reference_image_url: string | null
           scheduled_date: string
           status: string
           generated_content_id: string | null
@@ -239,6 +240,7 @@ export type Database = {
           script?: string | null
           notes?: string | null
           format?: string | null
+          reference_image_url?: string | null
           scheduled_date: string
           status?: string
           generated_content_id?: string | null
@@ -262,6 +264,7 @@ export type Database = {
           script?: string | null
           notes?: string | null
           format?: string | null
+          reference_image_url?: string | null
           scheduled_date?: string
           status?: string
           generated_content_id?: string | null

@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
         .single(),
       sb
         .from('calendar_entries')
-        .select('id, platform, title, body, scheduled_date, status, approval_status, approval_note')
+        .select('id, platform, title, body, script, scheduled_date, status, approval_status, approval_note')
         .eq('brand_id', tokenRow.brand_id)
         .in('status', ['draft', 'scheduled'])
         .order('scheduled_date', { ascending: true }),

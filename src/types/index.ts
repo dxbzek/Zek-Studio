@@ -173,6 +173,83 @@ export const CONTENT_THEMES: { value: ContentTheme; label: string; desc: string 
 // max 4 slides) — flagged with its own color so it stands out on the calendar.
 export type ContentFormat = 'reel' | 'carousel' | 'static' | 'emergency_backup'
 
+// Sensible default format per content theme — what the team usually ships
+// for that kind of post. Picked when the user selects a content type and
+// hasn't manually chosen a format yet.
+export const FORMAT_BY_CONTENT_THEME: Record<ContentTheme, ContentFormat> = {
+  property_tour:     'reel',
+  market_update:     'carousel',
+  agent_recruitment: 'reel',
+  client_story:      'reel',
+  investment_tips:   'carousel',
+  behind_scenes:     'reel',
+  new_launch:        'reel',
+  area_spotlight:    'reel',
+}
+
+// Skeleton script per content theme. Each line is one beat — the team
+// finishes the words. Aimed at 30–40s short-form for reel formats; the
+// carousel/static themes (Market Update, Investment Tips) are structured
+// as sweep-able slides.
+export const SCRIPT_TEMPLATE_BY_CONTENT_THEME: Record<ContentTheme, string> = {
+  property_tour: [
+    'Hook: location + standout feature',
+    'Bedrooms / sqft / layout',
+    'One unforgettable design moment',
+    'Lifestyle hook (who lives here)',
+    'CTA: DM for full tour',
+  ].join('\n'),
+  market_update: [
+    'Slide 1: the headline number',
+    'Slide 2: what it actually means',
+    'Slide 3: who wins, who loses',
+    'Slide 4: action step',
+    'CTA: save and share',
+  ].join('\n'),
+  agent_recruitment: [
+    'Hook: outcome agent achieved',
+    'What we offer that others don\'t',
+    'One culture moment',
+    'Earnings or growth proof point',
+    'CTA: DM "join" to apply',
+  ].join('\n'),
+  client_story: [
+    'Hook: in the moment, mid-action',
+    'Where they started',
+    'The turn (the breakthrough)',
+    'Where they are now',
+    'CTA: tag someone house hunting',
+  ].join('\n'),
+  investment_tips: [
+    'Slide 1: the tip in 5 words',
+    'Slide 2: the data behind it',
+    'Slide 3: example with real numbers',
+    'Slide 4: common mistake to avoid',
+    'CTA: save and DM for guide',
+  ].join('\n'),
+  behind_scenes: [
+    'Hook: unexpected moment from today',
+    'Context (where, who)',
+    'The thing most people don\'t see',
+    'Why it matters to clients',
+    'CTA: follow for more',
+  ].join('\n'),
+  new_launch: [
+    'Hook: project name + one stat',
+    'Developer + handover date',
+    'Standout feature or amenity',
+    'Payment plan / starting price',
+    'CTA: DM for full brochure',
+  ].join('\n'),
+  area_spotlight: [
+    'Hook: why this area is on every list',
+    'Property types + price band',
+    'Lifestyle (food, beach, schools)',
+    'Who moves here and why',
+    'CTA: DM for listings here',
+  ].join('\n'),
+}
+
 export const CONTENT_FORMATS: { value: ContentFormat; label: string; short: string; desc: string }[] = [
   { value: 'reel',             label: 'Reel',             short: 'R',  desc: 'Vertical short-form video' },
   { value: 'carousel',         label: 'Carousel',         short: 'C',  desc: 'Multi-slide swipe post' },
@@ -211,6 +288,7 @@ export interface CalendarEntry {
   script: string | null
   notes: string | null
   format: ContentFormat | null
+  reference_image_url: string | null
   scheduled_date: string
   status: CalendarStatus
   generated_content_id: string | null

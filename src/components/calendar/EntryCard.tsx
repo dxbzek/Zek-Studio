@@ -2,11 +2,18 @@ import { memo, type MouseEvent } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  APPROVAL_STATUS_DOT, CALENDAR_STATUS_BORDER, CALENDAR_STATUS_DOT,
+  APPROVAL_STATUS_CHIP, CALENDAR_STATUS_BORDER, CALENDAR_STATUS_DOT,
   CONTENT_FORMAT_CHIP, CONTENT_FORMAT_TINT,
 } from '@/lib/statusTokens'
 import { CONTENT_FORMATS } from '@/types'
-import type { ContentFormat } from '@/types'
+import type { ApprovalStatus, ContentFormat } from '@/types'
+
+// Short labels for the approval pill on cards (saves horizontal space).
+const APPROVAL_SHORT: Record<ApprovalStatus, string> = {
+  pending_review: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+}
 import { PlatformStack } from './PlatformStack'
 import type { EntryGroup } from './entryGroups'
 
@@ -30,7 +37,8 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: group.id, disabled: selectMode })
 
-  const approvalDot = rep.approval_status ? APPROVAL_STATUS_DOT[rep.approval_status] : null
+  const approvalStatus = rep.approval_status as ApprovalStatus | null
+  const approvalPillClass = approvalStatus ? APPROVAL_STATUS_CHIP[approvalStatus] : ''
   const fmt = rep.format as ContentFormat | null
   const tintClass = fmt ? CONTENT_FORMAT_TINT[fmt] : 'bg-card'
   const formatPillClass = fmt ? CONTENT_FORMAT_CHIP[fmt] : ''
@@ -86,11 +94,25 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
             </span>
           )}
           <span className="ml-auto flex items-center gap-1 shrink-0">
-            {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
-            {approvalDot && <span className={`h-1.5 w-1.5 rounded-full ${approvalDot}`} />}
+            {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" title="Assigned" />}
           </span>
         </div>
-        <span className="block text-foreground line-clamp-1 mt-0.5 text-xs leading-tight">{rep.title}</span>
+        <div className="flex items-start gap-1.5 mt-0.5">
+          {rep.reference_image_url && (
+            <img
+              src={rep.reference_image_url}
+              alt=""
+              className="shrink-0 w-7 h-7 rounded object-cover border border-border/60"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            />
+          )}
+          <span className="block text-foreground line-clamp-2 text-xs leading-tight flex-1">{rep.title}</span>
+        </div>
+        {approvalStatus && (
+          <span className={`inline-block mt-1 px-1.5 py-px rounded text-[9px] font-semibold leading-tight ${approvalPillClass}`}>
+            {APPROVAL_SHORT[approvalStatus]}
+          </span>
+        )}
       </div>
     </div>
   )
