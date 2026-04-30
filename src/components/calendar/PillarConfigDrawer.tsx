@@ -6,6 +6,10 @@ import { Input } from '@/components/ui/input'
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter,
 } from '@/components/ui/sheet'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { ContentPillar } from '@/types'
 import { PILLAR_COLORS } from './entryGroups'
 
@@ -24,6 +28,10 @@ export function PillarConfigDrawer({
   const [label, setLabel] = useState('')
   const [color, setColor] = useState('#6366f1')
   const [pct, setPct] = useState(20)
+  // Confirmation dialog for delete — destructive action gets the same
+  // popup pattern used elsewhere in the app instead of an instant remove.
+  const [pendingDelete, setPendingDelete] = useState<ContentPillar | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function handleAdd() {
     if (!label.trim()) return
@@ -36,12 +44,17 @@ export function PillarConfigDrawer({
     }
   }
 
-  async function handleDelete(id: string) {
+  async function confirmDelete() {
+    if (!pendingDelete) return
+    setDeleting(true)
     try {
-      await onDelete(id)
+      await onDelete(pendingDelete.id)
       toast.success('Pillar deleted')
+      setPendingDelete(null)
     } catch (err) {
       toast.error('Failed to delete pillar', { description: (err as Error).message })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -72,7 +85,8 @@ export function PillarConfigDrawer({
                   <span className="text-xs text-muted-foreground">{p.target_pct}% target</span>
                   <button
                     type="button"
-                    onClick={() => handleDelete(p.id)}
+                    onClick={() => setPendingDelete(p)}
+                    aria-label={`Delete ${p.label}`}
                     className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -137,6 +151,32 @@ export function PillarConfigDrawer({
           </Button>
         </SheetFooter>
       </SheetContent>
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete pillar {pendingDelete ? `"${pendingDelete.label}"` : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Existing entries assigned to this pillar will keep the assignment but the pillar will no longer appear in the picker.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   )
 }

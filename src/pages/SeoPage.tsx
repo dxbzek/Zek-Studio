@@ -1014,6 +1014,9 @@ const BlogPostRow = memo(function BlogPostRow({ post, brand, keywords, onUpdate:
 
 function AuditTab({ brandId }: { brandId: string }) {
   const { items, isLoading, seedDefaults, updateItem, deleteItem } = useSeoAudit(brandId)
+  // Confirmation popup before deleting an audit item — destructive
+  // actions get a confirm step like everywhere else.
+  const [pendingDelete, setPendingDelete] = useState<SeoAuditItem | null>(null)
 
   const done = items.filter((i) => i.status === 'done').length
   const pct = items.length > 0 ? Math.round((done / items.length) * 100) : 0
@@ -1054,13 +1057,39 @@ function AuditTab({ brandId }: { brandId: string }) {
                   key={item.id}
                   item={item}
                   onStatusChange={(status) => updateItem.mutate({ id: item.id, patch: { status } })}
-                  onDelete={() => deleteItem.mutate(item.id)}
+                  onDelete={() => setPendingDelete(item)}
                 />
               ))}
             </div>
           </div>
         )
       })}
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete audit item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.issue}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDelete) deleteItem.mutate(pendingDelete.id)
+                setPendingDelete(null)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -1102,6 +1131,7 @@ function ReviewsTab({ brandId }: { brandId: string }) {
   const { snapshots, isLoading, logSnapshot, deleteSnapshot } = useReviewSnapshots(brandId)
   const [form, setForm] = useState({ platform: 'google', count: '', target: '' })
   const [adding, setAdding] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<typeof snapshots[number] | null>(null)
 
   const latestByPlatform = snapshots.reduce<Record<string, typeof snapshots[number]>>((acc, s) => {
     if (!acc[s.platform] || s.recorded_at > acc[s.platform].recorded_at) acc[s.platform] = s
@@ -1216,7 +1246,7 @@ function ReviewsTab({ brandId }: { brandId: string }) {
                   <td className="px-3 py-2.5 text-center text-muted-foreground font-mono">{s.target ?? '—'}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{s.recorded_at}</td>
                   <td className="px-3 py-2.5 text-right">
-                    <button onClick={() => deleteSnapshot.mutate(s.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setPendingDelete(s)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                   </td>
                 </tr>
               ))}
@@ -1231,6 +1261,34 @@ function ReviewsTab({ brandId }: { brandId: string }) {
           <p className="text-sm text-muted-foreground">Log your current review count to start tracking growth</p>
         </div>
       )}
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete review snapshot?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete && (
+                <>The {pendingDelete.platform} entry from {pendingDelete.recorded_at} will be removed.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingDelete) deleteSnapshot.mutate(pendingDelete.id)
+                setPendingDelete(null)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

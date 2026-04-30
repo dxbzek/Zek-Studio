@@ -20,6 +20,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { PLATFORMS } from '@/types'
 import type { Platform, CompetitorPost } from '@/types'
@@ -130,10 +134,16 @@ export function CompetitorResearchPage() {
     }
   }
 
-  async function handleDeleteCompetitor(id: string) {
+  // Confirmation popup before destructive remove. Stores both id and handle
+  // so the dialog can name what's being removed.
+  const [pendingCompetitorDelete, setPendingCompetitorDelete] = useState<{ id: string; handle: string } | null>(null)
+
+  async function confirmDeleteCompetitor() {
+    if (!pendingCompetitorDelete) return
     try {
-      await deleteCompetitor.mutateAsync(id)
-      if (selectedCompetitorId === id) setSelectedCompetitorId(null)
+      await deleteCompetitor.mutateAsync(pendingCompetitorDelete.id)
+      if (selectedCompetitorId === pendingCompetitorDelete.id) setSelectedCompetitorId(null)
+      setPendingCompetitorDelete(null)
     } catch (err) {
       toast.error((err as Error).message)
     }
@@ -291,7 +301,7 @@ export function CompetitorResearchPage() {
                     <RefreshCw className={cn('h-3.5 w-3.5', rescrapingId === c.id && 'animate-spin')} />
                   </button>
                   <button
-                    onClick={() => handleDeleteCompetitor(c.id)}
+                    onClick={() => setPendingCompetitorDelete({ id: c.id, handle: c.handle })}
                     className="flex items-center justify-center h-6 w-6 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                     title="Remove competitor"
                   >
@@ -414,6 +424,31 @@ export function CompetitorResearchPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog
+        open={!!pendingCompetitorDelete}
+        onOpenChange={(o) => { if (!o) setPendingCompetitorDelete(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove competitor {pendingCompetitorDelete ? `@${pendingCompetitorDelete.handle}` : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Their cached posts and saved hooks for this brand will be removed. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDeleteCompetitor}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -16,6 +16,10 @@ import {
   SheetTitle,
   SheetFooter,
 } from '@/components/ui/sheet'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
 import { useActiveBrand } from '@/stores/activeBrand'
 import { useCampaigns } from '@/hooks/useCampaigns'
@@ -130,12 +134,21 @@ export default function CampaignsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
+  // Delete confirmation popup — destructive action, not silent.
+  const [pendingDelete, setPendingDelete] = useState<Campaign | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
+
+  async function confirmDelete() {
+    if (!pendingDelete) return
+    setDeletingBusy(true)
     try {
-      await deleteCampaign.mutateAsync(id)
+      await deleteCampaign.mutateAsync(pendingDelete.id)
       toast.success('Campaign deleted')
+      setPendingDelete(null)
     } catch (err) {
       toast.error('Failed to delete', { description: (err as Error).message })
+    } finally {
+      setDeletingBusy(false)
     }
   }
 
@@ -217,7 +230,7 @@ export default function CampaignsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(campaign.id)}
+                        onClick={() => setPendingDelete(campaign)}
                         aria-label={`Delete ${campaign.name}`}
                         className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
                       >
@@ -346,6 +359,32 @@ export default function CampaignsPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => { if (!o) setPendingDelete(null) }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete campaign {pendingDelete ? `"${pendingDelete.name}"` : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Linked calendar entries keep their data but lose the campaign label. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmDelete}
+              disabled={deletingBusy}
+            >
+              {deletingBusy ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

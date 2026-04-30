@@ -11,6 +11,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { PlatformBadge } from '@/lib/platformBrand'
 import { FormButtonGroup } from '@/components/ui/form-button-group'
 import type { FormButtonGroupOption } from '@/components/ui/form-button-group'
@@ -117,11 +121,16 @@ export function TaskDrawer({
     }
   }
 
-  async function handleDelete() {
+  // Confirmation popup before destructive delete instead of an instant
+  // remove. Matches the rest of the app's delete pattern.
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+
+  async function handleConfirmDelete() {
     if (!task) return
     try {
       await onDelete(task.id)
       toast.success('Task deleted')
+      setConfirmDeleteOpen(false)
       onOpenChange(false)
     } catch (err) {
       toast.error('Failed to delete', { description: errorMessage(err) })
@@ -323,7 +332,7 @@ export function TaskDrawer({
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               disabled={deleting}
             >
               Delete
@@ -343,6 +352,27 @@ export function TaskDrawer({
           )}
         </SheetFooter>
       </SheetContent>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {task ? `"${task.title}"` : 'task'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   )
 }
