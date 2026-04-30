@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
+import { Sparkles, ExternalLink } from 'lucide-react'
 import { fmtCompact } from '@/lib/formatting'
 import type { PostMetric } from '@/types'
 
@@ -12,6 +13,22 @@ function engagementRate(m: PostMetric): string {
   const base = m.reach ?? m.impressions ?? m.views
   if (!base || base === 0) return '—'
   return `${((eng / base) * 100).toFixed(1)}%`
+}
+
+function ErrorScreen({ message }: { message: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="text-center max-w-sm space-y-2">
+        <div className="eyebrow mb-2">Report</div>
+        <h1
+          style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 500, letterSpacing: '-0.025em' }}
+        >
+          Report unavailable
+        </h1>
+        <p className="text-sm text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  )
 }
 
 export default function PublicReportPage() {
@@ -44,42 +61,20 @@ export default function PublicReportPage() {
     refetchOnWindowFocus: true,
   })
 
-  if (!tokenValid) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center max-w-sm space-y-2 px-6">
-          <p className="text-lg font-semibold">Report unavailable</p>
-          <p className="text-sm text-muted-foreground">
-            This report link is invalid or has expired.
-          </p>
-        </div>
-      </div>
-    )
-  }
+  if (!tokenValid) return <ErrorScreen message="This report link is invalid or has expired." />
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div role="status" aria-live="polite" className="text-center space-y-2">
-          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" aria-hidden />
+          <div className="h-8 w-8 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto" aria-hidden />
           <p className="text-sm text-muted-foreground">Loading report…</p>
         </div>
       </div>
     )
   }
 
-  if (error || !data) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center max-w-sm space-y-2 px-6">
-          <p className="text-lg font-semibold">Report unavailable</p>
-          <p className="text-sm text-muted-foreground">
-            This report link is invalid or has expired.
-          </p>
-        </div>
-      </div>
-    )
-  }
+  if (error || !data) return <ErrorScreen message="This report link is invalid or has expired." />
 
   const { brand, metrics } = data
 
@@ -114,83 +109,143 @@ export default function PublicReportPage() {
     .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))
     .slice(0, 10)
 
+  const accent = brand.color || '#6366f1'
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header stripe */}
-      <div
-        className="h-2 w-full"
-        style={{ backgroundColor: brand.color || '#6366f1' }}
-      />
+      {/* Editorial hero */}
+      <header
+        className="relative overflow-hidden border-b border-border/70"
+        style={{
+          background: `linear-gradient(180deg, color-mix(in oklch, ${accent} 10%, var(--background)) 0%, var(--background) 75%)`,
+        }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, color-mix(in oklch, ${accent} 14%, transparent) 1px, transparent 1px),
+              linear-gradient(to bottom, color-mix(in oklch, ${accent} 14%, transparent) 1px, transparent 1px)
+            `,
+            backgroundSize: '64px 64px',
+            maskImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, black 20%, transparent 75%)',
+          }}
+        />
+        <div className="relative max-w-4xl mx-auto px-6 pt-10 pb-10">
+          <div className="flex items-center justify-between mb-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 motion-safe:duration-500">
+            <div className="flex items-center gap-2.5">
+              <span
+                className="h-2.5 w-2.5 rounded-full ring-2 ring-background shadow-[0_0_0_1px_rgba(0,0,0,0.06)]"
+                style={{ backgroundColor: accent }}
+                aria-hidden
+              />
+              <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground">
+                Performance Report
+              </span>
+            </div>
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground/70">
+              Issued {format(new Date(), 'MMM d, yyyy')}
+            </span>
+          </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        {/* Brand info */}
-        <div>
-          <div className="eyebrow mb-2">Analytics Report</div>
-          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 48, fontWeight: 400, lineHeight: 1.05, letterSpacing: '-0.025em' }}>{brand.name}</h1>
-          <p className="text-[13px] text-muted-foreground mt-1.5">{brand.niche}</p>
+          <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-700" style={{ animationDelay: '120ms', animationFillMode: 'backwards' }}>
+            <h1
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: 'clamp(40px, 7vw, 60px)',
+                fontWeight: 400,
+                lineHeight: 1.02,
+                letterSpacing: '-0.025em',
+              }}
+            >
+              {brand.name}
+            </h1>
+            <p className="text-[14px] text-muted-foreground mt-2">{brand.niche}</p>
+          </div>
         </div>
+      </header>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <main className="max-w-4xl mx-auto px-6 py-10 space-y-10">
+        {/* Stat tiles */}
+        <section
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+          style={{ animationDelay: '60ms', animationFillMode: 'backwards' }}
+        >
           {[
-            { label: 'Total Posts', value: String(totalPosts) },
-            { label: 'Total Views', value: fmtCompact(totalViews) },
-            { label: 'Total Likes', value: fmtCompact(totalLikes) },
-            { label: 'Avg Engagement', value: avgEngRate },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-xl border border-border bg-card p-4">
-              <p className="eyebrow" style={{ fontSize: 10 }}>{label}</p>
-              <p className="mono-num mt-1" style={{ fontFamily: 'var(--font-heading)', fontSize: 28, fontWeight: 400, lineHeight: 1 }}>{value}</p>
+            { label: 'Total posts', value: String(totalPosts) },
+            { label: 'Total views', value: fmtCompact(totalViews) },
+            { label: 'Total likes', value: fmtCompact(totalLikes) },
+            { label: 'Avg engagement', value: avgEngRate },
+          ].map(({ label, value }, i) => (
+            <div
+              key={label}
+              className="premium-card group relative overflow-hidden rounded-xl ring-1 ring-border/80 p-4 transition-all duration-300 hover:-translate-y-px hover:ring-border"
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-12 -right-12 h-32 w-32 rounded-full opacity-50 transition-opacity duration-500 group-hover:opacity-90"
+                style={{
+                  background: `radial-gradient(closest-side, color-mix(in oklch, ${accent} ${i === 0 ? 25 : 18}%, transparent) 0%, transparent 75%)`,
+                }}
+              />
+              <p className="relative eyebrow" style={{ fontSize: 10 }}>{label}</p>
+              <p
+                className="relative mono-num mt-1.5"
+                style={{ fontFamily: 'var(--font-heading)', fontSize: 30, fontWeight: 400, lineHeight: 1, letterSpacing: '-0.025em' }}
+              >
+                {value}
+              </p>
             </div>
           ))}
-        </div>
+        </section>
 
         {/* Platform breakdown */}
         {platformRows.length > 0 && (
-          <div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 12 }}>Platform Breakdown</h2>
+          <section>
+            <SectionHeader number="01" title="Platform breakdown" />
             {/* Mobile: stacked cards */}
             <div className="sm:hidden space-y-2">
               {platformRows.map(([platform, s]) => (
-                <div key={platform} className="rounded-xl border border-border p-3">
+                <div key={platform} className="premium-card rounded-xl ring-1 ring-border/80 p-4">
                   <div className="font-medium capitalize text-sm">{platform}</div>
                   <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
                     <div>
                       <div className="text-muted-foreground">Posts</div>
-                      <div className="tabular-nums mt-0.5">{s.count}</div>
+                      <div className="tabular-nums mt-0.5 mono-num">{s.count}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Avg Views</div>
-                      <div className="tabular-nums mt-0.5">{fmtCompact(Math.round(s.views / s.count))}</div>
+                      <div className="text-muted-foreground">Avg views</div>
+                      <div className="tabular-nums mt-0.5 mono-num">{fmtCompact(Math.round(s.views / s.count))}</div>
                     </div>
                     <div>
-                      <div className="text-muted-foreground">Avg Likes</div>
-                      <div className="tabular-nums mt-0.5">{fmtCompact(Math.round(s.likes / s.count))}</div>
+                      <div className="text-muted-foreground">Avg likes</div>
+                      <div className="tabular-nums mt-0.5 mono-num">{fmtCompact(Math.round(s.likes / s.count))}</div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            {/* Tablet/desktop: table */}
-            <div className="hidden sm:block rounded-xl border border-border overflow-hidden">
+            {/* Desktop: table */}
+            <div className="hidden sm:block premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Platform</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Posts</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Avg Views</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Avg Likes</th>
+                  <tr className="border-b border-border/60 bg-muted/30">
+                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Platform</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Posts</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Avg views</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Avg likes</th>
                   </tr>
                 </thead>
                 <tbody>
                   {platformRows.map(([platform, s]) => (
-                    <tr key={platform} className="border-b border-border last:border-0">
-                      <td className="px-4 py-2.5 font-medium capitalize">{platform}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-xs">{s.count}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-xs">
+                    <tr key={platform} className="border-b border-border/40 last:border-0 transition-colors hover:bg-accent/30">
+                      <td className="px-4 py-3 font-medium capitalize">{platform}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-xs mono-num">{s.count}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-xs mono-num">
                         {fmtCompact(Math.round(s.views / s.count))}
                       </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-xs">
+                      <td className="px-4 py-3 text-right tabular-nums text-xs mono-num">
                         {fmtCompact(Math.round(s.likes / s.count))}
                       </td>
                     </tr>
@@ -198,17 +253,17 @@ export default function PublicReportPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Top posts */}
         {topPosts.length > 0 && (
-          <div>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 500, letterSpacing: '-0.02em', marginBottom: 12 }}>Top Posts</h2>
+          <section>
+            <SectionHeader number="02" title="Top posts" />
             {/* Mobile: stacked cards */}
             <div className="sm:hidden space-y-2">
               {topPosts.map((m) => (
-                <div key={m.id} className="rounded-xl border border-border p-3">
+                <div key={m.id} className="premium-card rounded-xl ring-1 ring-border/80 p-4">
                   <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                     <span className="capitalize font-medium text-foreground">{m.platform}</span>
                     <span>{m.posted_at ? format(parseISO(m.posted_at), 'MMM d, yyyy') : '—'}</span>
@@ -216,15 +271,15 @@ export default function PublicReportPage() {
                   <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
                     <div>
                       <div className="text-muted-foreground">Views</div>
-                      <div className="tabular-nums mt-0.5">{fmtCompact(m.views)}</div>
+                      <div className="tabular-nums mt-0.5 mono-num">{fmtCompact(m.views)}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Likes</div>
-                      <div className="tabular-nums mt-0.5">{fmtCompact(m.likes)}</div>
+                      <div className="tabular-nums mt-0.5 mono-num">{fmtCompact(m.likes)}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Eng.</div>
-                      <div className="tabular-nums mt-0.5">{engagementRate(m)}</div>
+                      <div className="tabular-nums mt-0.5 mono-num">{engagementRate(m)}</div>
                     </div>
                   </div>
                   {m.post_url && (
@@ -232,46 +287,48 @@ export default function PublicReportPage() {
                       href={m.post_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block mt-2 text-xs text-primary underline underline-offset-2 truncate"
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-foreground/80 underline underline-offset-2 hover:text-foreground transition-colors truncate"
                     >
                       {m.post_url.replace(/^https?:\/\//, '')}
+                      <ExternalLink className="h-3 w-3 shrink-0" />
                     </a>
                   )}
                 </div>
               ))}
             </div>
-            {/* Tablet/desktop: table */}
-            <div className="hidden sm:block rounded-xl border border-border overflow-hidden">
+            {/* Desktop: table */}
+            <div className="hidden sm:block premium-card rounded-xl ring-1 ring-border/80 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Date</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Platform</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Views</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Likes</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Eng. Rate</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Link</th>
+                  <tr className="border-b border-border/60 bg-muted/30">
+                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Date</th>
+                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Platform</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Views</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Likes</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Eng. rate</th>
+                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Link</th>
                   </tr>
                 </thead>
                 <tbody>
                   {topPosts.map((m) => (
-                    <tr key={m.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                    <tr key={m.id} className="border-b border-border/40 last:border-0 transition-colors hover:bg-accent/30">
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                         {m.posted_at ? format(parseISO(m.posted_at), 'MMM d, yyyy') : '—'}
                       </td>
-                      <td className="px-4 py-2.5 text-xs capitalize">{m.platform}</td>
-                      <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmtCompact(m.views)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right tabular-nums">{fmtCompact(m.likes)}</td>
-                      <td className="px-4 py-2.5 text-xs text-right tabular-nums">{engagementRate(m)}</td>
-                      <td className="px-4 py-2.5 text-xs max-w-[120px]">
+                      <td className="px-4 py-3 text-xs capitalize">{m.platform}</td>
+                      <td className="px-4 py-3 text-xs text-right tabular-nums mono-num">{fmtCompact(m.views)}</td>
+                      <td className="px-4 py-3 text-xs text-right tabular-nums mono-num">{fmtCompact(m.likes)}</td>
+                      <td className="px-4 py-3 text-xs text-right tabular-nums mono-num">{engagementRate(m)}</td>
+                      <td className="px-4 py-3 text-xs max-w-[160px]">
                         {m.post_url ? (
                           <a
                             href={m.post_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary underline underline-offset-2 truncate block"
+                            className="inline-flex items-center gap-1 text-foreground/80 underline underline-offset-2 hover:text-foreground transition-colors"
                           >
-                            {m.post_url.replace(/^https?:\/\//, '').slice(0, 28)}…
+                            <span className="truncate max-w-[120px]">{m.post_url.replace(/^https?:\/\//, '')}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0" />
                           </a>
                         ) : (
                           <span className="text-muted-foreground">—</span>
@@ -282,14 +339,37 @@ export default function PublicReportPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
         )}
+      </main>
 
-        {/* Footer */}
-        <div className="border-t border-border pt-6 text-center">
-          <p className="text-xs text-muted-foreground">Powered by Zek Studio</p>
+      {/* Footer */}
+      <footer className="max-w-4xl mx-auto px-6 pb-10">
+        <div className="border-t border-border/60 pt-5 flex items-center justify-center gap-1.5">
+          <Sparkles className="h-3 w-3 text-muted-foreground/60" aria-hidden />
+          <p className="text-[10.5px] font-mono uppercase tracking-[0.14em] text-muted-foreground/70">
+            Powered by Zek Studio
+          </p>
         </div>
-      </div>
+      </footer>
+    </div>
+  )
+}
+
+function SectionHeader({ number, title }: { number: string; title: string }) {
+  return (
+    <div className="flex items-baseline gap-3 mb-4">
+      <span
+        className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground/70 tabular-nums"
+      >
+        № {number}
+      </span>
+      <h2
+        style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em' }}
+      >
+        {title}
+      </h2>
+      <span aria-hidden className="flex-1 h-px bg-border/60 ml-2" />
     </div>
   )
 }
