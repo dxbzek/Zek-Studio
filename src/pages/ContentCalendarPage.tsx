@@ -23,7 +23,7 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Download, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Keyboard, Search, Share2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,6 +42,7 @@ import { useActiveBrand } from '@/stores/activeBrand'
 import { useUiState } from '@/stores/uiState'
 import { useCalendar } from '@/hooks/useCalendar'
 import { useTeam } from '@/hooks/useTeam'
+import { useShareTokens } from '@/hooks/useShareTokens'
 import { useTasks } from '@/hooks/useTasks'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useContentPillars } from '@/hooks/useContentPillars'
@@ -69,6 +70,13 @@ import {
   type EntryFormValues,
 } from '@/components/calendar/EntryDrawer'
 import { ExportCalendarDialog } from '@/components/calendar/ExportCalendarDialog'
+import {
+  Dialog as ShortcutsDialog,
+  DialogContent as ShortcutsDialogContent,
+  DialogDescription as ShortcutsDialogDescription,
+  DialogHeader as ShortcutsDialogHeader,
+  DialogTitle as ShortcutsDialogTitle,
+} from '@/components/ui/dialog'
 import { PillarConfigDrawer } from '@/components/calendar/PillarConfigDrawer'
 import {
   deriveTaskStatus,
@@ -76,6 +84,31 @@ import {
   STATUSES,
   type EntryGroup,
 } from '@/components/calendar/entryGroups'
+import { useDraggable } from '@dnd-kit/core'
+
+// Draggable chip in the Emergency Backup lane. Drop it onto a day cell to
+// "deploy" the backup (re-dates the entry and flips its format off
+// emergency_backup). Pointer activation distance is enough to keep
+// click→edit working when the user just wants to open the drawer.
+function EmergencyChip({ group, onClick }: { group: EntryGroup; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `emergency:${group.id}`,
+  })
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onClick}
+      {...listeners}
+      {...attributes}
+      style={{ opacity: isDragging ? 0.4 : 1 }}
+      className="shrink-0 max-w-[200px] truncate px-2 py-0.5 rounded text-[11px] border border-red-500/20 bg-card hover:bg-red-500/[0.08] hover:border-red-500/40 transition-colors cursor-grab active:cursor-grabbing"
+      title={`Drag onto a day to deploy · ${group.representative.title}`}
+    >
+      {group.representative.title}
+    </button>
+  )
+}
 
 export function ContentCalendarPage() {
   const navigate = useNavigate()
@@ -153,6 +186,7 @@ export function ContentCalendarPage() {
     [emergencyBackups.data],
   )
   const { members } = useTeam(activeBrand?.id ?? null)
+  const { createToken: createShareToken } = useShareTokens(activeBrand?.id ?? null)
   const { tasks, createTask, updateTask } = useTasks(activeBrand?.id ?? null)
   const { campaigns } = useCampaigns(activeBrand?.id ?? null)
   const { pillars, createPillar, deletePillar } = useContentPillars(activeBrand?.id ?? null)
@@ -227,6 +261,22 @@ export function ContentCalendarPage() {
   const weekDays   = eachDayOfInterval({ start: weekStart, end: addDays(weekStart, 6) })
   const gridDays   = viewMode === 'month' ? monthDays : weekDays
 
+  // Format mix this month — used by the mini-chart in the toolbar so
+  // planners can balance the cadence at a glance.
+  const formatMix = useMemo(() => {
+    const monthEntries = (entries.data ?? []).filter((e) => {
+      try { return isSameMonth(parseISO(e.scheduled_date), new Date(viewYear, viewMonth)) }
+      catch { return false }
+    })
+    const counts = { reel: 0, carousel: 0, static: 0, emergency_backup: 0, unset: 0 }
+    for (const e of monthEntries) {
+      const f = (e.format as ContentFormat | null) ?? 'unset'
+      counts[f] = (counts[f] ?? 0) + 1
+    }
+    const total = monthEntries.length
+    return { total, counts }
+  }, [entries.data, viewYear, viewMonth])
+
   const pillarDist = useMemo(() => {
     if ((pillars.data ?? []).length === 0) return []
     const monthEntries = (entries.data ?? []).filter((e) => {
@@ -247,15 +297,57 @@ export function ContentCalendarPage() {
   const [draggingGroup, setDraggingGroup] = useState<EntryGroup | null>(null)
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setDraggingGroup(allGroups.find((g) => g.id === event.active.id) ?? null)
-  }, [allGroups])
+    const id = String(event.active.id)
+    if (id.startsWith('emergency:')) {
+      const groupId = id.slice('emergency:'.length)
+      setDraggingGroup(emergencyGroups.find((g) => g.id === groupId) ?? null)
+      return
+    }
+    setDraggingGroup(allGroups.find((g) => g.id === id) ?? null)
+  }, [allGroups, emergencyGroups])
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     setDraggingGroup(null)
     const { active, over } = event
     if (!over) return
     const targetDate = over.id as string
-    const group = allGroups.find((g) => g.id === active.id)
+    const activeId = String(active.id)
+
+    // Emergency Backup → day cell. The user is "deploying" a backup: set
+    // its date to the target day and flip format off emergency_backup so
+    // it shows up in the dated grid. Default to 'static' since most
+    // backups are static or short carousels.
+    if (activeId.startsWith('emergency:')) {
+      const groupId = activeId.slice('emergency:'.length)
+      const group = emergencyGroups.find((g) => g.id === groupId)
+      if (!group) return
+      const originalDate = group.representative.scheduled_date
+      const settled = await Promise.allSettled(
+        group.entries.map((e) =>
+          updateEntry.mutateAsync({
+            id: e.id,
+            patch: { scheduled_date: targetDate, format: 'static' },
+          }),
+        ),
+      )
+      const failures = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      if (failures.length === 0) {
+        toast.success(`Backup deployed to ${format(parseISO(targetDate), 'MMM d')}`)
+      } else {
+        await Promise.allSettled(
+          group.entries.map((e) =>
+            updateEntry.mutateAsync({
+              id: e.id,
+              patch: { scheduled_date: originalDate, format: 'emergency_backup' },
+            }),
+          ),
+        )
+        toast.error('Could not deploy backup', { description: failures[0].reason instanceof Error ? failures[0].reason.message : 'Try again' })
+      }
+      return
+    }
+
+    const group = allGroups.find((g) => g.id === activeId)
     if (!group || group.representative.scheduled_date === targetDate) return
 
     // Multi-platform entries are separate rows (one per platform). Promise.all
@@ -601,6 +693,49 @@ export function ContentCalendarPage() {
     return result.output?.[0] ?? null
   }, [generateContent])
 
+  // Generate a public approval link for the active brand and copy to
+  // clipboard. The PublicApprovalPage / submit-approval edge function
+  // already handle the token; we just create a row and hand the URL over.
+  const handleShareApproval = useCallback(async () => {
+    if (!activeBrand) return
+    try {
+      const token = await createShareToken.mutateAsync({ type: 'approval' })
+      const url = `${window.location.origin}/approve/${token.token}`
+      await navigator.clipboard.writeText(url)
+      toast.success('Approval link copied', { description: 'Send it to the client to approve / reject entries.' })
+    } catch (err) {
+      toast.error('Could not create link', { description: err instanceof Error ? err.message : String(err) })
+    }
+  }, [activeBrand, createShareToken])
+
+  // Quick-action handler for the ⋯ menu on each entry card. Each action
+  // operates on every row in the group (multi-platform entries are stored
+  // as separate rows that we keep in sync).
+  const handleQuickAction = useCallback(async (group: EntryGroup, action: 'mark-published' | 'mark-scheduled' | 'move-plus-1d' | 'move-plus-7d' | 'delete') => {
+    try {
+      if (action === 'delete') {
+        const ok = window.confirm(`Delete "${group.representative.title}"? This cannot be undone.`)
+        if (!ok) return
+        await Promise.all(group.entries.map((e) => deleteEntry.mutateAsync(e.id)))
+        toast.success('Entry deleted')
+        return
+      }
+      if (action === 'mark-published' || action === 'mark-scheduled') {
+        const status: CalendarStatus = action === 'mark-published' ? 'published' : 'scheduled'
+        await Promise.all(group.entries.map((e) => updateEntry.mutateAsync({ id: e.id, patch: { status } })))
+        toast.success(action === 'mark-published' ? 'Marked Published' : 'Marked Scheduled')
+        return
+      }
+      // move-plus-Nd
+      const days = action === 'move-plus-1d' ? 1 : 7
+      const newDate = format(addDays(parseISO(group.representative.scheduled_date), days), 'yyyy-MM-dd')
+      await Promise.all(group.entries.map((e) => updateEntry.mutateAsync({ id: e.id, patch: { scheduled_date: newDate } })))
+      toast.success(`Moved to ${format(parseISO(newDate), 'MMM d')}`)
+    } catch (err) {
+      toast.error('Action failed', { description: err instanceof Error ? err.message : String(err) })
+    }
+  }, [deleteEntry, updateEntry])
+
   async function handleDuplicate() {
     if (!editingGroup || !activeBrand) return
     try {
@@ -738,6 +873,21 @@ export function ContentCalendarPage() {
   // Dialog with range / filter / group-by options. The actual fetch and
   // helper invocation live in ExportCalendarDialog.
   const [exportOpen, setExportOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+
+  // ? opens the keyboard shortcuts dialog. Skipped when typing in an
+  // input/textarea/contenteditable so search and entry forms don't fire it.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      setShortcutsOpen(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const handleAddPillar = useCallback(async (input: { label: string; target_pct: number; color: string }) => {
     if (!activeBrand) return
@@ -952,8 +1102,51 @@ export function ContentCalendarPage() {
         >
           Today
         </button>
+        {/* Format mix mini-chart — stacked bar showing this month's
+            reel/carousel/static/backup balance. Hidden when there are no
+            entries to summarize. */}
+        {formatMix.total > 0 && (
+          <div
+            className="hidden md:flex ml-2 items-center gap-2 text-[11px] text-muted-foreground"
+            title={`Reels ${formatMix.counts.reel} · Carousels ${formatMix.counts.carousel} · Static ${formatMix.counts.static} · Backup ${formatMix.counts.emergency_backup}${formatMix.counts.unset > 0 ? ` · Unset ${formatMix.counts.unset}` : ''}`}
+          >
+            <div className="flex h-1.5 w-32 rounded-full overflow-hidden border border-border bg-muted">
+              {(['reel', 'carousel', 'static', 'emergency_backup', 'unset'] as const).map((k) => {
+                const w = formatMix.total ? (formatMix.counts[k] / formatMix.total) * 100 : 0
+                if (w === 0) return null
+                const bg =
+                  k === 'reel' ? 'bg-purple-500' :
+                  k === 'carousel' ? 'bg-blue-500' :
+                  k === 'static' ? 'bg-emerald-500' :
+                  k === 'emergency_backup' ? 'bg-red-500' :
+                  'bg-zinc-400'
+                return <div key={k} className={`h-full ${bg}`} style={{ width: `${w}%` }} />
+              })}
+            </div>
+            <span className="tabular-nums">{formatMix.total}</span>
+          </div>
+        )}
         {!selectMode && (
           <div className="ml-auto flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShortcutsOpen(true)}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+              title="Keyboard shortcuts (press ? to toggle)"
+              aria-label="Keyboard shortcuts"
+            >
+              <Keyboard className="h-3 w-3" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={handleShareApproval}
+              disabled={createShareToken.isPending}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Generate a client-facing approval link and copy it to clipboard"
+            >
+              <Share2 className="h-3 w-3" aria-hidden />
+              {createShareToken.isPending ? 'Creating…' : 'Share for review'}
+            </button>
             <button
               type="button"
               onClick={() => setExportOpen(true)}
@@ -1008,24 +1201,23 @@ export function ContentCalendarPage() {
       </div>
 
       {/* Emergency Backup lane — evergreen fallback content. One-line strip.
-          Hidden when filtering to a non-emergency format. */}
+          Each chip is draggable: drop it onto a day to "deploy" the backup
+          (re-dates the entry and flips format off emergency_backup). */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
       {filterFormat === 'all' && (
         <div className="border-b border-border bg-red-500/[0.03] px-4 sm:px-6 py-1.5 shrink-0 flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-          <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-700 dark:text-red-400" title="Evergreen fallback content. Static or carousel, max 4 slides.">
+          <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-700 dark:text-red-400" title="Evergreen fallback content. Static or carousel, max 4 slides. Drag a chip onto any day to deploy.">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
             Backup
             <span className="text-muted-foreground font-normal">{emergencyGroups.length}</span>
           </span>
           {emergencyGroups.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => openEdit(g)}
-              className="shrink-0 max-w-[200px] truncate px-2 py-0.5 rounded text-[11px] border border-red-500/20 bg-card hover:bg-red-500/[0.08] hover:border-red-500/40 transition-colors"
-              title={g.representative.title}
-            >
-              {g.representative.title}
-            </button>
+            <EmergencyChip key={g.id} group={g} onClick={() => openEdit(g)} />
           ))}
           <button
             type="button"
@@ -1093,33 +1285,28 @@ export function ContentCalendarPage() {
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="grid grid-cols-7 border-l border-t border-border">
-            {gridDays.map((day) => (
-              <DayCell
-                key={format(day, 'yyyy-MM-dd')}
-                day={day}
-                groups={groupsForDay(day)}
-                isCurrentMonth={isSameMonth(day, new Date(viewYear, viewMonth))}
-                tall={viewMode === 'week'}
-                onGroupClick={openEdit}
-                onAddClick={() => openCreate(format(day, 'yyyy-MM-dd'))}
-                selectMode={selectMode}
-                selectedGroupIds={selectedGroupIds}
-                onToggleSelect={toggleSelect}
-              />
-            ))}
-          </div>
-          <DragOverlay>
-            {draggingGroup && <EntryCardOverlay group={draggingGroup} />}
-          </DragOverlay>
-        </DndContext>
+        <div className="grid grid-cols-7 border-l border-t border-border">
+          {gridDays.map((day) => (
+            <DayCell
+              key={format(day, 'yyyy-MM-dd')}
+              day={day}
+              groups={groupsForDay(day)}
+              isCurrentMonth={isSameMonth(day, new Date(viewYear, viewMonth))}
+              tall={viewMode === 'week'}
+              onGroupClick={openEdit}
+              onAddClick={() => openCreate(format(day, 'yyyy-MM-dd'))}
+              selectMode={selectMode}
+              selectedGroupIds={selectedGroupIds}
+              onToggleSelect={toggleSelect}
+              onQuickAction={handleQuickAction}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {draggingGroup && <EntryCardOverlay group={draggingGroup} />}
+        </DragOverlay>
       </div>
+      </DndContext>
 
       <EntryDrawer
         open={drawerOpen}
@@ -1211,6 +1398,40 @@ export function ContentCalendarPage() {
           searchQuery={search}
         />
       )}
+
+      {/* Keyboard shortcuts cheat sheet — opened by the ? key or the
+          keyboard icon in the toolbar. */}
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <ShortcutsDialogContent className="sm:max-w-md">
+          <ShortcutsDialogHeader>
+            <ShortcutsDialogTitle>Keyboard shortcuts</ShortcutsDialogTitle>
+            <ShortcutsDialogDescription>
+              Quick keys for the calendar surface. Press <kbd className="px-1 rounded bg-muted text-foreground">?</kbd> from anywhere to reopen.
+            </ShortcutsDialogDescription>
+          </ShortcutsDialogHeader>
+          <div className="space-y-2 text-sm">
+            {[
+              { keys: ['Click any day'], desc: 'Draft a new entry on that date' },
+              { keys: ['Click an entry'], desc: 'Open the editor' },
+              { keys: ['⌘', 'Enter'], desc: 'Save in editor' },
+              { keys: ['Esc'], desc: 'Close editor (with discard guard)' },
+              { keys: ['?'], desc: 'Toggle this cheat sheet' },
+            ].map((row) => (
+              <div key={row.desc} className="flex items-center justify-between gap-3 border-b border-border last:border-b-0 pb-2 last:pb-0">
+                <span className="text-muted-foreground">{row.desc}</span>
+                <div className="flex items-center gap-1">
+                  {row.keys.map((k) => (
+                    <kbd key={k} className="px-1.5 py-0.5 rounded border border-border bg-muted text-foreground text-[11px] font-mono">{k}</kbd>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="text-xs text-muted-foreground pt-2">
+              Inside an entry: drag a card onto a different day to reschedule. Drag an Emergency Backup chip onto a day to deploy it. Right-side ⋯ menu on each card has Mark Published / Move +1d / Move +1w / Delete.
+            </div>
+          </div>
+        </ShortcutsDialogContent>
+      </ShortcutsDialog>
 
       <AlertDialog open={dupWeekConfirm} onOpenChange={setDupWeekConfirm}>
         <AlertDialogContent>

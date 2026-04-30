@@ -4,6 +4,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover'
 import { EntryCard } from './EntryCard'
+import type { EntryQuickAction } from './EntryCard'
 import type { EntryGroup } from './entryGroups'
 
 const MAX_VISIBLE = 3
@@ -18,11 +19,12 @@ interface DayCellProps {
   selectMode?: boolean
   selectedGroupIds?: Set<string>
   onToggleSelect?: (groupId: string) => void
+  onQuickAction?: (group: EntryGroup, action: EntryQuickAction) => void
 }
 
 export function DayCell({
   day, groups, isCurrentMonth, tall, onGroupClick, onAddClick,
-  selectMode, selectedGroupIds, onToggleSelect,
+  selectMode, selectedGroupIds, onToggleSelect, onQuickAction,
 }: DayCellProps) {
   const dateStr = format(day, 'yyyy-MM-dd')
   const { isOver, setNodeRef } = useDroppable({ id: dateStr })
@@ -38,7 +40,16 @@ export function DayCell({
     <div
       ref={setNodeRef}
       onClick={() => { if (!selectMode) onAddClick() }}
-      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/5' : ''}`}
+      className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-colors ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/5' : ''} ${
+        // Heatmap: dense days get a subtle warm tint so over-loaded
+        // posting days are obvious at a glance. Disabled out-of-month and
+        // when DnD is hovering (would clash with the primary tint).
+        isCurrentMonth && !isOver
+          ? groups.length >= 5 ? 'bg-amber-500/[0.07]'
+          : groups.length >= 3 ? 'bg-amber-500/[0.04]'
+          : ''
+          : ''
+      }`}
     >
       <div className="flex items-center justify-between">
         <span
@@ -68,6 +79,7 @@ export function DayCell({
           selectMode={selectMode}
           isSelected={selectedGroupIds?.has(grp.id)}
           onToggleSelect={onToggleSelect}
+          onQuickAction={onQuickAction}
         />
       ))}
       {groups.length > MAX_VISIBLE && (

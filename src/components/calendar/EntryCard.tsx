@@ -1,12 +1,26 @@
 import { memo, type MouseEvent } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
+import { MoreVertical } from 'lucide-react'
 import {
   APPROVAL_STATUS_CHIP, CALENDAR_STATUS_BORDER, CALENDAR_STATUS_DOT,
   CONTENT_FORMAT_CHIP, CONTENT_FORMAT_TINT,
 } from '@/lib/statusTokens'
 import { CONTENT_FORMATS } from '@/types'
 import type { ApprovalStatus, ContentFormat } from '@/types'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { PlatformStack } from './PlatformStack'
+import type { EntryGroup } from './entryGroups'
+
+export type EntryQuickAction =
+  | 'mark-published'
+  | 'mark-scheduled'
+  | 'move-plus-1d'
+  | 'move-plus-7d'
+  | 'delete'
 
 // Short labels for the approval pill on cards (saves horizontal space).
 const APPROVAL_SHORT: Record<ApprovalStatus, string> = {
@@ -14,8 +28,6 @@ const APPROVAL_SHORT: Record<ApprovalStatus, string> = {
   approved: 'Approved',
   rejected: 'Rejected',
 }
-import { PlatformStack } from './PlatformStack'
-import type { EntryGroup } from './entryGroups'
 
 const FORMAT_SHORT: Record<ContentFormat, string> = Object.fromEntries(
   CONTENT_FORMATS.map((f) => [f.value, f.short]),
@@ -30,15 +42,28 @@ interface EntryCardProps {
   selectMode?: boolean
   isSelected?: boolean
   onToggleSelect?: (groupId: string) => void
+  // Optional: quick actions surface as a ⋯ menu in the top-right of the
+  // card. Skipped on overlays / drag previews.
+  onQuickAction?: (group: EntryGroup, action: EntryQuickAction) => void
 }
 
-function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect }: EntryCardProps) {
+function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect, onQuickAction }: EntryCardProps) {
   const { representative: rep } = group
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: group.id, disabled: selectMode })
 
   const approvalStatus = rep.approval_status as ApprovalStatus | null
   const approvalPillClass = approvalStatus ? APPROVAL_STATUS_CHIP[approvalStatus] : ''
+  // Hover preview via the native title attribute. Cheap, no JS state, and
+  // works on every device that has a pointer. Click for full editing.
+  const previewParts: string[] = [rep.title]
+  const fmtLabelForTitle = rep.format ? CONTENT_FORMATS.find((f) => f.value === rep.format)?.label : null
+  if (fmtLabelForTitle) previewParts.push(`· ${fmtLabelForTitle}`)
+  if (rep.script && rep.script.trim().length > 0) {
+    const beats = rep.script.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 6)
+    previewParts.push('', ...beats.map((b, i) => `${i + 1}. ${b}`))
+  }
+  const previewTitle = previewParts.join('\n')
   const fmt = rep.format as ContentFormat | null
   const tintClass = fmt ? CONTENT_FORMAT_TINT[fmt] : 'bg-card'
   const formatPillClass = fmt ? CONTENT_FORMAT_CHIP[fmt] : ''
@@ -56,7 +81,8 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
       {...(selectMode ? {} : listeners)}
       {...(selectMode ? {} : attributes)}
       onClick={handleClick}
-      className={`${selectMode ? 'cursor-pointer' : 'cursor-pointer'} rounded border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} ${tintClass} px-1.5 py-1 text-xs ${selectMode && isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
+      title={previewTitle}
+      className={`group/card ${selectMode ? 'cursor-pointer' : 'cursor-pointer'} rounded border border-l-4 ${CALENDAR_STATUS_BORDER[rep.status]} ${tintClass} px-1.5 py-1 text-xs ${selectMode && isSelected ? 'border-primary ring-2 ring-primary/30' : 'border-border'} hover:bg-accent hover:-translate-y-[1px] hover:shadow-sm transition-all duration-150 select-none animate-in fade-in-0 slide-in-from-top-1`}
     >
       {/* Mobile: single row — status dot + title */}
       <div className="flex items-center gap-1.5 sm:hidden">
@@ -95,6 +121,43 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect 
           )}
           <span className="ml-auto flex items-center gap-1 shrink-0">
             {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" title="Assigned" />}
+            {onQuickAction && !selectMode && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="opacity-0 group-hover/card:opacity-100 focus:opacity-100 text-muted-foreground hover:text-foreground rounded p-0.5 transition-opacity"
+                    aria-label="Quick actions"
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'mark-published')}>
+                    Mark Published
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'mark-scheduled')}>
+                    Mark Scheduled
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'move-plus-1d')}>
+                    Move +1 day
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'move-plus-7d')}>
+                    Move +1 week
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => onQuickAction(group, 'delete')}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </span>
         </div>
         <div className="flex items-start gap-1.5 mt-0.5">
