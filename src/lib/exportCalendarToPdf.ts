@@ -1,7 +1,6 @@
 import { format, parseISO, startOfWeek } from 'date-fns'
 import { CONTENT_FORMATS, CONTENT_THEMES } from '@/types'
 import type { CalendarEntry, ContentFormat, ContentTheme, Platform } from '@/types'
-import { hasPlatformVariants } from '@/components/calendar/entryGroups'
 import type { EntryGroup } from '@/components/calendar/entryGroups'
 
 const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/gi
@@ -125,13 +124,6 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     notes: { fontSize: 11, lineHeight: 1.55, color: '#3a3a3a', marginTop: 2, paddingLeft: 4 },
     link: { fontSize: 10, color: LINK, textDecoration: 'underline', marginVertical: 1.5, paddingLeft: 4 },
 
-    // Per-platform sub-block when variants differ. Quiet platform label
-    // + thin colored bar — keeps the page calm and readable.
-    variantHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 14, marginBottom: 4, gap: 8 },
-    variantBar: { width: 3, height: 14, borderRadius: 2 },
-    variantLabel: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: INK, letterSpacing: 1.2, textTransform: 'uppercase' },
-    variantFmt: { fontSize: 9.5, color: MUTED, letterSpacing: 0.4 },
-
     empty: { fontSize: 11, color: FAINT, fontStyle: 'italic' },
     footer: { position: 'absolute', bottom: 28, left: 56, right: 56, fontSize: 8.5, color: FAINT, borderTopWidth: 0.5, borderTopColor: RULE, paddingTop: 8, letterSpacing: 1, textTransform: 'uppercase' },
   })
@@ -163,7 +155,7 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
       React.createElement(View, { key: 'r', style: styles.coverStatRow }, [
         statChip('Reels',            cover.byFormat.reel,             '#a855f7'),
         statChip('Carousels',        cover.byFormat.carousel,         '#3b82f6'),
-        statChip('Street Interview', cover.byFormat.static,           '#10b981'),
+        statChip('Static',           cover.byFormat.static,           '#10b981'),
         statChip('Emergency Backup', cover.byFormat.emergency_backup, '#ef4444'),
         statChip('Format unset',     cover.byFormat.unset,            '#9ca3af'),
       ]),
@@ -187,32 +179,11 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     ),
   ])
 
-  // Render the script / notes / format / links portion for one row. Used
-  // both for the single-entry path and for each per-platform sub-block
-  // when a group has divergent variants.
-  function variantBody(r: CalendarEntry, keyPrefix: string) {
-    const beats = lineBeats(r.script ?? '')
-    const links = extractLinks(`${r.script ?? ''}\n${r.notes ?? ''}`)
-    return [
-      beats.length > 0 ? React.createElement(Text, { key: `${keyPrefix}sl`, style: styles.sectionLabel }, 'Script') : null,
-      ...beats.map((line, i) =>
-        React.createElement(View, { key: `${keyPrefix}b${i}`, style: styles.beat }, [
-          React.createElement(Text, { key: 'n', style: styles.beatNum }, `${i + 1}.`),
-          React.createElement(Text, { key: 't', style: styles.beatText }, line),
-        ]),
-      ),
-      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: `${keyPrefix}nl`, style: styles.sectionLabel }, 'Notes') : null,
-      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: `${keyPrefix}n`, style: styles.notes }, r.notes) : null,
-      links.length > 0 ? React.createElement(Text, { key: `${keyPrefix}ll`, style: styles.sectionLabel }, 'Links') : null,
-      ...links.map((u, i) =>
-        React.createElement(Link, { key: `${keyPrefix}l${i}`, src: u, style: styles.link }, u),
-      ),
-    ]
-  }
-
   function entryBlock(g: EntryGroup) {
     const r: CalendarEntry = g.representative
     const fmt = r.format as ContentFormat | null
+    const beats = lineBeats(r.script ?? '')
+    const links = extractLinks(`${r.script ?? ''}\n${r.notes ?? ''}`)
     const metaParts = [themeLabel(r.content_type), platformsLabel(g.platforms), r.status.charAt(0).toUpperCase() + r.status.slice(1)]
     if (r.assigned_talent) metaParts.push(`Talent: ${r.assigned_talent}`)
     // When grouping by date, the date is in the section header. For other
@@ -221,31 +192,6 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     if (groupBy !== 'date') {
       metaParts.unshift(format(parseISO(r.scheduled_date), 'MMM d'))
     }
-
-    const variants = hasPlatformVariants(g)
-
-    // When variants differ, render one sub-block per platform under the
-    // shared title/meta. When they're identical (legacy or single-platform),
-    // render one block from the representative — same output as before.
-    const body = variants
-      ? g.entries.flatMap((e) => {
-          const efmt = e.format as ContentFormat | null
-          const efmtColor = efmt ? FORMAT_BG[efmt] : FAINT
-          const labelText = efmt
-            ? `${platformsLabel([e.platform]).toUpperCase()}  ·  ${formatLabel(efmt)}`
-            : platformsLabel([e.platform]).toUpperCase()
-          return [
-            React.createElement(View, {
-              key: `vh-${e.id}`,
-              style: styles.variantHeader,
-            }, [
-              React.createElement(View, { key: 'bar', style: [styles.variantBar, { backgroundColor: efmtColor }] }),
-              React.createElement(Text, { key: 'lbl', style: styles.variantLabel }, labelText),
-            ]),
-            ...variantBody(e, `v-${e.id}-`),
-          ]
-        })
-      : variantBody(r, '')
 
     return React.createElement(View, {
       key: g.id,
@@ -258,12 +204,24 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
         : null,
       React.createElement(Text, { key: 'title', style: styles.title }, r.title),
       React.createElement(View, { key: 'meta', style: styles.meta }, [
-        fmt && !variants
+        fmt
           ? React.createElement(Text, { key: 'pill', style: [styles.pill, { backgroundColor: FORMAT_BG[fmt] }] }, formatLabel(fmt).toUpperCase())
           : null,
         React.createElement(Text, { key: 'metatext', style: styles.metaText }, metaParts.join('  ·  ')),
       ]),
-      ...body,
+      beats.length > 0 ? React.createElement(Text, { key: 'sl', style: styles.sectionLabel }, 'Script') : null,
+      ...beats.map((line, i) =>
+        React.createElement(View, { key: `b${i}`, style: styles.beat }, [
+          React.createElement(Text, { key: 'n', style: styles.beatNum }, `${i + 1}.`),
+          React.createElement(Text, { key: 't', style: styles.beatText }, line),
+        ]),
+      ),
+      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: 'nl', style: styles.sectionLabel }, 'Notes') : null,
+      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: 'n', style: styles.notes }, r.notes) : null,
+      links.length > 0 ? React.createElement(Text, { key: 'll', style: styles.sectionLabel }, 'Links') : null,
+      ...links.map((u) =>
+        React.createElement(Link, { key: u, src: u, style: styles.link }, u),
+      ),
     ])
   }
 

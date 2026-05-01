@@ -253,7 +253,7 @@ export const SCRIPT_TEMPLATE_BY_CONTENT_THEME: Record<ContentTheme, string> = {
 export const CONTENT_FORMATS: { value: ContentFormat; label: string; short: string; desc: string }[] = [
   { value: 'reel',             label: 'Reel',             short: 'R',  desc: 'Vertical short-form video' },
   { value: 'carousel',         label: 'Carousel',         short: 'C',  desc: 'Multi-slide swipe post' },
-  { value: 'static',           label: 'Street Interview',  short: 'S',  desc: 'Street interview post' },
+  { value: 'static',           label: 'Static',            short: 'S',  desc: 'Single image / graphic post' },
   { value: 'emergency_backup', label: 'Emergency Backup', short: 'EB', desc: 'Evergreen backup. Static or carousel, max 4 slides.' },
 ]
 

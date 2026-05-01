@@ -23,22 +23,6 @@ export function groupEntries(entries: CalendarEntry[]): EntryGroup[] {
   }))
 }
 
-/**
- * True when a multi-platform entry's per-platform copy actually differs
- * (script / notes / format). Single-platform groups always return false.
- * Used to drive the "N variants" hint on cards and the "render one block
- * per platform" branch in the export helpers.
- */
-export function hasPlatformVariants(group: EntryGroup): boolean {
-  if (group.entries.length < 2) return false
-  const first = group.entries[0]
-  return group.entries.some((e) =>
-    e.script !== first.script ||
-    e.notes !== first.notes ||
-    e.format !== first.format,
-  )
-}
-
 export const STATUSES: { value: CalendarStatus; label: string }[] = [
   { value: 'draft',     label: 'Draft'     },
   { value: 'scheduled', label: 'Scheduled' },

@@ -1,7 +1,6 @@
 import { format, parseISO } from 'date-fns'
 import { CONTENT_FORMATS, CONTENT_THEMES } from '@/types'
 import type { CalendarEntry, ContentFormat, ContentTheme, Platform } from '@/types'
-import { hasPlatformVariants } from '@/components/calendar/entryGroups'
 import type { EntryGroup } from '@/components/calendar/entryGroups'
 
 const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/gi
@@ -153,7 +152,7 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   statSection('By format', [
     { name: 'Reels',            count: cover.byFormat.reel,             hex: 'A855F7' },
     { name: 'Carousels',        count: cover.byFormat.carousel,         hex: '3B82F6' },
-    { name: 'Street Interview', count: cover.byFormat.static,           hex: '10B981' },
+    { name: 'Static',           count: cover.byFormat.static,           hex: '10B981' },
     { name: 'Emergency Backup', count: cover.byFormat.emergency_backup, hex: 'EF4444' },
     { name: 'Format unset',     count: cover.byFormat.unset,            hex: '9CA3AF' },
   ])
@@ -265,13 +264,9 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
     for (const g of s.entries) {
       const r: CalendarEntry = g.representative
       const fmt = r.format as ContentFormat | null
-      const variants = hasPlatformVariants(g)
 
-      // Title row. When copy is uniform, show the format pill inline.
-      // When variants differ, drop the pill here — each variant gets its
-      // own header below so platform/format always agree.
       const titleRuns: InstanceType<typeof TextRun>[] = []
-      if (fmt && !variants) {
+      if (fmt) {
         titleRuns.push(new TextRun({
           text: ` ${formatLabel(fmt).toUpperCase()} `,
           bold: true, color: 'FFFFFF', size: 16, characterSpacing: 40,
@@ -306,29 +301,7 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
         }),
       )
 
-      if (variants) {
-        // Per-platform sub-blocks under the same title/meta. Each gets a
-        // small platform header (with that platform's format pill) and
-        // its own script / notes / links.
-        for (const e of g.entries) {
-          const efmt = e.format as ContentFormat | null
-          const headerRuns: InstanceType<typeof TextRun>[] = [
-            new TextRun({
-              text: ` ${platformsLabel([e.platform]).toUpperCase()} `,
-              bold: true, color: 'FFFFFF', size: 14, characterSpacing: 40,
-              shading: { type: ShadingType.SOLID, color: efmt ? FORMAT_HEX[efmt] : '9CA3AF', fill: efmt ? FORMAT_HEX[efmt] : '9CA3AF' },
-            }),
-          ]
-          if (efmt) {
-            headerRuns.push(new TextRun({ text: '    ', size: 20 }))
-            headerRuns.push(new TextRun({ text: formatLabel(efmt), color: MUTED, size: 18 }))
-          }
-          docChildren.push(new Paragraph({ spacing: { before: 200, after: 60 }, children: headerRuns }))
-          pushRowBody(e)
-        }
-      } else {
-        pushRowBody(r)
-      }
+      pushRowBody(r)
     }
   }
 

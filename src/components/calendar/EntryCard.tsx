@@ -13,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { PlatformStack } from './PlatformStack'
-import { hasPlatformVariants } from './entryGroups'
 import type { EntryGroup } from './entryGroups'
 
 export type EntryQuickAction =
@@ -55,10 +54,6 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
 
   const approvalStatus = rep.approval_status as ApprovalStatus | null
   const approvalPillClass = approvalStatus ? APPROVAL_STATUS_CHIP[approvalStatus] : ''
-  // Surface a hint when the group's platforms have differing copy
-  // (script / notes / format) — so the user knows the card represents
-  // a multi-variant entry, not a single shared post.
-  const variants = hasPlatformVariants(group)
   // Hover preview via the native title attribute. Cheap, no JS state, and
   // works on every device that has a pointer. Click for full editing.
   const previewParts: string[] = [rep.title]
@@ -176,21 +171,11 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
           )}
           <span className="block text-foreground line-clamp-2 text-xs leading-tight flex-1">{rep.title}</span>
         </div>
-        <div className="flex items-center gap-1 mt-1 flex-wrap">
-          {approvalStatus && (
-            <span className={`inline-block px-1.5 py-px rounded text-[9px] font-semibold leading-tight ${approvalPillClass} motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:fade-in-0 motion-safe:duration-200`}>
-              {APPROVAL_SHORT[approvalStatus]}
-            </span>
-          )}
-          {variants && (
-            <span
-              className="inline-block px-1.5 py-px rounded text-[9px] font-semibold leading-tight bg-foreground/[0.06] text-foreground/80 ring-1 ring-foreground/[0.08]"
-              title="This entry has different copy per platform"
-            >
-              {group.entries.length} variants
-            </span>
-          )}
-        </div>
+        {approvalStatus && (
+          <span className={`inline-block mt-1 px-1.5 py-px rounded text-[9px] font-semibold leading-tight ${approvalPillClass} motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:fade-in-0 motion-safe:duration-200`}>
+            {APPROVAL_SHORT[approvalStatus]}
+          </span>
+        )}
       </div>
     </div>
   )

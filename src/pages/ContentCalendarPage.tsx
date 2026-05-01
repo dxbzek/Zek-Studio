@@ -425,12 +425,13 @@ export function ContentCalendarPage() {
     }
   }, [])
 
-  // Shared (non per-platform) fields. Combined with a per-platform
-  // variant in buildPayloadFor() below.
-  function sharedPayload(v: EntryFormValues) {
+  function buildCommonPayload(v: EntryFormValues) {
     return {
       content_type: v.contentType as ContentType,
       title: v.title.trim(),
+      script: v.script.trim() || null,
+      notes: v.notes.trim() || null,
+      format: v.format,
       reference_image_url: v.referenceImageUrl.trim() || null,
       scheduled_date: v.date,
       status: v.status,
@@ -442,20 +443,6 @@ export function ContentCalendarPage() {
       assigned_shooter: null,
       assigned_talent: v.talent || null,
       character: v.character || null,
-    }
-  }
-
-  // Per-platform script / notes / format are pulled from the form's
-  // variants record. Falls back to empty when a variant is missing —
-  // shouldn't happen in practice because the drawer initializes a
-  // variant for every selected platform.
-  function buildPayloadFor(v: EntryFormValues, platform: Platform) {
-    const variant = v.variants[platform] ?? { script: '', notes: '', format: null }
-    return {
-      ...sharedPayload(v),
-      script: variant.script.trim() || null,
-      notes:  variant.notes.trim()  || null,
-      format: variant.format,
     }
   }
 
@@ -480,7 +467,7 @@ export function ContentCalendarPage() {
           platforms.map((plat) =>
             createEntry.mutateAsync({
               brand_id: activeBrand!.id,
-              ...buildPayloadFor(v, plat),
+              ...buildCommonPayload(v),
               platform: plat,
               generated_content_id: null,
             } as CalendarEntryInsert),
@@ -506,14 +493,10 @@ export function ContentCalendarPage() {
         // their task without round-tripping back to the calendar.
         const firstEntry = created[0] ?? null
         if (firstEntry) {
-          // Task description carries the linked entry's script. Use the
-          // platform that became the linked row (firstEntry.platform) so
-          // the description matches what's saved against that calendar row.
-          const taskScript = v.variants[firstEntry.platform as Platform]?.script.trim() || null
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
             title: v.title.trim(),
-            description: taskScript,
+            description: v.script.trim() || null,
             type: 'content',
             status: deriveTaskStatus(v.status),
             priority: 'medium',
@@ -535,12 +518,12 @@ export function ContentCalendarPage() {
 
         for (const plat of toUpdate) {
           const e = group.entries.find((e) => e.platform === plat)
-          if (e) await updateEntry.mutateAsync({ id: e.id, patch: buildPayloadFor(v, plat) })
+          if (e) await updateEntry.mutateAsync({ id: e.id, patch: buildCommonPayload(v) })
         }
         for (const plat of toAdd) {
           await createEntry.mutateAsync({
             brand_id: activeBrand!.id,
-            ...buildPayloadFor(v, plat),
+            ...buildCommonPayload(v),
             platform: plat,
             generated_content_id: group.representative.generated_content_id,
           } as CalendarEntryInsert)
@@ -558,16 +541,12 @@ export function ContentCalendarPage() {
           t.calendar_entry_id ? groupEntryIds.has(t.calendar_entry_id) : false,
         )
         const derivedStatus = deriveTaskStatus(v.status)
-        // Task description tracks the representative's variant — the rep
-        // is the row the task is linked to (or will be linked to).
-        const repPlatform = group.representative.platform as Platform
-        const taskScript = v.variants[repPlatform]?.script.trim() || null
         if (existingTask) {
           await updateTask.mutateAsync({
             id: existingTask.id,
             patch: {
               title: v.title.trim(),
-              description: taskScript,
+              description: v.script.trim() || null,
               status: derivedStatus,
               assignee_id: specialistId,
               assignee_email: specialist || null,
@@ -578,7 +557,7 @@ export function ContentCalendarPage() {
           await createTask.mutateAsync({
             brand_id: activeBrand!.id,
             title: v.title.trim(),
-            description: taskScript,
+            description: v.script.trim() || null,
             type: 'content',
             status: derivedStatus,
             priority: 'medium',
@@ -1133,7 +1112,7 @@ export function ContentCalendarPage() {
         {formatMix.total > 0 && (
           <div
             className="hidden md:flex ml-2 items-center gap-2 text-[11px] text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
-            title={`Reels ${formatMix.counts.reel} · Carousels ${formatMix.counts.carousel} · Street Interviews ${formatMix.counts.static} · Backup ${formatMix.counts.emergency_backup}${formatMix.counts.unset > 0 ? ` · Unset ${formatMix.counts.unset}` : ''}`}
+            title={`Reels ${formatMix.counts.reel} · Carousels ${formatMix.counts.carousel} · Static ${formatMix.counts.static} · Backup ${formatMix.counts.emergency_backup}${formatMix.counts.unset > 0 ? ` · Unset ${formatMix.counts.unset}` : ''}`}
           >
             <div className="flex h-2 w-36 rounded-full overflow-hidden border border-border bg-muted/60 shadow-inner">
               {(['reel', 'carousel', 'static', 'emergency_backup', 'unset'] as const).map((k) => {
