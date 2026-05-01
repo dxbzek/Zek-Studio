@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns'
 import { CONTENT_FORMATS, CONTENT_THEMES } from '@/types'
 import type { CalendarEntry, ContentFormat, ContentTheme, Platform } from '@/types'
+import { hasPlatformVariants } from '@/components/calendar/entryGroups'
 import type { EntryGroup } from '@/components/calendar/entryGroups'
 
 const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/gi
@@ -185,41 +186,12 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   for (const s of sections) {
     docChildren.push(sectionH(s.heading))
 
-    for (const g of s.entries) {
-      const r: CalendarEntry = g.representative
-      const fmt = r.format as ContentFormat | null
+    // Render the script / notes / links portion for one row. Used once
+    // for the collapsed (uniform) case and once per platform when the
+    // group's variants differ.
+    function pushRowBody(r: CalendarEntry) {
       const beats = lineBeats(r.script ?? '')
       const links = extractLinks(`${r.script ?? ''}\n${r.notes ?? ''}`)
-
-      const titleRuns: InstanceType<typeof TextRun>[] = []
-      if (fmt) {
-        titleRuns.push(new TextRun({
-          text: ` ${formatLabel(fmt).toUpperCase()} `,
-          bold: true, color: 'FFFFFF', size: 18,
-          shading: { type: ShadingType.SOLID, color: FORMAT_HEX[fmt], fill: FORMAT_HEX[fmt] },
-        }))
-        titleRuns.push(new TextRun({ text: '  ', size: 22 }))
-      }
-      titleRuns.push(new TextRun({ text: r.title, bold: true, size: 26 }))
-
-      docChildren.push(
-        new Paragraph({ spacing: { before: 180, after: 60 }, children: titleRuns }),
-      )
-
-      const metaParts = [
-        themeLabel(r.content_type),
-        platformsLabel(g.platforms),
-        r.status.charAt(0).toUpperCase() + r.status.slice(1),
-      ]
-      if (r.assigned_talent) metaParts.push(`Talent: ${r.assigned_talent}`)
-      if (groupBy !== 'date') metaParts.unshift(format(parseISO(r.scheduled_date), 'MMM d'))
-
-      docChildren.push(
-        new Paragraph({
-          spacing: { after: 80 },
-          children: [new TextRun({ text: metaParts.join(' · '), color: '666666', size: 20 })],
-        }),
-      )
 
       if (beats.length > 0) {
         docChildren.push(new Paragraph({
@@ -275,6 +247,68 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
             }),
           )
         })
+      }
+    }
+
+    for (const g of s.entries) {
+      const r: CalendarEntry = g.representative
+      const fmt = r.format as ContentFormat | null
+      const variants = hasPlatformVariants(g)
+
+      // Title row — when copy is uniform, show the format pill inline so
+      // a glance gives the format. When variants differ, drop the pill
+      // here (each variant gets its own pill below) to avoid mismatch.
+      const titleRuns: InstanceType<typeof TextRun>[] = []
+      if (fmt && !variants) {
+        titleRuns.push(new TextRun({
+          text: ` ${formatLabel(fmt).toUpperCase()} `,
+          bold: true, color: 'FFFFFF', size: 18,
+          shading: { type: ShadingType.SOLID, color: FORMAT_HEX[fmt], fill: FORMAT_HEX[fmt] },
+        }))
+        titleRuns.push(new TextRun({ text: '  ', size: 22 }))
+      }
+      titleRuns.push(new TextRun({ text: r.title, bold: true, size: 26 }))
+
+      docChildren.push(
+        new Paragraph({ spacing: { before: 180, after: 60 }, children: titleRuns }),
+      )
+
+      const metaParts = [
+        themeLabel(r.content_type),
+        platformsLabel(g.platforms),
+        r.status.charAt(0).toUpperCase() + r.status.slice(1),
+      ]
+      if (r.assigned_talent) metaParts.push(`Talent: ${r.assigned_talent}`)
+      if (groupBy !== 'date') metaParts.unshift(format(parseISO(r.scheduled_date), 'MMM d'))
+
+      docChildren.push(
+        new Paragraph({
+          spacing: { after: 80 },
+          children: [new TextRun({ text: metaParts.join(' · '), color: '666666', size: 20 })],
+        }),
+      )
+
+      if (variants) {
+        // Per-platform sub-blocks under the same title/meta. Each gets a
+        // small platform header (with that platform's format pill) and
+        // its own script / notes / links.
+        for (const e of g.entries) {
+          const efmt = e.format as ContentFormat | null
+          const headerRuns: InstanceType<typeof TextRun>[] = [
+            new TextRun({
+              text: ` ${platformsLabel([e.platform]).toUpperCase()} `,
+              bold: true, color: 'FFFFFF', size: 16,
+              shading: { type: ShadingType.SOLID, color: efmt ? FORMAT_HEX[efmt] : '9CA3AF', fill: efmt ? FORMAT_HEX[efmt] : '9CA3AF' },
+            }),
+          ]
+          if (efmt) {
+            headerRuns.push(new TextRun({ text: `   ${formatLabel(efmt)}`, color: '666666', size: 18 }))
+          }
+          docChildren.push(new Paragraph({ spacing: { before: 120, after: 40 }, children: headerRuns }))
+          pushRowBody(e)
+        }
+      } else {
+        pushRowBody(r)
       }
     }
   }

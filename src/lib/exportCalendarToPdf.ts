@@ -1,6 +1,7 @@
 import { format, parseISO, startOfWeek } from 'date-fns'
 import { CONTENT_FORMATS, CONTENT_THEMES } from '@/types'
 import type { CalendarEntry, ContentFormat, ContentTheme, Platform } from '@/types'
+import { hasPlatformVariants } from '@/components/calendar/entryGroups'
 import type { EntryGroup } from '@/components/calendar/entryGroups'
 
 const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/gi
@@ -105,6 +106,9 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     beatText: { flex: 1 },
     notes: { fontSize: 10, color: '#333333', marginTop: 2 },
     link: { fontSize: 9, color: '#2563eb', textDecoration: 'underline', marginVertical: 1 },
+    variantHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, marginBottom: 2 },
+    variantPill: { color: '#ffffff', fontFamily: 'Helvetica-Bold', fontSize: 8, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 8, overflow: 'hidden' },
+    variantFmt: { fontSize: 9, color: '#666666', letterSpacing: 0.4 },
     empty: { fontSize: 10, color: '#999999', fontStyle: 'italic' },
     footer: { position: 'absolute', bottom: 22, left: 40, right: 40, fontSize: 8, color: '#999999', borderTopWidth: 1, borderTopColor: '#eeeeee', paddingTop: 6 },
   })
@@ -160,11 +164,32 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     ),
   ])
 
+  // Render the script / notes / format / links portion for one row. Used
+  // both for the single-entry path and for each per-platform sub-block
+  // when a group has divergent variants.
+  function variantBody(r: CalendarEntry, keyPrefix: string) {
+    const beats = lineBeats(r.script ?? '')
+    const links = extractLinks(`${r.script ?? ''}\n${r.notes ?? ''}`)
+    return [
+      beats.length > 0 ? React.createElement(Text, { key: `${keyPrefix}sl`, style: styles.sectionLabel }, 'Script') : null,
+      ...beats.map((line, i) =>
+        React.createElement(View, { key: `${keyPrefix}b${i}`, style: styles.beat }, [
+          React.createElement(Text, { key: 'n', style: styles.beatNum }, `${i + 1}.`),
+          React.createElement(Text, { key: 't', style: styles.beatText }, line),
+        ]),
+      ),
+      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: `${keyPrefix}nl`, style: styles.sectionLabel }, 'Notes') : null,
+      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: `${keyPrefix}n`, style: styles.notes }, r.notes) : null,
+      links.length > 0 ? React.createElement(Text, { key: `${keyPrefix}ll`, style: styles.sectionLabel }, 'Links') : null,
+      ...links.map((u, i) =>
+        React.createElement(Link, { key: `${keyPrefix}l${i}`, src: u, style: styles.link }, u),
+      ),
+    ]
+  }
+
   function entryBlock(g: EntryGroup) {
     const r: CalendarEntry = g.representative
     const fmt = r.format as ContentFormat | null
-    const beats = lineBeats(r.script ?? '')
-    const links = extractLinks(`${r.script ?? ''}\n${r.notes ?? ''}`)
     const metaParts = [themeLabel(r.content_type), platformsLabel(g.platforms), r.status.charAt(0).toUpperCase() + r.status.slice(1)]
     if (r.assigned_talent) metaParts.push(`Talent: ${r.assigned_talent}`)
     // When grouping by date, the date is in the section header. For other
@@ -174,6 +199,32 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
       metaParts.unshift(format(parseISO(r.scheduled_date), 'MMM d'))
     }
 
+    const variants = hasPlatformVariants(g)
+
+    // When variants differ, render one sub-block per platform under the
+    // shared title/meta. When they're identical (legacy or single-platform),
+    // render one block from the representative — same output as before.
+    const body = variants
+      ? g.entries.flatMap((e) => {
+          const efmt = e.format as ContentFormat | null
+          return [
+            React.createElement(View, {
+              key: `vh-${e.id}`,
+              style: styles.variantHeader,
+            }, [
+              React.createElement(Text, {
+                key: 'p',
+                style: [styles.variantPill, efmt ? { backgroundColor: FORMAT_BG[efmt] } : { backgroundColor: '#9ca3af' }],
+              }, platformsLabel([e.platform]).toUpperCase()),
+              efmt
+                ? React.createElement(Text, { key: 'f', style: styles.variantFmt }, formatLabel(efmt))
+                : null,
+            ]),
+            ...variantBody(e, `v-${e.id}-`),
+          ]
+        })
+      : variantBody(r, '')
+
     return React.createElement(View, {
       key: g.id,
       wrap: false,
@@ -181,24 +232,12 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     }, [
       React.createElement(Text, { key: 'title', style: styles.title }, r.title),
       React.createElement(View, { key: 'meta', style: styles.meta }, [
-        fmt
+        fmt && !variants
           ? React.createElement(Text, { key: 'pill', style: [styles.pill, { backgroundColor: FORMAT_BG[fmt] }] }, formatLabel(fmt).toUpperCase())
           : null,
         React.createElement(Text, { key: 'metatext', style: styles.metaText }, metaParts.join(' · ')),
       ]),
-      beats.length > 0 ? React.createElement(Text, { key: 'sl', style: styles.sectionLabel }, 'Script') : null,
-      ...beats.map((line, i) =>
-        React.createElement(View, { key: `b${i}`, style: styles.beat }, [
-          React.createElement(Text, { key: 'n', style: styles.beatNum }, `${i + 1}.`),
-          React.createElement(Text, { key: 't', style: styles.beatText }, line),
-        ]),
-      ),
-      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: 'nl', style: styles.sectionLabel }, 'Notes') : null,
-      r.notes && r.notes.trim().length > 0 ? React.createElement(Text, { key: 'n', style: styles.notes }, r.notes) : null,
-      links.length > 0 ? React.createElement(Text, { key: 'll', style: styles.sectionLabel }, 'Links') : null,
-      ...links.map((u) =>
-        React.createElement(Link, { key: u, src: u, style: styles.link }, u),
-      ),
+      ...body,
     ])
   }
 

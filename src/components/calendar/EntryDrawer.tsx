@@ -39,11 +39,22 @@ import { RolePicker } from './RolePicker'
 import type { EntryGroup } from './entryGroups'
 import { STATUSES } from './entryGroups'
 
-export interface EntryFormValues {
-  title: string
+/**
+ * Per-platform copy: each row in `calendar_entries` already has its own
+ * `script`/`notes`/`format`. The drawer used to force every row to share
+ * the same value; this map keeps each platform's copy independent so the
+ * IG hook can differ from the LinkedIn write-up on the same logical entry.
+ */
+export interface PlatformVariant {
   script: string
   notes: string
   format: ContentFormat | null
+}
+
+export interface EntryFormValues {
+  title: string
+  /** Per-platform script / notes / format. Keys come from `platforms`. */
+  variants: Partial<Record<Platform, PlatformVariant>>
   referenceImageUrl: string
   date: string
   platforms: Platform[]
@@ -55,6 +66,11 @@ export interface EntryFormValues {
   approvalNote: string
   talent: string
   character: string
+}
+
+const EMPTY_VARIANT: PlatformVariant = { script: '', notes: '', format: null }
+function variantOf(v: EntryFormValues, platform: Platform): PlatformVariant {
+  return v.variants[platform] ?? EMPTY_VARIANT
 }
 
 interface EntryDrawerProps {
@@ -147,9 +163,7 @@ function LinksRow({ text }: { text: string }) {
 
 const INITIAL: EntryFormValues = {
   title: '',
-  script: '',
-  notes: '',
-  format: null,
+  variants: { instagram: { ...EMPTY_VARIANT } },
   referenceImageUrl: '',
   date: format(new Date(), 'yyyy-MM-dd'),
   platforms: ['instagram'],
@@ -187,6 +201,10 @@ export function EntryDrawer({
   const pillarManuallyPicked = useRef(false)
   const formatManuallyPicked = useRef(false)
 
+  // Track which platform's variant the editor is showing. Driven by
+  // `platforms`; defaults to the first selected platform on each load.
+  const [activePlatform, setActivePlatform] = useState<Platform>('instagram')
+
   useEffect(() => {
     if (!open) return
     let next: EntryFormValues
@@ -196,11 +214,21 @@ export function EntryDrawer({
       campaignManuallyPicked.current = true
       pillarManuallyPicked.current = true
       formatManuallyPicked.current = true
+      // Pull each row's own script/notes/format into the variants record so
+      // every platform's copy starts from its DB state. Old entries — where
+      // every row was forced to share the same value by the previous UI —
+      // simply produce identical variants, which is fine.
+      const variants: Partial<Record<Platform, PlatformVariant>> = {}
+      for (const e of group.entries) {
+        variants[e.platform] = {
+          script: e.script ?? '',
+          notes:  e.notes  ?? '',
+          format: e.format ?? null,
+        }
+      }
       next = {
         title: rep.title,
-        script: rep.script ?? '',
-        notes: rep.notes ?? '',
-        format: rep.format ?? null,
+        variants,
         referenceImageUrl: rep.reference_image_url ?? '',
         date: rep.scheduled_date,
         platforms: group.platforms,
@@ -226,15 +254,21 @@ export function EntryDrawer({
       const brandPlatforms = activeBrand?.platforms?.length
         ? (activeBrand.platforms as Platform[])
         : ALL_PLATFORMS
+      const variants: Partial<Record<Platform, PlatformVariant>> = {}
+      for (const p of brandPlatforms) {
+        variants[p] = { script: '', notes: '', format: defaultFormat ?? null }
+      }
       next = {
         ...INITIAL,
+        variants,
         platforms: brandPlatforms,
-        format: defaultFormat ?? INITIAL.format,
         date: defaultDate ?? format(new Date(), 'yyyy-MM-dd'),
       }
     }
     setValues(next)
     initialValuesRef.current = next
+    // Default the editor to the first platform in the group.
+    setActivePlatform(next.platforms[0] ?? 'instagram')
   }, [open, mode, group, defaultDate, defaultFormat, activeBrand])
 
   // Autofocus the title input when creating. Sheet animates in, so wait one
@@ -260,11 +294,20 @@ export function EntryDrawer({
       const id = inferByNameMatch(values.title, campaigns)
       if (id && id !== values.campaignId) patch.campaignId = id
     }
+    // Default format follows the content type — Property Tour ⇒ reel,
+    // Market Update ⇒ carousel, etc. Auto-fill applies per-platform: every
+    // variant whose format hasn't been touched picks up the new default.
+    let formatPatch: Partial<Record<Platform, ContentFormat | null>> | null = null
     if (!formatManuallyPicked.current) {
-      // Default format follows the content type — Property Tour ⇒ reel,
-      // Market Update ⇒ carousel, etc. The user can override via the chip.
       const def = FORMAT_BY_CONTENT_THEME[values.contentType]
-      if (def && def !== values.format) patch.format = def
+      if (def) {
+        const updates: Partial<Record<Platform, ContentFormat | null>> = {}
+        for (const p of values.platforms) {
+          const v = values.variants[p]
+          if (!v || v.format !== def) updates[p] = def
+        }
+        if (Object.keys(updates).length > 0) formatPatch = updates
+      }
     }
     if (!pillarManuallyPicked.current && pillars.length > 0) {
       const id = inferByNameMatch(
@@ -273,13 +316,60 @@ export function EntryDrawer({
       )
       if (id && id !== values.pillarId) patch.pillarId = id
     }
-    if (Object.keys(patch).length > 0) {
-      setValues((prev) => ({ ...prev, ...patch }))
+    if (Object.keys(patch).length > 0 || formatPatch) {
+      setValues((prev) => {
+        const nextVariants = formatPatch
+          ? Object.fromEntries(
+              prev.platforms.map((p) => {
+                const v = prev.variants[p] ?? { ...EMPTY_VARIANT }
+                return [p, formatPatch![p] !== undefined ? { ...v, format: formatPatch![p]! } : v]
+              }),
+            ) as Partial<Record<Platform, PlatformVariant>>
+          : prev.variants
+        return { ...prev, ...patch, variants: nextVariants }
+      })
     }
   }, [values.title, values.contentType, open, campaigns, pillars]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof EntryFormValues>(k: K, v: EntryFormValues[K]) =>
     setValues((prev) => ({ ...prev, [k]: v }))
+
+  // Patch a single field on the active platform's variant.
+  function setVariantField<K extends keyof PlatformVariant>(field: K, value: PlatformVariant[K]) {
+    setValues((prev) => {
+      const cur = prev.variants[activePlatform] ?? { ...EMPTY_VARIANT }
+      return {
+        ...prev,
+        variants: { ...prev.variants, [activePlatform]: { ...cur, [field]: value } },
+      }
+    })
+  }
+
+  // "Sync to all" — overwrite every other platform's variant with the
+  // active one. The cheap escape hatch when the user wants identical copy.
+  function syncActiveToAll() {
+    setValues((prev) => {
+      const source = prev.variants[activePlatform] ?? { ...EMPTY_VARIANT }
+      const next: Partial<Record<Platform, PlatformVariant>> = {}
+      for (const p of prev.platforms) {
+        next[p] = p === activePlatform ? source : { ...source }
+      }
+      return { ...prev, variants: next }
+    })
+    toast.success('Synced to all platforms')
+  }
+
+  // "Copy from <other>" — seed the active platform's variant from another
+  // platform that already has content. Used when adding a new platform.
+  function copyFrom(source: Platform) {
+    setValues((prev) => {
+      const src = prev.variants[source] ?? { ...EMPTY_VARIANT }
+      return {
+        ...prev,
+        variants: { ...prev.variants, [activePlatform]: { ...src } },
+      }
+    })
+  }
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const isPastDate = values.date < today
@@ -372,17 +462,24 @@ export function EntryDrawer({
     }
     setGenerating(true)
     try {
+      const activeVariant = variantOf(values, activePlatform)
       const result = await onGenerateCaption({
         title: values.title,
-        // First selected platform: generator operates on a single platform;
-        // the user can re-run per sibling entry if they need per-platform
-        // variants.
-        platform: values.platforms[0],
+        // Generate for the platform the user is currently editing — the
+        // result lands in that platform's variant only, leaving siblings
+        // untouched. The user can switch tabs and re-run per platform.
+        platform: activePlatform,
         theme: values.contentType,
-        format: values.format,
+        format: activeVariant.format,
       })
       if (result) {
-        setValues((prev) => ({ ...prev, script: result }))
+        setValues((prev) => {
+          const cur = prev.variants[activePlatform] ?? { ...EMPTY_VARIANT }
+          return {
+            ...prev,
+            variants: { ...prev.variants, [activePlatform]: { ...cur, script: result } },
+          }
+        })
         toast.success('Script drafted')
       }
     } catch (err) {
@@ -427,8 +524,61 @@ export function EntryDrawer({
             />
           </div>
 
+          {/* Per-platform variant tabs. Hidden when only one platform is
+              selected — single-platform entries see the same flat layout. */}
+          {values.platforms.length > 1 && (
+            <div className="flex items-center gap-1.5 flex-wrap border-b border-border pb-2">
+              <span className="text-[10.5px] font-mono uppercase tracking-[0.12em] text-muted-foreground/70 mr-1">
+                Variant
+              </span>
+              {values.platforms.map((p) => {
+                const isActive = p === activePlatform
+                const label = PLATFORMS.find((pp) => pp.value === p)?.label ?? p
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setActivePlatform(p)}
+                    className={`px-2.5 py-1 rounded-md text-[11.5px] font-medium border transition-all duration-150 ${
+                      isActive
+                        ? 'bg-foreground text-background border-foreground shadow-sm'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+              <div className="ml-auto flex items-center gap-3 text-[11px]">
+                <button
+                  type="button"
+                  onClick={syncActiveToAll}
+                  className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  title="Copy this platform's script / notes / format to every other platform"
+                >
+                  Sync to all
+                </button>
+                {values.platforms.filter((p) => p !== activePlatform).length > 0 && (
+                  <Select onValueChange={(v) => copyFrom(v as Platform)}>
+                    <SelectTrigger className="h-6 w-auto min-w-[120px] text-[11px] gap-1">
+                      <SelectValue placeholder="Copy from…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {values.platforms.filter((p) => p !== activePlatform).map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {PLATFORMS.find((pp) => pp.value === p)?.label ?? p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Script + Notes — paired side-by-side on wide drawers so the
-              brief and the production notes read together. */}
+              brief and the production notes read together. Bound to the
+              active platform's variant. */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Script / Concept */}
             <div className="space-y-1.5">
@@ -445,8 +595,8 @@ export function EntryDrawer({
                       if (!tpl) return
                       // If the field already has content, ask first — don't
                       // silently nuke a draft.
-                      if (values.script.trim() && !window.confirm('Replace your current script with the template?')) return
-                      set('script', tpl)
+                      if (variantOf(values, activePlatform).script.trim() && !window.confirm('Replace your current script with the template?')) return
+                      setVariantField('script', tpl)
                     }}
                     className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
                     title="Drop in a starter skeleton for this content type"
@@ -472,14 +622,14 @@ export function EntryDrawer({
                 </div>
               </div>
               <Textarea
-                value={values.script}
-                onChange={(e) => set('script', e.target.value)}
+                value={variantOf(values, activePlatform).script}
+                onChange={(e) => setVariantField('script', e.target.value)}
                 rows={10}
                 className="resize-y min-h-[220px] font-mono text-[13px] leading-6"
                 placeholder={'One line per beat — hook, point, point, CTA.\nAim for 30–40s of speaking time.'}
               />
-              <ScriptCounter text={values.script} />
-              <LinksRow text={values.script} />
+              <ScriptCounter text={variantOf(values, activePlatform).script} />
+              <LinksRow text={variantOf(values, activePlatform).script} />
             </div>
 
             {/* Notes */}
@@ -489,13 +639,13 @@ export function EntryDrawer({
                 <span className="text-muted-foreground font-normal text-xs">(optional)</span>
               </label>
               <Textarea
-                value={values.notes}
-                onChange={(e) => set('notes', e.target.value)}
+                value={variantOf(values, activePlatform).notes}
+                onChange={(e) => setVariantField('notes', e.target.value)}
                 rows={10}
                 className="resize-y min-h-[220px]"
                 placeholder="Links, location notes, props, anything internal."
               />
-              <LinksRow text={values.notes} />
+              <LinksRow text={variantOf(values, activePlatform).notes} />
             </div>
           </div>
 
@@ -579,11 +729,30 @@ export function EntryDrawer({
                   key={p.value}
                   type="button"
                   onClick={() => {
-                    set('platforms', values.platforms.includes(p.value)
-                      ? values.platforms.length > 1
-                        ? values.platforms.filter((x) => x !== p.value)
-                        : values.platforms
-                      : [...values.platforms, p.value])
+                    setValues((prev) => {
+                      const isOn = prev.platforms.includes(p.value)
+                      // Toggling off the only remaining platform is a no-op.
+                      if (isOn && prev.platforms.length === 1) return prev
+                      const platforms = isOn
+                        ? prev.platforms.filter((x) => x !== p.value)
+                        : [...prev.platforms, p.value]
+                      const variants: Partial<Record<Platform, PlatformVariant>> = { ...prev.variants }
+                      if (isOn) {
+                        delete variants[p.value]
+                      } else {
+                        // New platform — seed an empty variant. The user can
+                        // copy from another via the "Copy from…" picker.
+                        variants[p.value] = { ...EMPTY_VARIANT }
+                      }
+                      return { ...prev, platforms, variants }
+                    })
+                    // Keep the active tab pointing at a still-selected platform.
+                    if (activePlatform === p.value && values.platforms.length > 1) {
+                      const next = values.platforms.find((x) => x !== p.value)
+                      if (next) setActivePlatform(next)
+                    } else if (!values.platforms.includes(p.value)) {
+                      setActivePlatform(p.value)
+                    }
                   }}
                   className="rounded-full hover:opacity-90 transition-opacity"
                 >
@@ -620,18 +789,22 @@ export function EntryDrawer({
             </div>
           </div>
 
-          {/* Format */}
+          {/* Format — per-platform; binds to the active variant. */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
               Format{' '}
-              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+              <span className="text-muted-foreground font-normal text-xs">
+                {values.platforms.length > 1
+                  ? `(per platform — currently editing ${PLATFORMS.find((p) => p.value === activePlatform)?.label ?? activePlatform})`
+                  : '(optional)'}
+              </span>
             </label>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => { formatManuallyPicked.current = true; set('format', null) }}
+                onClick={() => { formatManuallyPicked.current = true; setVariantField('format', null) }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
-                  values.format === null
+                  variantOf(values, activePlatform).format === null
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                     : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                 }`}
@@ -644,10 +817,10 @@ export function EntryDrawer({
                   type="button"
                   title={f.desc}
                   aria-label={`${f.label}: ${f.desc}`}
-                  aria-pressed={values.format === f.value}
-                  onClick={() => { formatManuallyPicked.current = true; set('format', f.value) }}
+                  aria-pressed={variantOf(values, activePlatform).format === f.value}
+                  onClick={() => { formatManuallyPicked.current = true; setVariantField('format', f.value) }}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
-                    values.format === f.value
+                    variantOf(values, activePlatform).format === f.value
                       ? `${CONTENT_FORMAT_SOLID[f.value]} shadow-sm`
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
                   }`}
