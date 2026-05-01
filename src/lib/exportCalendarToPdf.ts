@@ -77,40 +77,63 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
   const { Document, Page, Text, View, Link, StyleSheet, pdf } = await import('@react-pdf/renderer')
   const React = await import('react')
 
+  // Editorial typography: bigger body, generous line-height, calm muted
+  // accents. Entries lose their gray box backgrounds in favor of a single
+  // top divider — reads like a publication, not a form.
+  const INK = '#1a1a1a'
+  const MUTED = '#6b6b6b'
+  const FAINT = '#9a9a9a'
+  const RULE = '#d9d9d9'
+  const LINK = '#1f4ed8'
+
   const styles = StyleSheet.create({
-    page: { paddingTop: 40, paddingBottom: 50, paddingHorizontal: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#111111' },
-    eyebrow: { fontSize: 8, color: '#666666', letterSpacing: 1, textTransform: 'uppercase' },
-    h1: { fontSize: 22, fontFamily: 'Helvetica-Bold', marginTop: 2, marginBottom: 4 },
-    summary: { fontSize: 9, color: '#555555', marginBottom: 18 },
-    coverPage: { paddingTop: 90, paddingBottom: 50, paddingHorizontal: 50, fontSize: 10, fontFamily: 'Helvetica', color: '#111111' },
-    coverEyebrow: { fontSize: 9, color: '#888888', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
-    coverTitle: { fontSize: 36, fontFamily: 'Helvetica-Bold', marginBottom: 6, lineHeight: 1.2 },
-    coverRange: { fontSize: 14, color: '#555555', marginBottom: 30 },
-    coverStatBlock: { marginTop: 24 },
-    coverStatLabel: { fontSize: 9, color: '#666666', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
-    coverStatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    coverStatChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#f5f5f5', borderRadius: 4 },
-    coverStatChipDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-    coverStatChipText: { fontSize: 11, color: '#222222' },
-    coverStatChipNum: { fontFamily: 'Helvetica-Bold', fontSize: 11, marginLeft: 6 },
-    coverFooter: { position: 'absolute', bottom: 30, left: 50, right: 50, fontSize: 9, color: '#999999', borderTopWidth: 1, borderTopColor: '#eeeeee', paddingTop: 8 },
-    sectionHeader: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#444444', textTransform: 'uppercase', letterSpacing: 1, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: '#dddddd', marginTop: 14, marginBottom: 6 },
-    entry: { padding: 10, marginVertical: 5, backgroundColor: '#fafafa', borderLeftWidth: 3, borderLeftColor: '#bbbbbb', borderRadius: 3 },
-    title: { fontSize: 12, fontFamily: 'Helvetica-Bold', marginBottom: 3 },
-    meta: { fontSize: 9, color: '#555555', marginBottom: 6, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
-    pill: { color: '#ffffff', fontFamily: 'Helvetica-Bold', fontSize: 8, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 8, marginRight: 6, overflow: 'hidden' },
-    metaText: { fontSize: 9, color: '#555555' },
-    sectionLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#444444', marginTop: 6, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5 },
-    beat: { fontSize: 10, marginVertical: 1, flexDirection: 'row' },
-    beatNum: { fontFamily: 'Helvetica-Bold', color: '#888888', width: 18 },
-    beatText: { flex: 1 },
-    notes: { fontSize: 10, color: '#333333', marginTop: 2 },
-    link: { fontSize: 9, color: '#2563eb', textDecoration: 'underline', marginVertical: 1 },
-    variantHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, marginBottom: 2 },
-    variantPill: { color: '#ffffff', fontFamily: 'Helvetica-Bold', fontSize: 8, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 8, overflow: 'hidden' },
-    variantFmt: { fontSize: 9, color: '#666666', letterSpacing: 0.4 },
-    empty: { fontSize: 10, color: '#999999', fontStyle: 'italic' },
-    footer: { position: 'absolute', bottom: 22, left: 40, right: 40, fontSize: 8, color: '#999999', borderTopWidth: 1, borderTopColor: '#eeeeee', paddingTop: 6 },
+    page: { paddingTop: 56, paddingBottom: 62, paddingHorizontal: 56, fontSize: 11, lineHeight: 1.55, fontFamily: 'Helvetica', color: INK },
+    eyebrow: { fontSize: 9, color: FAINT, letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 4 },
+    h1: { fontSize: 22, fontFamily: 'Helvetica-Bold', marginTop: 0, marginBottom: 6, lineHeight: 1.15, letterSpacing: -0.3 },
+    summary: { fontSize: 10, color: MUTED, marginBottom: 22, letterSpacing: 0.2 },
+
+    // Cover page
+    coverPage: { paddingTop: 110, paddingBottom: 62, paddingHorizontal: 64, fontSize: 11, lineHeight: 1.55, fontFamily: 'Helvetica', color: INK },
+    coverEyebrow: { fontSize: 9, color: FAINT, letterSpacing: 2.4, textTransform: 'uppercase', marginBottom: 14 },
+    coverTitle: { fontSize: 44, fontFamily: 'Helvetica-Bold', marginBottom: 8, lineHeight: 1.05, letterSpacing: -0.6 },
+    coverRange: { fontSize: 14, color: MUTED, marginBottom: 36, letterSpacing: 0.2 },
+    coverStatBlock: { marginTop: 26 },
+    coverStatLabel: { fontSize: 9, color: MUTED, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 10 },
+    coverStatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    coverStatChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11, paddingVertical: 6, borderWidth: 1, borderColor: RULE, borderRadius: 14 },
+    coverStatChipDot: { width: 7, height: 7, borderRadius: 4, marginRight: 8 },
+    coverStatChipText: { fontSize: 10.5, color: INK },
+    coverStatChipNum: { fontFamily: 'Helvetica-Bold', fontSize: 10.5, marginLeft: 6, color: INK },
+    coverFooter: { position: 'absolute', bottom: 36, left: 64, right: 64, fontSize: 9, color: FAINT, letterSpacing: 1.2, textTransform: 'uppercase' },
+
+    // Section / entry typography
+    sectionHeader: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: MUTED, textTransform: 'uppercase', letterSpacing: 1.4, paddingBottom: 6, borderBottomWidth: 0.6, borderBottomColor: RULE, marginTop: 22, marginBottom: 12 },
+
+    // No more gray box. Entries are separated by a thin top rule + a
+    // colored format accent rule above the title (when format is set).
+    entry: { paddingTop: 14, paddingBottom: 4, marginBottom: 8, borderTopWidth: 0.6, borderTopColor: RULE },
+    formatRule: { width: 28, height: 2, marginBottom: 6, borderRadius: 1 },
+    title: { fontSize: 14, fontFamily: 'Helvetica-Bold', marginBottom: 4, lineHeight: 1.25, letterSpacing: -0.2 },
+    meta: { fontSize: 9.5, color: MUTED, marginBottom: 10, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+    pill: { color: '#ffffff', fontFamily: 'Helvetica-Bold', fontSize: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, marginRight: 8, letterSpacing: 0.6, overflow: 'hidden' },
+    metaText: { fontSize: 9.5, color: MUTED, letterSpacing: 0.2 },
+
+    sectionLabel: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: MUTED, marginTop: 10, marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1.2 },
+    beat: { fontSize: 11, lineHeight: 1.55, marginVertical: 1.5, flexDirection: 'row', paddingLeft: 4 },
+    beatNum: { fontFamily: 'Helvetica-Bold', color: FAINT, width: 18, fontSize: 10 },
+    beatText: { flex: 1, color: INK },
+    notes: { fontSize: 11, lineHeight: 1.55, color: '#3a3a3a', marginTop: 2, paddingLeft: 4 },
+    link: { fontSize: 10, color: LINK, textDecoration: 'underline', marginVertical: 1.5, paddingLeft: 4 },
+
+    // Per-platform sub-block when variants differ. Quiet platform label
+    // + thin colored bar — keeps the page calm and readable.
+    variantHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 14, marginBottom: 4, gap: 8 },
+    variantBar: { width: 3, height: 14, borderRadius: 2 },
+    variantLabel: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: INK, letterSpacing: 1.2, textTransform: 'uppercase' },
+    variantFmt: { fontSize: 9.5, color: MUTED, letterSpacing: 0.4 },
+
+    empty: { fontSize: 11, color: FAINT, fontStyle: 'italic' },
+    footer: { position: 'absolute', bottom: 28, left: 56, right: 56, fontSize: 8.5, color: FAINT, borderTopWidth: 0.5, borderTopColor: RULE, paddingTop: 8, letterSpacing: 1, textTransform: 'uppercase' },
   })
 
   const totalEntries = sections.reduce((acc, s) => acc + s.entries.length, 0)
@@ -207,18 +230,17 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     const body = variants
       ? g.entries.flatMap((e) => {
           const efmt = e.format as ContentFormat | null
+          const efmtColor = efmt ? FORMAT_BG[efmt] : FAINT
+          const labelText = efmt
+            ? `${platformsLabel([e.platform]).toUpperCase()}  ·  ${formatLabel(efmt)}`
+            : platformsLabel([e.platform]).toUpperCase()
           return [
             React.createElement(View, {
               key: `vh-${e.id}`,
               style: styles.variantHeader,
             }, [
-              React.createElement(Text, {
-                key: 'p',
-                style: [styles.variantPill, efmt ? { backgroundColor: FORMAT_BG[efmt] } : { backgroundColor: '#9ca3af' }],
-              }, platformsLabel([e.platform]).toUpperCase()),
-              efmt
-                ? React.createElement(Text, { key: 'f', style: styles.variantFmt }, formatLabel(efmt))
-                : null,
+              React.createElement(View, { key: 'bar', style: [styles.variantBar, { backgroundColor: efmtColor }] }),
+              React.createElement(Text, { key: 'lbl', style: styles.variantLabel }, labelText),
             ]),
             ...variantBody(e, `v-${e.id}-`),
           ]
@@ -228,14 +250,18 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
     return React.createElement(View, {
       key: g.id,
       wrap: false,
-      style: [styles.entry, fmt ? { borderLeftColor: FORMAT_BG[fmt] } : {}],
+      style: styles.entry,
     }, [
+      // Slim format-color rule above the title — quieter than a left border.
+      fmt
+        ? React.createElement(View, { key: 'rule', style: [styles.formatRule, { backgroundColor: FORMAT_BG[fmt] }] })
+        : null,
       React.createElement(Text, { key: 'title', style: styles.title }, r.title),
       React.createElement(View, { key: 'meta', style: styles.meta }, [
         fmt && !variants
           ? React.createElement(Text, { key: 'pill', style: [styles.pill, { backgroundColor: FORMAT_BG[fmt] }] }, formatLabel(fmt).toUpperCase())
           : null,
-        React.createElement(Text, { key: 'metatext', style: styles.metaText }, metaParts.join(' · ')),
+        React.createElement(Text, { key: 'metatext', style: styles.metaText }, metaParts.join('  ·  ')),
       ]),
       ...body,
     ])

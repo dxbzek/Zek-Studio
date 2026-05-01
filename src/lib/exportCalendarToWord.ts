@@ -80,11 +80,19 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
     ExternalHyperlink, ShadingType, Footer, PageNumber, PageBreak,
   } = docx
 
+  // Editorial color palette — matches the PDF export so a brand exporting
+  // both formats sees the same calm tone.
+  const INK = '1A1A1A'
+  const MUTED = '6B6B6B'
+  const FAINT = '9A9A9A'
+  const LINK = '1F4ED8'
+
   function sectionH(text: string) {
     return new Paragraph({
       heading: HeadingLevel.HEADING_3,
-      spacing: { before: 320, after: 120 },
-      children: [new TextRun({ text: text.toUpperCase(), bold: true, color: '555555', size: 20, allCaps: true })],
+      spacing: { before: 480, after: 200 },
+      border: { bottom: { color: 'D9D9D9', space: 6, style: 'single', size: 6 } },
+      children: [new TextRun({ text: text.toUpperCase(), bold: true, color: MUTED, size: 20, characterSpacing: 60, allCaps: true })],
     })
   }
 
@@ -94,39 +102,39 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   // ── Cover page ───────────────────────────────────────────────────────────
   docChildren.push(
     new Paragraph({
-      spacing: { before: 1200, after: 120 },
-      children: [new TextRun({ text: 'CONTENT CALENDAR', color: '888888', size: 22, allCaps: true })],
+      spacing: { before: 1600, after: 200 },
+      children: [new TextRun({ text: 'CONTENT CALENDAR', color: FAINT, size: 18, characterSpacing: 96, allCaps: true })],
     }),
     new Paragraph({
       heading: HeadingLevel.HEADING_1,
-      spacing: { after: 80 },
-      children: [new TextRun({ text: brandName, bold: true, size: 60 })],
+      spacing: { after: 100 },
+      children: [new TextRun({ text: brandName, bold: true, size: 80, color: INK })],
     }),
     new Paragraph({
-      spacing: { after: 480 },
-      children: [new TextRun({ text: rangeLabel, size: 28, color: '555555' })],
+      spacing: { after: 600 },
+      children: [new TextRun({ text: rangeLabel, size: 28, color: MUTED })],
     }),
   )
 
   function statSection(label: string, lines: { name: string; count: number; hex: string }[]) {
     docChildren.push(new Paragraph({
-      spacing: { before: 240, after: 60 },
-      children: [new TextRun({ text: label.toUpperCase(), color: '666666', size: 18, allCaps: true, bold: true })],
+      spacing: { before: 320, after: 100 },
+      children: [new TextRun({ text: label.toUpperCase(), color: MUTED, size: 16, characterSpacing: 80, allCaps: true, bold: true })],
     }))
     for (const l of lines) {
       if (l.count === 0) continue
       docChildren.push(new Paragraph({
-        spacing: { after: 40 },
+        spacing: { after: 60 },
         children: [
           new TextRun({
-            text: '  ●  ',
+            text: '●  ',
             color: l.hex,
-            size: 28,
+            size: 24,
             bold: true,
           }),
-          new TextRun({ text: l.name, size: 22 }),
-          new TextRun({ text: '  ', size: 22 }),
-          new TextRun({ text: String(l.count), size: 22, bold: true, color: '222222' }),
+          new TextRun({ text: l.name, size: 22, color: INK }),
+          new TextRun({ text: '   ', size: 22 }),
+          new TextRun({ text: String(l.count), size: 22, bold: true, color: INK }),
         ],
       }))
     }
@@ -134,12 +142,12 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
 
   // Total entries headline
   docChildren.push(new Paragraph({
-    spacing: { before: 120, after: 40 },
-    children: [new TextRun({ text: 'TOTAL ENTRIES', color: '666666', size: 18, allCaps: true, bold: true })],
+    spacing: { before: 120, after: 80 },
+    children: [new TextRun({ text: 'TOTAL ENTRIES', color: MUTED, size: 16, characterSpacing: 80, allCaps: true, bold: true })],
   }))
   docChildren.push(new Paragraph({
-    spacing: { after: 200 },
-    children: [new TextRun({ text: String(cover.total), bold: true, size: 60, color: '222222' })],
+    spacing: { after: 280 },
+    children: [new TextRun({ text: String(cover.total), bold: true, size: 72, color: INK })],
   }))
 
   statSection('By format', [
@@ -157,9 +165,9 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   ])
 
   docChildren.push(new Paragraph({
-    spacing: { before: 360 },
+    spacing: { before: 480 },
     children: [
-      new TextRun({ text: `Grouped by ${groupBy} · generated ${format(new Date(), 'MMM d, yyyy')}`, color: '888888', italics: true, size: 18 }),
+      new TextRun({ text: `Grouped by ${groupBy} · generated ${format(new Date(), 'MMM d, yyyy')}`, color: FAINT, italics: true, size: 18 }),
     ],
   }))
 
@@ -171,15 +179,19 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   // ── Content page header ──────────────────────────────────────────────────
   docChildren.push(
     new Paragraph({
+      spacing: { after: 60 },
+      children: [new TextRun({ text: 'CONTENT CALENDAR', color: FAINT, size: 16, characterSpacing: 80, allCaps: true })],
+    }),
+    new Paragraph({
       heading: HeadingLevel.HEADING_2,
-      spacing: { after: 240 },
-      children: [new TextRun({ text: `${brandName} · ${rangeLabel}`, bold: true, size: 28 })],
+      spacing: { after: 320 },
+      children: [new TextRun({ text: `${brandName} · ${rangeLabel}`, bold: true, size: 36, color: INK })],
     }),
   )
 
   if (sections.length === 0) {
     docChildren.push(new Paragraph({
-      children: [new TextRun({ text: 'No entries match the selected range and filters.', italics: true, color: '999999', size: 22 })],
+      children: [new TextRun({ text: 'No entries match the selected range and filters.', italics: true, color: FAINT, size: 22 })],
     }))
   }
 
@@ -195,17 +207,17 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
 
       if (beats.length > 0) {
         docChildren.push(new Paragraph({
-          spacing: { before: 60, after: 40 },
-          children: [new TextRun({ text: 'Script', bold: true, color: '444444', size: 20 })],
+          spacing: { before: 140, after: 80 },
+          children: [new TextRun({ text: 'SCRIPT', bold: true, color: MUTED, size: 16, characterSpacing: 60, allCaps: true })],
         }))
         beats.forEach((line, idx) => {
           docChildren.push(
             new Paragraph({
-              spacing: { after: 40 },
-              indent: { left: 240 },
+              spacing: { after: 80, line: 320 },
+              indent: { left: 280 },
               children: [
-                new TextRun({ text: `${idx + 1}. `, bold: true, color: '888888', size: 22 }),
-                new TextRun({ text: line, size: 22 }),
+                new TextRun({ text: `${idx + 1}.  `, bold: true, color: FAINT, size: 22 }),
+                new TextRun({ text: line, size: 24, color: INK }),
               ],
             }),
           )
@@ -214,15 +226,15 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
 
       if (r.notes && r.notes.trim().length > 0) {
         docChildren.push(new Paragraph({
-          spacing: { before: 60, after: 40 },
-          children: [new TextRun({ text: 'Notes', bold: true, color: '444444', size: 20 })],
+          spacing: { before: 140, after: 80 },
+          children: [new TextRun({ text: 'NOTES', bold: true, color: MUTED, size: 16, characterSpacing: 60, allCaps: true })],
         }))
         r.notes.split('\n').forEach((line) => {
           docChildren.push(
             new Paragraph({
-              spacing: { after: 40 },
-              indent: { left: 240 },
-              children: [new TextRun({ text: line, size: 22 })],
+              spacing: { after: 60, line: 320 },
+              indent: { left: 280 },
+              children: [new TextRun({ text: line, size: 24, color: INK })],
             }),
           )
         })
@@ -230,18 +242,18 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
 
       if (links.length > 0) {
         docChildren.push(new Paragraph({
-          spacing: { before: 60, after: 40 },
-          children: [new TextRun({ text: 'Links', bold: true, color: '444444', size: 20 })],
+          spacing: { before: 140, after: 80 },
+          children: [new TextRun({ text: 'LINKS', bold: true, color: MUTED, size: 16, characterSpacing: 60, allCaps: true })],
         }))
         links.forEach((url) => {
           docChildren.push(
             new Paragraph({
-              spacing: { after: 40 },
-              indent: { left: 240 },
+              spacing: { after: 60 },
+              indent: { left: 280 },
               children: [
                 new ExternalHyperlink({
                   link: url,
-                  children: [new TextRun({ text: url, color: '2563EB', underline: {}, size: 20 })],
+                  children: [new TextRun({ text: url, color: LINK, underline: {}, size: 20 })],
                 }),
               ],
             }),
@@ -255,22 +267,28 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
       const fmt = r.format as ContentFormat | null
       const variants = hasPlatformVariants(g)
 
-      // Title row — when copy is uniform, show the format pill inline so
-      // a glance gives the format. When variants differ, drop the pill
-      // here (each variant gets its own pill below) to avoid mismatch.
+      // Title row. When copy is uniform, show the format pill inline.
+      // When variants differ, drop the pill here — each variant gets its
+      // own header below so platform/format always agree.
       const titleRuns: InstanceType<typeof TextRun>[] = []
       if (fmt && !variants) {
         titleRuns.push(new TextRun({
           text: ` ${formatLabel(fmt).toUpperCase()} `,
-          bold: true, color: 'FFFFFF', size: 18,
+          bold: true, color: 'FFFFFF', size: 16, characterSpacing: 40,
           shading: { type: ShadingType.SOLID, color: FORMAT_HEX[fmt], fill: FORMAT_HEX[fmt] },
         }))
-        titleRuns.push(new TextRun({ text: '  ', size: 22 }))
+        titleRuns.push(new TextRun({ text: '   ', size: 28 }))
       }
-      titleRuns.push(new TextRun({ text: r.title, bold: true, size: 26 }))
+      titleRuns.push(new TextRun({ text: r.title, bold: true, size: 32, color: INK }))
 
       docChildren.push(
-        new Paragraph({ spacing: { before: 180, after: 60 }, children: titleRuns }),
+        new Paragraph({
+          spacing: { before: 360, after: 80, line: 280 },
+          // Quiet top divider between entries — replaces the visual noise
+          // of a colored bar in the body.
+          border: { top: { color: 'EFEFEF', space: 12, style: 'single', size: 4 } },
+          children: titleRuns,
+        }),
       )
 
       const metaParts = [
@@ -283,8 +301,8 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
 
       docChildren.push(
         new Paragraph({
-          spacing: { after: 80 },
-          children: [new TextRun({ text: metaParts.join(' · '), color: '666666', size: 20 })],
+          spacing: { after: 120 },
+          children: [new TextRun({ text: metaParts.join('   ·   '), color: MUTED, size: 20 })],
         }),
       )
 
@@ -297,14 +315,15 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
           const headerRuns: InstanceType<typeof TextRun>[] = [
             new TextRun({
               text: ` ${platformsLabel([e.platform]).toUpperCase()} `,
-              bold: true, color: 'FFFFFF', size: 16,
+              bold: true, color: 'FFFFFF', size: 14, characterSpacing: 40,
               shading: { type: ShadingType.SOLID, color: efmt ? FORMAT_HEX[efmt] : '9CA3AF', fill: efmt ? FORMAT_HEX[efmt] : '9CA3AF' },
             }),
           ]
           if (efmt) {
-            headerRuns.push(new TextRun({ text: `   ${formatLabel(efmt)}`, color: '666666', size: 18 }))
+            headerRuns.push(new TextRun({ text: '    ', size: 20 }))
+            headerRuns.push(new TextRun({ text: formatLabel(efmt), color: MUTED, size: 18 }))
           }
-          docChildren.push(new Paragraph({ spacing: { before: 120, after: 40 }, children: headerRuns }))
+          docChildren.push(new Paragraph({ spacing: { before: 200, after: 60 }, children: headerRuns }))
           pushRowBody(e)
         }
       } else {
@@ -316,17 +335,32 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   const doc = new Document({
     creator: 'Zek Studio',
     title: `${brandName} · ${rangeLabel}`,
+    // Calibri reads cleaner than the default Times New Roman at the body
+    // sizes we use. Docx default body is 11pt = size 22 (half-points).
+    styles: {
+      default: {
+        document: {
+          run: { font: 'Calibri', size: 22, color: INK },
+        },
+      },
+    },
     sections: [{
-      properties: {},
+      // Generous page margins so the doc breathes — 1.1in left/right,
+      // 1in top/bottom. docx uses twentieths-of-a-point (1in = 1440).
+      properties: {
+        page: {
+          margin: { top: 1440, bottom: 1440, left: 1584, right: 1584 },
+        },
+      },
       footers: {
         default: new Footer({
           children: [new Paragraph({
             alignment: AlignmentType.CENTER,
             children: [
-              new TextRun({ text: 'Page ', color: '999999', size: 18 }),
-              new TextRun({ children: [PageNumber.CURRENT], color: '999999', size: 18 }),
-              new TextRun({ text: ' of ', color: '999999', size: 18 }),
-              new TextRun({ children: [PageNumber.TOTAL_PAGES], color: '999999', size: 18 }),
+              new TextRun({ text: 'Page ', color: FAINT, size: 16, characterSpacing: 40 }),
+              new TextRun({ children: [PageNumber.CURRENT], color: FAINT, size: 16 }),
+              new TextRun({ text: '  of  ', color: FAINT, size: 16, characterSpacing: 40 }),
+              new TextRun({ children: [PageNumber.TOTAL_PAGES], color: FAINT, size: 16 }),
             ],
           })],
         }),
