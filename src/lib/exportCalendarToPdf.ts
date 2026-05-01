@@ -136,7 +136,7 @@ export async function exportCalendarToPdf({ brandName, rangeLabel, sections, gro
       React.createElement(View, { key: 'r', style: styles.coverStatRow }, [
         statChip('Reels',            cover.byFormat.reel,             '#a855f7'),
         statChip('Carousels',        cover.byFormat.carousel,         '#3b82f6'),
-        statChip('Static',           cover.byFormat.static,           '#10b981'),
+        statChip('Street Interview', cover.byFormat.static,           '#10b981'),
         statChip('Emergency Backup', cover.byFormat.emergency_backup, '#ef4444'),
         statChip('Format unset',     cover.byFormat.unset,            '#9ca3af'),
       ]),

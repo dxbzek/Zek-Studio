@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { inferByNameMatch, inferContentType } from '@/lib/inferContentType'
-import { Copy, ExternalLink, Loader2, Sparkles } from 'lucide-react'
+import { Copy, Download, ExternalLink, FileText, Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { exportCalendarToPdf } from '@/lib/exportCalendarToPdf'
+import { exportCalendarToWord } from '@/lib/exportCalendarToWord'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -329,6 +334,30 @@ export function EntryDrawer({
   function discardAndClose() {
     setConfirmDiscard(false)
     onOpenChange(false)
+  }
+
+  // Per-entry export. Wraps the current group in a one-section ExportSections
+  // object and calls the same helper used by the calendar-level export.
+  const [exporting, setExporting] = useState<'pdf' | 'word' | null>(null)
+  async function handleExportEntry(kind: 'pdf' | 'word') {
+    if (!group || !activeBrand) return
+    setExporting(kind)
+    try {
+      const dateLabel = format(parseISO(group.representative.scheduled_date), 'MMM d, yyyy')
+      const args = {
+        brandName: activeBrand.name,
+        rangeLabel: dateLabel,
+        groupBy: 'date' as const,
+        sections: [{ heading: dateLabel, entries: [group] }],
+      }
+      if (kind === 'pdf') await exportCalendarToPdf(args)
+      else await exportCalendarToWord(args)
+      toast.success(`Exported as ${kind === 'pdf' ? 'PDF' : 'Word'}`)
+    } catch (err) {
+      toast.error('Export failed', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setExporting(null)
+    }
   }
 
   async function handleGenerateCaption() {
@@ -785,6 +814,33 @@ export function EntryDrawer({
                 <Copy className="h-3.5 w-3.5 mr-1" />
                 Duplicate
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!!exporting}
+                    title="Export this entry as PDF or Word"
+                  >
+                    {exporting ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    {exporting ? 'Exporting…' : 'Export'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onSelect={() => handleExportEntry('pdf')}>
+                    <FileText className="h-3.5 w-3.5" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExportEntry('word')}>
+                    <FileText className="h-3.5 w-3.5" />
+                    Export as Word
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
           <Button

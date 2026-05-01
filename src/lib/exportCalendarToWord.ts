@@ -144,7 +144,7 @@ export async function exportCalendarToWord({ brandName, rangeLabel, sections, gr
   statSection('By format', [
     { name: 'Reels',            count: cover.byFormat.reel,             hex: 'A855F7' },
     { name: 'Carousels',        count: cover.byFormat.carousel,         hex: '3B82F6' },
-    { name: 'Static',           count: cover.byFormat.static,           hex: '10B981' },
+    { name: 'Street Interview', count: cover.byFormat.static,           hex: '10B981' },
     { name: 'Emergency Backup', count: cover.byFormat.emergency_backup, hex: 'EF4444' },
     { name: 'Format unset',     count: cover.byFormat.unset,            hex: '9CA3AF' },
   ])

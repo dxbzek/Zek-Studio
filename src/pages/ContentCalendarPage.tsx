@@ -1065,7 +1065,7 @@ export function ContentCalendarPage() {
         {formatMix.total > 0 && (
           <div
             className="hidden md:flex ml-2 items-center gap-2 text-[11px] text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
-            title={`Reels ${formatMix.counts.reel} · Carousels ${formatMix.counts.carousel} · Static ${formatMix.counts.static} · Backup ${formatMix.counts.emergency_backup}${formatMix.counts.unset > 0 ? ` · Unset ${formatMix.counts.unset}` : ''}`}
+            title={`Reels ${formatMix.counts.reel} · Carousels ${formatMix.counts.carousel} · Street Interviews ${formatMix.counts.static} · Backup ${formatMix.counts.emergency_backup}${formatMix.counts.unset > 0 ? ` · Unset ${formatMix.counts.unset}` : ''}`}
           >
             <div className="flex h-2 w-36 rounded-full overflow-hidden border border-border bg-muted/60 shadow-inner">
               {(['reel', 'carousel', 'static', 'emergency_backup', 'unset'] as const).map((k) => {
