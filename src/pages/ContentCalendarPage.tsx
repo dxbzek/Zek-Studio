@@ -23,7 +23,7 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Download, Keyboard, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, FileText, Keyboard, Loader2, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -69,6 +69,11 @@ import {
   type EntryFormValues,
 } from '@/components/calendar/EntryDrawer'
 import { ExportCalendarDialog } from '@/components/calendar/ExportCalendarDialog'
+import { exportCalendarToPdf } from '@/lib/exportCalendarToPdf'
+import { exportCalendarToWord } from '@/lib/exportCalendarToWord'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Dialog as ShortcutsDialog,
   DialogContent as ShortcutsDialogContent,
@@ -665,6 +670,48 @@ export function ContentCalendarPage() {
       setBulkBusy(false)
     }
   }, [selectedEntries, deleteEntry, exitSelectMode])
+
+  // Bulk export — wraps every selected group into a single date-grouped
+  // ExportSections object and pipes it through the same helpers used by the
+  // calendar-level export dialog. Groups are bucketed by scheduled_date so
+  // the resulting doc reads chronologically.
+  const [bulkExporting, setBulkExporting] = useState<'pdf' | 'word' | null>(null)
+  const handleBulkExport = useCallback(async (kind: 'pdf' | 'word') => {
+    if (!activeBrand || selectedGroupIds.size === 0) return
+    const groups = allGroups.filter((g) => selectedGroupIds.has(g.id))
+    if (groups.length === 0) return
+    setBulkExporting(kind)
+    try {
+      const byDate = new Map<string, typeof groups>()
+      for (const g of groups) {
+        const date = g.representative.scheduled_date
+        const list = byDate.get(date) ?? []
+        list.push(g)
+        byDate.set(date, list)
+      }
+      const sortedDates = Array.from(byDate.keys()).sort()
+      const sections = sortedDates.map((d) => ({
+        heading: format(parseISO(d), 'EEE, MMM d'),
+        entries: byDate.get(d)!,
+      }))
+      const rangeLabel = sortedDates.length === 1
+        ? format(parseISO(sortedDates[0]), 'MMM d, yyyy')
+        : `${format(parseISO(sortedDates[0]), 'MMM d')} – ${format(parseISO(sortedDates[sortedDates.length - 1]), 'MMM d, yyyy')}`
+      const args = {
+        brandName: activeBrand.name,
+        rangeLabel,
+        groupBy: 'date' as const,
+        sections,
+      }
+      if (kind === 'pdf') await exportCalendarToPdf(args)
+      else await exportCalendarToWord(args)
+      toast.success(`Exported ${groups.length} ${groups.length === 1 ? 'entry' : 'entries'}`)
+    } catch (err) {
+      toast.error('Export failed', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setBulkExporting(null)
+    }
+  }, [activeBrand, allGroups, selectedGroupIds])
 
   // Bridge the drawer's Generate button to the AI generator. The drawer
   // knows the per-post info (title, platform, theme, format); the calendar
@@ -1311,6 +1358,34 @@ export function ContentCalendarPage() {
               className="h-6 rounded border border-border bg-transparent px-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
             />
           </label>
+          <div className="h-4 w-px bg-border" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={bulkBusy || !!bulkExporting}
+                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Export selected entries"
+              >
+                {bulkExporting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Download className="h-3 w-3" />
+                )}
+                {bulkExporting ? 'Exporting…' : 'Export'}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top">
+              <DropdownMenuItem onSelect={() => handleBulkExport('pdf')}>
+                <FileText className="h-3.5 w-3.5" />
+                Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleBulkExport('word')}>
+                <FileText className="h-3.5 w-3.5" />
+                Export as Word
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="h-4 w-px bg-border" />
           <button
             type="button"
