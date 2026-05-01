@@ -1328,18 +1328,28 @@ export function ContentCalendarPage() {
         onDelete={handleDeletePillar}
       />
 
-      {/* Bulk-edit action bar */}
-      {selectMode && selectedGroupIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-card border border-border shadow-lg rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap max-w-[calc(100vw-2rem)]">
-          <span className="text-xs font-medium tabular-nums">
-            {selectedEntries.length} selected
+      {/* Bulk-edit action bar — visible the moment select mode is on so all
+          actions (Export, Move, Status, Delete) are discoverable. Buttons
+          are disabled with a hint until at least one entry is selected. */}
+      {selectMode && (() => {
+        const hasSelection = selectedGroupIds.size > 0
+        const disabledAll = !hasSelection || bulkBusy
+        return (
+        <div
+          style={{ bottom: 'max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))' }}
+          className="premium-card fixed left-1/2 -translate-x-1/2 z-40 ring-1 ring-border/80 rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap max-w-[calc(100vw-2rem)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-300"
+        >
+          <span className={`text-xs font-medium tabular-nums ${hasSelection ? 'text-foreground' : 'text-muted-foreground'}`}>
+            {hasSelection
+              ? <>{selectedEntries.length} selected</>
+              : 'Select entries to act on them'}
           </span>
           <div className="h-4 w-px bg-border" />
           {STATUSES.map((s) => (
             <button
               key={s.value}
               type="button"
-              disabled={bulkBusy}
+              disabled={disabledAll}
               onClick={() => handleBulkStatus(s.value)}
               className="text-xs px-2 py-0.5 rounded border border-border hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -1347,11 +1357,11 @@ export function ContentCalendarPage() {
             </button>
           ))}
           <div className="h-4 w-px bg-border" />
-          <label className="text-xs text-muted-foreground flex items-center gap-1">
+          <label className={`text-xs flex items-center gap-1 ${disabledAll ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}>
             Move to
             <input
               type="date"
-              disabled={bulkBusy}
+              disabled={disabledAll}
               onChange={(e) => {
                 if (e.target.value) handleBulkDate(e.target.value)
               }}
@@ -1363,9 +1373,9 @@ export function ContentCalendarPage() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                disabled={bulkBusy || !!bulkExporting}
-                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border hover:bg-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Export selected entries"
+                disabled={disabledAll || !!bulkExporting}
+                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-foreground/20 bg-foreground/5 text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+                title={hasSelection ? 'Export selected entries' : 'Select entries first'}
               >
                 {bulkExporting ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -1389,7 +1399,7 @@ export function ContentCalendarPage() {
           <div className="h-4 w-px bg-border" />
           <button
             type="button"
-            disabled={bulkBusy}
+            disabled={disabledAll}
             onClick={() => setBulkConfirmDelete(true)}
             className="text-xs px-2 py-0.5 rounded border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -1403,7 +1413,8 @@ export function ContentCalendarPage() {
             Done
           </button>
         </div>
-      )}
+        )
+      })()}
 
       {activeBrand && (
         <ExportCalendarDialog
