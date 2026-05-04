@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { format, isSameDay, startOfDay } from 'date-fns'
 import {
@@ -52,10 +52,29 @@ export function DayCell({
     : selectedCount === dayGroupIds.length ? 'all'
     : 'some'
 
-  // Hover-controlled popover for the "+N more" overflow. Small open delay
-  // and a close delay covers the gap between trigger and content so the
-  // popover doesn't flicker shut while the cursor crosses.
+  // Hover-controlled popover for the "+N more" overflow. A short close
+  // delay bridges the gap between the trigger and the floating content
+  // so the popover doesn't snap shut while the cursor crosses — the bug
+  // that made the menu hard to click. Click also toggles, for taps.
   const [moreOpen, setMoreOpen] = useState(false)
+  const moreCloseTimer = useRef<number | null>(null)
+  const cancelMoreClose = () => {
+    if (moreCloseTimer.current !== null) {
+      window.clearTimeout(moreCloseTimer.current)
+      moreCloseTimer.current = null
+    }
+  }
+  const openMoreNow = () => {
+    cancelMoreClose()
+    setMoreOpen(true)
+  }
+  const scheduleMoreClose = () => {
+    cancelMoreClose()
+    moreCloseTimer.current = window.setTimeout(() => {
+      setMoreOpen(false)
+      moreCloseTimer.current = null
+    }, 180)
+  }
 
   return (
     <div
@@ -132,21 +151,22 @@ export function DayCell({
       {groups.length > MAX_VISIBLE && (
         <Popover open={moreOpen} onOpenChange={setMoreOpen}>
           <PopoverTrigger
-            onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => setMoreOpen(true)}
-            onMouseLeave={() => setMoreOpen(false)}
-            onFocus={() => setMoreOpen(true)}
-            onBlur={() => setMoreOpen(false)}
+            onClick={(e) => { e.stopPropagation(); cancelMoreClose(); setMoreOpen((v) => !v) }}
+            onMouseEnter={openMoreNow}
+            onMouseLeave={scheduleMoreClose}
+            onFocus={openMoreNow}
+            onBlur={scheduleMoreClose}
             className="text-[10px] text-muted-foreground hover:text-foreground px-1 font-mono tabular-nums text-left self-start rounded hover:bg-accent/50 transition-colors"
           >
             +{groups.length - MAX_VISIBLE} more
           </PopoverTrigger>
           <PopoverContent
             align="start"
+            sideOffset={2}
             className="w-64 max-h-[320px] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
-            onMouseEnter={() => setMoreOpen(true)}
-            onMouseLeave={() => setMoreOpen(false)}
+            onMouseEnter={openMoreNow}
+            onMouseLeave={scheduleMoreClose}
           >
             <div className="text-[11px] font-medium text-muted-foreground px-1 pb-1.5 uppercase tracking-wide">
               {format(day, 'EEE, MMM d')}
