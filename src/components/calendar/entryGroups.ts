@@ -11,7 +11,7 @@ export type EntryGroup = {
 export function groupEntries(entries: CalendarEntry[]): EntryGroup[] {
   const map = new Map<string, CalendarEntry[]>()
   for (const e of entries) {
-    const key = `${e.title.toLowerCase().trim()}__${e.scheduled_date}`
+    const key = `${e.title.toLowerCase().trim()}__${e.scheduled_date}__${e.platform === 'linkedin' ? 'linkedin' : 'social'}`
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(e)
   }
