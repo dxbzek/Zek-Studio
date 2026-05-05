@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { format, isSameDay, startOfDay } from 'date-fns'
 import {
@@ -52,29 +52,11 @@ export function DayCell({
     : selectedCount === dayGroupIds.length ? 'all'
     : 'some'
 
-  // Hover-controlled popover for the "+N more" overflow. A short close
-  // delay bridges the gap between the trigger and the floating content
-  // so the popover doesn't snap shut while the cursor crosses — the bug
-  // that made the menu hard to click. Click also toggles, for taps.
+  // Click-only popover for the "+N more" overflow. Hover-to-open kept
+  // re-triggering as the cursor passed over the popover or as cells
+  // re-rendered, so the menu would float open with no clear way to
+  // dismiss it. Radix handles outside-click and Esc to close.
   const [moreOpen, setMoreOpen] = useState(false)
-  const moreCloseTimer = useRef<number | null>(null)
-  const cancelMoreClose = () => {
-    if (moreCloseTimer.current !== null) {
-      window.clearTimeout(moreCloseTimer.current)
-      moreCloseTimer.current = null
-    }
-  }
-  const openMoreNow = () => {
-    cancelMoreClose()
-    setMoreOpen(true)
-  }
-  const scheduleMoreClose = () => {
-    cancelMoreClose()
-    moreCloseTimer.current = window.setTimeout(() => {
-      setMoreOpen(false)
-      moreCloseTimer.current = null
-    }, 180)
-  }
 
   return (
     <div
@@ -151,11 +133,7 @@ export function DayCell({
       {groups.length > MAX_VISIBLE && (
         <Popover open={moreOpen} onOpenChange={setMoreOpen}>
           <PopoverTrigger
-            onClick={(e) => { e.stopPropagation(); cancelMoreClose(); setMoreOpen((v) => !v) }}
-            onMouseEnter={openMoreNow}
-            onMouseLeave={scheduleMoreClose}
-            onFocus={openMoreNow}
-            onBlur={scheduleMoreClose}
+            onClick={(e) => e.stopPropagation()}
             className="text-[10px] text-muted-foreground hover:text-foreground px-1 font-mono tabular-nums text-left self-start rounded hover:bg-accent/50 transition-colors"
           >
             +{groups.length - MAX_VISIBLE} more
@@ -165,8 +143,6 @@ export function DayCell({
             sideOffset={2}
             className="w-64 max-h-[320px] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
-            onMouseEnter={openMoreNow}
-            onMouseLeave={scheduleMoreClose}
           >
             <div className="text-[11px] font-medium text-muted-foreground px-1 pb-1.5 uppercase tracking-wide">
               {format(day, 'EEE, MMM d')}
@@ -176,7 +152,7 @@ export function DayCell({
                 <EntryCard
                   key={grp.id}
                   group={grp}
-                  onClick={() => onGroupClick(grp)}
+                  onClick={() => { setMoreOpen(false); onGroupClick(grp) }}
                   selectMode={selectMode}
                   isSelected={selectedGroupIds?.has(grp.id)}
                   onToggleSelect={onToggleSelect}
