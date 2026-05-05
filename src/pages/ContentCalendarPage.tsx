@@ -91,34 +91,6 @@ import {
   STATUSES,
   type EntryGroup,
 } from '@/components/calendar/entryGroups'
-import { useDraggable } from '@dnd-kit/core'
-
-// Draggable chip in the Emergency Backup lane. Drop it onto a day cell to
-// "deploy" the backup (re-dates the entry and flips its format off
-// emergency_backup). Pointer activation distance is enough to keep
-// click→edit working when the user just wants to open the drawer.
-function EmergencyChip({ group, onClick }: { group: EntryGroup; onClick: () => void }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `emergency:${group.id}`,
-  })
-  return (
-    <button
-      ref={setNodeRef}
-      type="button"
-      onClick={onClick}
-      {...listeners}
-      {...attributes}
-      style={{
-        opacity: isDragging ? 0.4 : 1,
-        transform: isDragging ? 'scale(1.05)' : undefined,
-      }}
-      className="shrink-0 max-w-[200px] truncate px-2 py-0.5 rounded-md text-[11px] border border-red-500/20 bg-card hover:bg-red-500/[0.08] hover:border-red-500/40 hover:-translate-y-px hover:shadow-[0_3px_10px_-3px_rgba(239,68,68,0.25)] active:translate-y-0 transition-[transform,box-shadow,background-color,border-color,opacity] duration-150 cursor-grab active:cursor-grabbing"
-      title={`Drag onto a day to deploy · ${group.representative.title}`}
-    >
-      {group.representative.title}
-    </button>
-  )
-}
 
 export function ContentCalendarPage() {
   const navigate = useNavigate()
@@ -1006,16 +978,6 @@ export function ContentCalendarPage() {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {pillarDist.length === 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex text-muted-foreground hover:text-foreground"
-              onClick={() => setPillarDrawerOpen(true)}
-            >
-              Configure pillars
-            </Button>
-          )}
           <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => navigate('/campaigns')}>Campaigns</Button>
           <Button size="sm" onClick={() => openCreate()}>New</Button>
         </div>
@@ -1102,24 +1064,6 @@ export function ContentCalendarPage() {
             </button>
           )
         })}
-        <div className="sm:ml-auto relative shrink-0">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search…"
-            className="h-7 pl-8 pr-7 w-36 sm:w-44 text-xs"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Pillar distribution bar — live gauges showing this month's actual
@@ -1220,6 +1164,25 @@ export function ContentCalendarPage() {
         )}
         {!selectMode && (
           <div className="ml-auto flex items-center gap-1.5">
+            <div className="relative shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="h-7 pl-7 pr-7 w-36 sm:w-44 text-xs"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setShortcutsOpen(true)}
@@ -1272,35 +1235,16 @@ export function ContentCalendarPage() {
         </div>
       </div>
 
-      {/* Emergency Backup lane — evergreen fallback content. One-line strip.
-          Each chip is draggable: drop it onto a day to "deploy" the backup
-          (re-dates the entry and flips format off emergency_backup). */}
+      {/* Emergency backup chips used to live in their own lane here.
+          Removed by request — backups still exist as entries (filter by
+          Emergency Backup format to find them) and the calendar's drag-
+          to-deploy still works when you trigger the format filter. */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-      {filterFormat === 'all' && (
-        <div className="border-b border-border bg-red-500/[0.03] px-4 sm:px-6 py-1.5 shrink-0 flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
-          <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-700 dark:text-red-400" title="Evergreen fallback content. Static or carousel, max 4 slides. Drag a chip onto any day to deploy.">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden />
-            Backup
-            <span className="text-muted-foreground font-normal">{emergencyGroups.length}</span>
-          </span>
-          {emergencyGroups.map((g) => (
-            <EmergencyChip key={g.id} group={g} onClick={() => openEdit(g)} />
-          ))}
-          <button
-            type="button"
-            onClick={() => openCreate(format(today, 'yyyy-MM-dd'), 'emergency_backup')}
-            className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium border border-dashed border-red-500/40 text-red-700 dark:text-red-400 hover:bg-red-500/[0.08] transition-colors"
-            title="Create a new emergency backup entry"
-          >
-            + New
-          </button>
-        </div>
-      )}
 
       {/* Empty / first-run state — a thin advisory above the grid when the
           current month/filters yield nothing to render. Two flavors:
