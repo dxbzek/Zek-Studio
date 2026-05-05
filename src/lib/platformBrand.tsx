@@ -117,7 +117,11 @@ export function PlatformBadge({
   )
 }
 
-/** Pill chip with logo + label text. Good for filters / selectors. */
+/** Pill chip with logo + label text. Good for filters / selectors.
+ * The label collapses to logo-only at < sm so a row of six platform
+ * filters fits comfortably on a phone. The accessible name comes from
+ * the parent button's aria-label, so removing the visible text doesn't
+ * hurt screen readers. */
 export function PlatformPill({
   platform,
   label,
@@ -131,16 +135,17 @@ export function PlatformPill({
   const logoColor = active ? 'white' : hex
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium leading-none transition-colors ${
+      className={`inline-flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-medium leading-none transition-colors ${
         active ? `${bg} text-white` : chip
       }`}
+      title={label}
     >
       <PlatformLogo
         platform={platform}
         color={logoColor}
         className="h-3 w-3 shrink-0"
       />
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </span>
   )
 }

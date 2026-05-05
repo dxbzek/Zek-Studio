@@ -1067,12 +1067,19 @@ export function ContentCalendarPage() {
       </div>
 
       {/* Pillar distribution bar — live gauges showing this month's actual
-          share vs target per pillar. Bar fill = actual, vertical tick = target. */}
+          share vs target per pillar. Hidden on mobile to keep the top of
+          the calendar uncrowded; on tablet+ it sits below the filter row. */}
       {pillarDist.length > 0 && (
-        <div className="px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+        <div className="hidden sm:block px-4 sm:px-6 py-2 border-b border-border bg-muted/20 shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
             {pillarDist.map((p) => (
-              <div key={p.id} className="flex items-center gap-1.5" title={`${p.count} entries this month`}>
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPillarDrawerOpen(true)}
+                title={`${p.count} entries this month — click to configure pillars`}
+                className="flex items-center gap-1.5 rounded transition-colors hover:bg-muted/40 -mx-1 px-1 py-0.5"
+              >
                 <div className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />
                 <span className="text-xs text-muted-foreground">{p.label}</span>
                 <div className="relative h-1.5 w-16 sm:w-20 bg-muted rounded-full overflow-hidden">
@@ -1090,15 +1097,8 @@ export function ContentCalendarPage() {
                   {p.actual_pct}%
                 </span>
                 <span className="text-xs text-muted-foreground tabular-nums">/ {p.target_pct}%</span>
-              </div>
+              </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setPillarDrawerOpen(true)}
-              className="ml-auto text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded px-2 py-0.5 transition-colors"
-            >
-              Configure Pillars
-            </button>
           </div>
         </div>
       )}
@@ -1164,13 +1164,13 @@ export function ContentCalendarPage() {
         )}
         {!selectMode && (
           <div className="ml-auto flex items-center gap-1.5">
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 hidden sm:block">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search…"
-                className="h-7 pl-7 pr-7 w-36 sm:w-44 text-xs"
+                className="h-7 pl-7 pr-7 w-44 text-xs"
               />
               {search && (
                 <button
