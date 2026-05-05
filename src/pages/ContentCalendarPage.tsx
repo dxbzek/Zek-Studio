@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import {
@@ -23,7 +23,7 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Download, FileText, Keyboard, Loader2, Search, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Keyboard, Loader2, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,7 +38,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { NoBrandSelected } from '@/components/layout/NoBrandSelected'
+import { BrandAvatar } from '@/components/brand/BrandAvatar'
 import { useActiveBrand } from '@/stores/activeBrand'
+import { useBrands } from '@/hooks/useBrands'
+import { brandSlug, findBrandBySlug } from '@/lib/brandSlug'
 import { useUiState } from '@/stores/uiState'
 import { useCalendar } from '@/hooks/useCalendar'
 import { useTeam } from '@/hooks/useTeam'
@@ -119,7 +122,39 @@ function EmergencyChip({ group, onClick }: { group: EntryGroup; onClick: () => v
 
 export function ContentCalendarPage() {
   const navigate = useNavigate()
-  const { activeBrand } = useActiveBrand()
+  const { activeBrand, setActiveBrand } = useActiveBrand()
+  const { brands } = useBrands()
+
+  // ── Brand URL sync ─────────────────────────────────────────────────────
+  // The calendar URL carries the active brand as `?brand=<slug>`, so the
+  // page is deep-linkable per brand and a teammate can share a link that
+  // opens the right calendar. Slugs are derived from brand.name (no DB
+  // column) — see lib/brandSlug.ts.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlBrandSlug = searchParams.get('brand')
+
+  // 1) On mount / when the URL slug changes, switch the active brand to
+  // match. Skip when the slug already matches the active brand to avoid
+  // a no-op state churn during the URL-write effect below.
+  useEffect(() => {
+    if (!urlBrandSlug || !brands.length) return
+    if (activeBrand && brandSlug(activeBrand.name) === urlBrandSlug) return
+    const match = findBrandBySlug(brands, urlBrandSlug)
+    if (match) setActiveBrand(match)
+  }, [urlBrandSlug, brands, activeBrand, setActiveBrand])
+
+  // 2) When the active brand changes (via the inline switcher OR the
+  // sidebar BrandAvatar dropdown), write the slug back into the URL so
+  // refresh / share preserves the choice. Only updates when it actually
+  // differs to avoid a feedback loop with the read effect above.
+  useEffect(() => {
+    if (!activeBrand) return
+    const slug = brandSlug(activeBrand.name)
+    if (urlBrandSlug === slug) return
+    const next = new URLSearchParams(searchParams)
+    next.set('brand', slug)
+    setSearchParams(next, { replace: true })
+  }, [activeBrand, urlBrandSlug, searchParams, setSearchParams])
 
   const today = new Date()
   const [viewYear, setViewYear]   = useState(today.getFullYear())
@@ -919,7 +954,42 @@ export function ContentCalendarPage() {
         <div className="min-w-0">
           <div className="eyebrow mb-1.5">Create</div>
           <h1 className="font-heading font-medium leading-[1.05] tracking-tight text-[22px] sm:text-[30px] truncate">Content Calendar</h1>
-          <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-1 truncate">{activeBrand.name}</p>
+          {/* Inline brand switcher. Subtle by default — looks like a quiet
+              breadcrumb until the user hovers and the chevron darkens.
+              Wired to the same setActiveBrand action the sidebar uses,
+              and the URL effect above keeps the slug in sync. */}
+          {brands.length > 1 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="group/brand inline-flex items-center gap-1.5 mt-1 text-[12px] sm:text-[13px] text-muted-foreground hover:text-foreground transition-colors max-w-full"
+                  aria-label="Switch brand"
+                >
+                  <BrandAvatar brand={activeBrand} size={16} rounded="full" />
+                  <span className="truncate">{activeBrand.name}</span>
+                  <ChevronDown className="h-3 w-3 shrink-0 opacity-50 group-hover/brand:opacity-100 transition-opacity" aria-hidden />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[200px]">
+                {brands.map((b) => (
+                  <DropdownMenuItem
+                    key={b.id}
+                    onSelect={() => setActiveBrand(b)}
+                    className="gap-2"
+                  >
+                    <BrandAvatar brand={b} size={18} rounded="full" />
+                    <span className="truncate flex-1">{b.name}</span>
+                    {b.id === activeBrand.id && (
+                      <Check className="h-3.5 w-3.5 shrink-0 text-foreground" aria-hidden />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <p className="text-[12px] sm:text-[13px] text-muted-foreground mt-1 truncate">{activeBrand.name}</p>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {pillarDist.length === 0 && (
