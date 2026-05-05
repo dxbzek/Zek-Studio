@@ -130,25 +130,39 @@ export function ContentCalendarPage() {
   // page is deep-linkable per brand and a teammate can share a link that
   // opens the right calendar. Slugs are derived from brand.name (no DB
   // column) — see lib/brandSlug.ts.
+  //
+  // Two-direction sync used to fight itself when both a persisted brand
+  // and a URL slug existed at mount: both effects fired in the same
+  // render, the write effect overwrote the URL with the persisted slug
+  // before the read effect could adopt the URL's slug, then the read
+  // effect reverted the user's choice. Now the read is a one-shot at
+  // mount (gated by a ref), and the write is the only ongoing channel.
   const [searchParams, setSearchParams] = useSearchParams()
   const urlBrandSlug = searchParams.get('brand')
+  const initialUrlSyncedRef = useRef(false)
 
-  // 1) On mount / when the URL slug changes, switch the active brand to
-  // match. Skip when the slug already matches the active brand to avoid
-  // a no-op state churn during the URL-write effect below.
+  // URL → store, runs once when brands have loaded. After this, the URL
+  // is downstream of the store; manual switches drive the URL via the
+  // write effect below.
   useEffect(() => {
-    if (!urlBrandSlug || !brands.length) return
-    if (activeBrand && brandSlug(activeBrand.name) === urlBrandSlug) return
+    if (initialUrlSyncedRef.current) return
+    if (!brands.length) return
+    initialUrlSyncedRef.current = true
+    if (!urlBrandSlug) return
     const match = findBrandBySlug(brands, urlBrandSlug)
-    if (match) setActiveBrand(match)
-  }, [urlBrandSlug, brands, activeBrand, setActiveBrand])
+    const current = useActiveBrand.getState().activeBrand
+    if (match && (!current || current.id !== match.id)) {
+      setActiveBrand(match)
+    }
+  }, [brands, urlBrandSlug, setActiveBrand])
 
-  // 2) When the active brand changes (via the inline switcher OR the
-  // sidebar BrandAvatar dropdown), write the slug back into the URL so
-  // refresh / share preserves the choice. Only updates when it actually
-  // differs to avoid a feedback loop with the read effect above.
+  // Store → URL. Fires when the active brand changes (inline switcher
+  // OR sidebar dropdown). Holds off until the initial URL → store sync
+  // has had a chance to run, so an incoming /calendar?brand=X link
+  // isn't clobbered by a still-persisted previous brand on first render.
   useEffect(() => {
     if (!activeBrand) return
+    if (!initialUrlSyncedRef.current) return
     const slug = brandSlug(activeBrand.name)
     if (urlBrandSlug === slug) return
     const next = new URLSearchParams(searchParams)
