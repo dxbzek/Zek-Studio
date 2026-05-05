@@ -237,12 +237,22 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Subtle warm/cool radial wash. Sits on a fixed-position layer behind
+     all content so it stays put on scroll without forcing the body to
+     repaint its background every frame — the source of the scroll
+     jitter caused by the previous background-attachment: fixed setup. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image:
       radial-gradient(1200px 600px at 90% -10%, oklch(0.96 0.02 80 / 0.45), transparent 60%),
       radial-gradient(900px 500px at -10% 110%, oklch(0.96 0.02 60 / 0.30), transparent 60%);
-    background-attachment: fixed;
   }
-  .dark body {
+  .dark body::before {
     background-image:
       radial-gradient(1200px 600px at 90% -10%, oklch(0.30 0.02 245 / 0.55), transparent 60%),
       radial-gradient(900px 500px at -10% 110%, oklch(0.20 0.01 245 / 0.55), transparent 60%);
