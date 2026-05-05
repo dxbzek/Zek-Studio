@@ -26,6 +26,26 @@ import { TEAM_ROLES } from '@/types'
 import type { TeamMember, TeamRole, BrandProfile } from '@/types'
 import { cn } from '@/lib/utils'
 
+// Translate raw Supabase / edge-function error messages into something a brand
+// owner can actually act on. Falls back to the original text so we never hide
+// a real failure.
+function humanizeInviteError(raw: string): string {
+  const m = raw.toLowerCase()
+  if (m.includes('rate limit')) {
+    return 'Email rate limit hit — Supabase caps invite emails per hour. Try again in ~1 hour.'
+  }
+  if (m.includes('team_members_role_check')) {
+    return 'Server is out of date (role mismatch). Redeploy the invite-member edge function.'
+  }
+  if (m.includes('already been invited') || m.includes('duplicate')) {
+    return 'This email already has access to that brand.'
+  }
+  if (m.includes('not found') || m.includes('access denied')) {
+    return "You don't own this brand, so you can't invite to it."
+  }
+  return raw
+}
+
 const ROLE_STYLES: Record<TeamRole, { label: string; cls: string }> = {
   admin:    { label: 'Admin',    cls: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
   editor:   { label: 'Editor',   cls: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
@@ -403,8 +423,14 @@ export default function TeamPage() {
       const ok = results.filter((r) => r.status === 'fulfilled').length
       const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
       if (failed.length > 0) {
+        // De-dupe identical reasons so a 5-brand grant that hits the same
+        // rate limit on every row doesn't render the same sentence five times.
+        const reasons = Array.from(new Set(
+          failed.map((f) => humanizeInviteError((f.reason as Error).message)),
+        ))
         toast.error(`Granted ${ok} of ${brandIds.length}`, {
-          description: failed.map((f) => (f.reason as Error).message).join(' · '),
+          description: reasons.join(' · '),
+          duration: 8000,
         })
       } else {
         // Check if any of the successful results was an existing account
@@ -425,7 +451,9 @@ export default function TeamPage() {
       }
       setInviteOpen(false)
     } catch (err) {
-      toast.error('Failed to invite', { description: (err as Error).message })
+      toast.error('Failed to invite', {
+        description: humanizeInviteError((err as Error).message),
+      })
     } finally {
       setWorking(false)
     }
@@ -451,7 +479,9 @@ export default function TeamPage() {
       await grantAccess.mutateAsync({ email, brandId, role: 'editor' })
       toast.success(`Added ${email} to brand (Editor)`)
     } catch (err) {
-      toast.error('Failed to grant access', { description: (err as Error).message })
+      toast.error('Failed to grant access', {
+        description: humanizeInviteError((err as Error).message),
+      })
     } finally {
       setWorking(false)
     }

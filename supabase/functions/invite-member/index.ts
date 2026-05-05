@@ -78,69 +78,85 @@ Deno.serve(async (req) => {
     }
 
     const redirectTo = `${req.headers.get('origin') ?? SUPABASE_URL}/tasks`
+    const normalizedEmail = email.toLowerCase()
 
-    // Try to send Supabase invite email (creates auth account for new users)
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email.toLowerCase(),
+    // Look up the invited user *first* via admin API. If they already exist
+    // we'll skip the invite email entirely (which would 422) and just record
+    // the team_members row + hand back a magic link. This used to happen
+    // *after* the invite call, which meant existing-user invites wasted a
+    // slot of the hourly email rate limit before we even got to the lookup.
+    const lookupRes = await fetch(
+      `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(normalizedEmail)}`,
       {
-        data: { role: 'specialist', brand_id },
-        redirectTo,
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        },
       },
     )
+    const lookupData = await lookupRes.json() as { users?: Array<{ id: string }> }
+    let invitedUserId: string | null = lookupData.users?.[0]?.id ?? null
+    const alreadyRegistered = !!invitedUserId
 
-    // Track what we tell the client
-    let emailed = !inviteError
-    let actionLink: string | null = null
-    let alreadyRegistered = false
-
-    if (inviteError) {
-      if (inviteError.message?.includes('already been registered')) {
-        alreadyRegistered = true
-        // Existing user — inviteUserByEmail won't send, so generate a magic link
-        // the owner can share manually or our own mailer could use.
-        const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'magiclink',
-          email: email.toLowerCase(),
-          options: { redirectTo },
-        })
-        actionLink = linkData?.properties?.action_link ?? null
-      } else {
-        throw new Error(inviteError.message)
-      }
-    }
-
-    // Look up the invited user's id if they already exist
-    let invitedUserId: string | null = inviteData?.user?.id ?? null
-    if (!invitedUserId) {
-      const lookupRes = await fetch(
-        `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email.toLowerCase())}`,
-        {
-          headers: {
-            'apikey': SUPABASE_SERVICE_KEY,
-            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          },
-        },
-      )
-      const lookupData = await lookupRes.json() as { users?: Array<{ id: string }> }
-      invitedUserId = lookupData.users?.[0]?.id ?? null
-    }
-
-    // Insert team_members row
+    // Step 1: insert the team_members row. Doing this *before* the email
+    // means a check-constraint or RLS failure surfaces immediately and
+    // doesn't burn the hourly invite-email quota.
     const { data: member, error: memberError } = await supabaseAdmin
       .from('team_members')
       .insert({
         brand_id,
         user_id: invitedUserId,
-        email: email.toLowerCase(),
-        role: 'specialist',
+        email: normalizedEmail,
+        role: 'editor',
       })
       .select()
       .single()
 
     if (memberError) throw new Error(memberError.message)
 
+    // Step 2: send the email or generate a share link. Failures here are
+    // non-fatal — the row exists, the inviter can retry email separately
+    // or just hand the link to the user.
+    let emailed = false
+    let actionLink: string | null = null
+    let emailError: string | null = null
+
+    if (alreadyRegistered) {
+      // Existing user — inviteUserByEmail would 422. Generate a magic link
+      // the owner can share manually instead.
+      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: normalizedEmail,
+        options: { redirectTo },
+      })
+      if (linkErr) emailError = linkErr.message
+      actionLink = linkData?.properties?.action_link ?? null
+    } else {
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+        normalizedEmail,
+        {
+          data: { role: 'editor', brand_id },
+          redirectTo,
+        },
+      )
+      if (inviteError) {
+        emailError = inviteError.message
+      } else {
+        emailed = true
+        // Backfill user_id now that we have one — the row was inserted with null.
+        const newUserId = inviteData?.user?.id ?? null
+        if (newUserId) {
+          await supabaseAdmin
+            .from('team_members')
+            .update({ user_id: newUserId })
+            .eq('id', member.id)
+          invitedUserId = newUserId
+        }
+      }
+    }
+
     return new Response(
-      JSON.stringify({ member, emailed, alreadyRegistered, actionLink }),
+      JSON.stringify({ member, emailed, alreadyRegistered, actionLink, emailError }),
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
     )
   } catch (err) {

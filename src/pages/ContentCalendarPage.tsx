@@ -1362,15 +1362,15 @@ export function ContentCalendarPage() {
         const disabledAll = !hasSelection || bulkBusy
         return (
         <div
-          style={{ bottom: 'max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem))' }}
-          className="premium-card fixed left-1/2 -translate-x-1/2 z-40 ring-1 ring-border/80 rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap max-w-[calc(100vw-2rem)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-300"
+          style={{ bottom: 'max(0.5rem, calc(env(safe-area-inset-bottom) + 0.25rem))' }}
+          className="premium-card fixed z-40 ring-1 ring-border/80 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 left-2 right-2 rounded-xl sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:max-w-[calc(100vw-2rem)] flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 overflow-x-auto sm:overflow-visible sm:flex-wrap whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <span className={`text-xs font-medium tabular-nums ${hasSelection ? 'text-foreground' : 'text-muted-foreground'}`}>
+          <span className={`text-xs font-medium tabular-nums shrink-0 ${hasSelection ? 'text-foreground' : 'text-muted-foreground'}`}>
             {hasSelection
               ? <>{selectedEntries.length} selected</>
-              : 'Select entries to act on them'}
+              : <span className="hidden sm:inline">Select entries to act on them</span>}
           </span>
-          <div className="h-4 w-px bg-border" />
+          <div className="hidden sm:block h-4 w-px bg-border" />
           {STATUSES.map((s) => (
             <button
               key={s.value}
@@ -1382,7 +1382,7 @@ export function ContentCalendarPage() {
               {s.label}
             </button>
           ))}
-          <div className="h-4 w-px bg-border" />
+          <div className="hidden sm:block h-4 w-px bg-border" />
           <label className={`text-xs flex items-center gap-1 ${disabledAll ? 'text-muted-foreground/60' : 'text-muted-foreground'}`}>
             Move to
             <input
@@ -1394,7 +1394,7 @@ export function ContentCalendarPage() {
               className="h-6 rounded border border-border bg-transparent px-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-40"
             />
           </label>
-          <div className="h-4 w-px bg-border" />
+          <div className="hidden sm:block h-4 w-px bg-border" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -1422,7 +1422,7 @@ export function ContentCalendarPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="h-4 w-px bg-border" />
+          <div className="hidden sm:block h-4 w-px bg-border" />
           <button
             type="button"
             disabled={disabledAll}
