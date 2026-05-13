@@ -11,16 +11,22 @@ export type EntryGroup = {
 export function groupEntries(entries: CalendarEntry[]): EntryGroup[] {
   const map = new Map<string, CalendarEntry[]>()
   for (const e of entries) {
-    const key = `${e.title.toLowerCase().trim()}__${e.scheduled_date}__${e.platform === 'linkedin' ? 'linkedin' : 'social'}`
+    const key = `${e.title.toLowerCase().trim()}__${e.scheduled_date}`
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(e)
   }
-  return Array.from(map.values()).map((grp) => ({
-    id: grp[0].id,
-    representative: grp[0],
-    entries: grp,
-    platforms: grp.map((e) => e.platform),
-  }))
+  return Array.from(map.values()).map((grp) => {
+    // Prefer a non-LinkedIn entry as representative so the format badge
+    // reflects the short-form video format (reel/carousel) rather than
+    // LinkedIn's static format.
+    const rep = grp.find((e) => e.platform !== 'linkedin') ?? grp[0]
+    return {
+      id: rep.id,
+      representative: rep,
+      entries: grp,
+      platforms: grp.map((e) => e.platform),
+    }
+  })
 }
 
 export const STATUSES: { value: CalendarStatus; label: string }[] = [
@@ -39,13 +45,4 @@ export const PILLAR_COLORS = [
 export function deriveTaskStatus(
   calendarStatus: CalendarStatus,
 ): 'todo' | 'in_progress' | 'scheduled' | 'done' {
-  if (calendarStatus === 'published') return 'done'
-  if (calendarStatus === 'scheduled') return 'scheduled'
-  return 'todo'
-}
-
-export function emailHandle(email: string): string {
-  return email.split('@')[0]
-}
-
-export const MAX_PLATFORM_BADGES = 3
+  if (calendarStatus === 'published') 
