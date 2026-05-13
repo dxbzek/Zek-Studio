@@ -45,4 +45,13 @@ export const PILLAR_COLORS = [
 export function deriveTaskStatus(
   calendarStatus: CalendarStatus,
 ): 'todo' | 'in_progress' | 'scheduled' | 'done' {
-  if (calendarStatus === 'published') 
+  if (calendarStatus === 'published') return 'done'
+  if (calendarStatus === 'scheduled') return 'scheduled'
+  return 'todo'
+}
+
+export function emailHandle(email: string): string {
+  return email.split('@')[0]
+}
+
+export const MAX_PLATFORM_BADGES = 3
