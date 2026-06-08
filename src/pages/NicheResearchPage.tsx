@@ -19,6 +19,7 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   facebook:  'Facebook',
   linkedin:  'LinkedIn',
   twitter:   'X',
+  pinterest: 'Pinterest',
 }
 
 export function NicheResearchPage() {
