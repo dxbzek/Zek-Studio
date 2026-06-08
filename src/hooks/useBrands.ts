@@ -10,7 +10,7 @@ import type { BrandProfile } from '@/types'
 const BRAND_COLUMNS =
   'id, user_id, name, niche, target_location, website_url, platforms, ' +
   'avatar_url, color, instagram_handle, tiktok_handle, facebook_handle, ' +
-  'youtube_handle, linkedin_handle, pinterest_handle, created_at, updated_at'
+  'youtube_handle, linkedin_handle, pinterest_handle, snapchat_handle, created_at, updated_at'
 
 export interface BrandUpsert {
   name: string
@@ -26,6 +26,7 @@ export interface BrandUpsert {
   youtube_handle?: string | null
   linkedin_handle?: string | null
   pinterest_handle?: string | null
+  snapchat_handle?: string | null
 }
 
 export function useBrands() {
