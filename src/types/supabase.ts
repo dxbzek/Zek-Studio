@@ -17,6 +17,7 @@ export type Database = {
           facebook_handle: string | null
           youtube_handle: string | null
           linkedin_handle: string | null
+          pinterest_handle: string | null
           created_at: string
           updated_at: string
         }
@@ -35,6 +36,7 @@ export type Database = {
           facebook_handle?: string | null
           youtube_handle?: string | null
           linkedin_handle?: string | null
+          pinterest_handle?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -51,6 +53,7 @@ export type Database = {
           facebook_handle?: string | null
           youtube_handle?: string | null
           linkedin_handle?: string | null
+          pinterest_handle?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -208,7 +211,7 @@ export type Database = {
         Row: {
           id: string
           brand_id: string
-          platform: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter'
+          platform: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter' | 'pinterest'
           content_type: string
           title: string
           body: string | null
@@ -233,7 +236,7 @@ export type Database = {
         Insert: {
           id?: string
           brand_id: string
-          platform: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter'
+          platform: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter' | 'pinterest'
           content_type: string
           title: string
           body?: string | null
@@ -257,7 +260,7 @@ export type Database = {
         }
         Update: {
           brand_id?: string
-          platform?: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter'
+          platform?: 'instagram' | 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'twitter' | 'pinterest'
           content_type?: string
           title?: string
           body?: string | null
