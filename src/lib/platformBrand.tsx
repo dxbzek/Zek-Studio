@@ -6,6 +6,7 @@ type BrandInfo = {
   text: string          // brand-tinted text (for tables / trend columns)
   slug: string          // simple-icons slug
   hex: string           // brand color without '#', used for Simple Icons CDN
+  logoColor?: string    // override logo color on brand bg (defaults to 'white')
 }
 
 export const PLATFORM_BRAND: Record<Platform, BrandInfo> = {
@@ -59,11 +60,12 @@ export const PLATFORM_BRAND: Record<Platform, BrandInfo> = {
     hex:  'E60023',
   },
   snapchat: {
-    bg:   'bg-[#FFFC00]',
-    chip: 'bg-[#FFFC00]/20 text-yellow-600 dark:text-yellow-400',
-    text: 'text-yellow-600 dark:text-yellow-400',
-    slug: 'snapchat',
-    hex:  'FFFC00',
+    bg:        'bg-[#FFFC00]',
+    chip:      'bg-[#FFFC00]/20 text-yellow-600 dark:text-yellow-400',
+    text:      'text-yellow-600 dark:text-yellow-400',
+    slug:      'snapchat',
+    hex:       'FFFC00',
+    logoColor: '000000',
   },
 }
 
@@ -118,7 +120,7 @@ export function PlatformBadge({
   size?: 'xs' | 'sm' | 'md'
   title?: string
 }) {
-  const { bg } = PLATFORM_BRAND[platform]
+  const { bg, logoColor } = PLATFORM_BRAND[platform]
   const box  = size === 'xs' ? 'h-4 w-4 rounded'   : size === 'sm' ? 'h-5 w-5 rounded-md' : 'h-6 w-6 rounded-md'
   const icon = size === 'xs' ? 'h-2.5 w-2.5'        : size === 'sm' ? 'h-3 w-3'           : 'h-3.5 w-3.5'
   return (
@@ -126,7 +128,7 @@ export function PlatformBadge({
       className={`inline-flex items-center justify-center shrink-0 ${box} ${bg}`}
       title={title ?? platform}
     >
-      <PlatformLogo platform={platform} color="white" className={icon} />
+      <PlatformLogo platform={platform} color={logoColor ?? 'white'} className={icon} />
     </span>
   )
 }
@@ -145,12 +147,12 @@ export function PlatformPill({
   label: string
   active?: boolean
 }) {
-  const { bg, chip, hex } = PLATFORM_BRAND[platform]
-  const logoColor = active ? 'white' : hex
+  const { bg, chip, hex, logoColor: brandLogoColor } = PLATFORM_BRAND[platform]
+  const logoColor = active ? (brandLogoColor ?? 'white') : (brandLogoColor ?? hex)
   return (
     <span
       className={`inline-flex items-center gap-1.5 p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-medium leading-none transition-colors ${
-        active ? `${bg} text-white` : chip
+        active ? `${bg} ${brandLogoColor ? 'text-black' : 'text-white'}` : chip
       }`}
       title={label}
     >
