@@ -58,6 +58,13 @@ export const PLATFORM_BRAND: Record<Platform, BrandInfo> = {
     slug: 'pinterest',
     hex:  'E60023',
   },
+  snapchat: {
+    bg:   'bg-[#FFFC00]',
+    chip: 'bg-[#FFFC00]/20 text-yellow-600 dark:text-yellow-400',
+    text: 'text-yellow-600 dark:text-yellow-400',
+    slug: 'snapchat',
+    hex:  'FFFC00',
+  },
 }
 
 // LinkedIn was removed from Simple Icons after a trademark takedown, so the CDN

@@ -48,6 +48,7 @@ const schema = z.object({
   youtube_handle: z.string().max(100).optional(),
   linkedin_handle: z.string().max(100).optional(),
   pinterest_handle: z.string().max(100).optional(),
+  snapchat_handle: z.string().max(100).optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -88,6 +89,7 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
       youtube_handle: defaultValues?.youtube_handle ?? '',
       linkedin_handle: defaultValues?.linkedin_handle ?? '',
       pinterest_handle: defaultValues?.pinterest_handle ?? '',
+      snapchat_handle: defaultValues?.snapchat_handle ?? '',
     },
   })
 
@@ -269,7 +271,8 @@ export function BrandForm({ defaultValues, onSubmit, onCancel, submitting }: Bra
           { platform: 'facebook',  field: 'facebook_handle',  label: 'Facebook page',    placeholder: 'pagename' },
           { platform: 'youtube',   field: 'youtube_handle',   label: 'YouTube channel',    placeholder: '@channelname' },
           { platform: 'linkedin',  field: 'linkedin_handle',  label: 'LinkedIn company page', placeholder: 'company-slug' },
-          { platform: 'pinterest', field: 'pinterest_handle', label: 'Pinterest profile', placeholder: '@profilename' },
+          { platform: 'pinterest', field: 'pinterest_handle', label: 'Pinterest profile',  placeholder: '@profilename' },
+          { platform: 'snapchat',  field: 'snapchat_handle',  label: 'Snapchat username', placeholder: '@username'     },
         ] as const
       )
         .filter(({ platform }) => selectedPlatforms.includes(platform))

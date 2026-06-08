@@ -16,6 +16,7 @@ export type Platform =
   | 'youtube'
   | 'twitter'
   | 'pinterest'
+  | 'snapchat'
 
 export const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'instagram', label: 'Instagram' },
@@ -25,6 +26,7 @@ export const PLATFORMS: { value: Platform; label: string }[] = [
   { value: 'youtube',   label: 'YouTube'   },
   { value: 'twitter',   label: 'X'         },
   { value: 'pinterest', label: 'Pinterest' },
+  { value: 'snapchat',  label: 'Snapchat'  },
 ]
 
 // Generator-specific platform list — merges Instagram + Facebook into Meta
@@ -55,6 +57,7 @@ export interface BrandProfile {
   youtube_handle: string | null
   linkedin_handle: string | null
   pinterest_handle: string | null
+  snapchat_handle: string | null
   created_at: string
   updated_at: string
 }
