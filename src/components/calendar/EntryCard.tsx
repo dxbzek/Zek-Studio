@@ -74,6 +74,49 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
     else onClick()
   }
 
+  // Quick-action ⋯ menu. Shared between the mobile and desktop layouts so
+  // touch users get the same Mark / Move / Delete shortcuts that previously
+  // only appeared on hover at desktop widths. `alwaysVisible` keeps it shown
+  // on touch (no hover to reveal it); on desktop it fades in on card hover.
+  const quickMenu = (alwaysVisible: boolean) =>
+    onQuickAction && !selectMode ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={`${alwaysVisible ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'} focus:opacity-100 text-muted-foreground hover:text-foreground rounded p-0.5 transition-all duration-150 hover:scale-110 hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+            aria-label="Quick actions"
+          >
+            <MoreVertical className="h-3 w-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[180px]" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onSelect={() => onQuickAction(group, 'mark-published')}>
+            Mark Published
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onQuickAction(group, 'mark-scheduled')}>
+            Mark Scheduled
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => onQuickAction(group, 'move-plus-1d')}>
+            Move +1 day
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onQuickAction(group, 'move-plus-7d')}>
+            Move +1 week
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => onQuickAction(group, 'delete')}
+            className="text-destructive focus:text-destructive"
+          >
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : null
+
   return (
     <div
       ref={setNodeRef}
@@ -101,6 +144,7 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
           </span>
         )}
         <span className="text-foreground line-clamp-1 text-[11px] leading-tight flex-1">{rep.title}</span>
+        {quickMenu(true)}
       </div>
       {/* Desktop: platform stack + metadata dots + title */}
       <div className="hidden sm:block">
@@ -121,43 +165,7 @@ function EntryCardImpl({ group, onClick, selectMode, isSelected, onToggleSelect,
           )}
           <span className="ml-auto flex items-center gap-1 shrink-0">
             {rep.assigned_talent && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" title="Assigned" />}
-            {onQuickAction && !selectMode && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="opacity-0 group-hover/card:opacity-100 focus:opacity-100 text-muted-foreground hover:text-foreground rounded p-0.5 transition-all duration-150 hover:scale-110 hover:bg-accent active:scale-95"
-                    aria-label="Quick actions"
-                  >
-                    <MoreVertical className="h-3 w-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[180px]" onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'mark-published')}>
-                    Mark Published
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'mark-scheduled')}>
-                    Mark Scheduled
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'move-plus-1d')}>
-                    Move +1 day
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => onQuickAction(group, 'move-plus-7d')}>
-                    Move +1 week
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => onQuickAction(group, 'delete')}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            {quickMenu(false)}
           </span>
         </div>
         <div className="flex items-start gap-1.5 mt-0.5">

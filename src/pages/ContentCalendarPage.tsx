@@ -949,8 +949,9 @@ export function ContentCalendarPage() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="group/brand inline-flex items-center gap-1.5 mt-1 text-[12px] sm:text-[13px] text-muted-foreground hover:text-foreground transition-colors max-w-full"
+                  className="group/brand inline-flex items-center gap-1.5 mt-1 text-[12px] sm:text-[13px] text-muted-foreground hover:text-foreground transition-colors max-w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
                   aria-label="Switch brand"
+                  aria-haspopup="menu"
                 >
                   <BrandAvatar brand={activeBrand} size={16} rounded="full" />
                   <span className="truncate">{activeBrand.name}</span>
@@ -984,6 +985,7 @@ export function ContentCalendarPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
+              aria-label="Search entries"
               className="h-8 pl-7 pr-7 w-44 text-xs"
             />
             {search && (
@@ -999,6 +1001,32 @@ export function ContentCalendarPage() {
           </div>
           <Button variant="outline" size="sm" className="hidden sm:inline-flex" onClick={() => navigate('/campaigns')}>Campaigns</Button>
           <Button size="sm" onClick={() => openCreate()}>New</Button>
+        </div>
+      </div>
+
+      {/* Mobile search — the header search is desktop-only (no room next to
+          the title + New button), so phone users get a full-width search row
+          here instead of no search at all. */}
+      <div className="sm:hidden px-4 pb-3 shrink-0">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search entries…"
+            aria-label="Search entries"
+            className="h-9 pl-8 pr-8 w-full text-sm"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1020,7 +1048,7 @@ export function ContentCalendarPage() {
             }
             aria-pressed={filterPlatforms.includes(p.value)}
             aria-label={`Filter: ${p.label}`}
-            className="rounded-full border border-transparent hover:opacity-90 transition-opacity shrink-0"
+            className="rounded-full border border-transparent hover:opacity-90 transition-opacity shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <PlatformPill platform={p.value} label={p.label} active={filterPlatforms.includes(p.value)} />
           </button>
@@ -1032,7 +1060,7 @@ export function ContentCalendarPage() {
             type="button"
             onClick={() => setFilterStatus(s)}
             aria-pressed={filterStatus === s}
-            className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
+            className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
               filterStatus === s
                 ? s === 'all'
                   ? 'bg-foreground text-background border-transparent shadow-sm'
@@ -1048,7 +1076,7 @@ export function ContentCalendarPage() {
           type="button"
           onClick={() => setFilterFormat('all')}
           aria-pressed={filterFormat === 'all'}
-          className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
+          className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             filterFormat === 'all'
               ? 'bg-foreground text-background border-transparent shadow-sm'
               : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
@@ -1072,7 +1100,7 @@ export function ContentCalendarPage() {
               onClick={() => setFilterFormat((prev) => prev === f.value ? 'all' : f.value)}
               aria-pressed={active}
               aria-label={`Filter: ${f.label}`}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
+              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 active
                   ? `${CONTENT_FORMAT_SOLID[f.value]} border-transparent shadow-sm`
                   : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
@@ -1126,7 +1154,7 @@ export function ContentCalendarPage() {
           type="button"
           onClick={prevMonth}
           aria-label="Previous month"
-          className="p-1 rounded hover:bg-accent transition-all duration-150 active:scale-90"
+          className="p-1 rounded hover:bg-accent transition-all duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden />
         </button>
@@ -1140,14 +1168,14 @@ export function ContentCalendarPage() {
           type="button"
           onClick={nextMonth}
           aria-label="Next month"
-          className="p-1 rounded hover:bg-accent transition-all duration-150 active:scale-90"
+          className="p-1 rounded hover:bg-accent transition-all duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronRight className="h-4 w-4" aria-hidden />
         </button>
         <button
           type="button"
           onClick={() => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()) }}
-          className="ml-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95"
+          className="ml-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Today
         </button>
@@ -1184,7 +1212,7 @@ export function ContentCalendarPage() {
             <button
               type="button"
               onClick={() => setShortcutsOpen(true)}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-all duration-150 hover:border-foreground/40 hover:bg-accent/40 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               title="Keyboard shortcuts (press ? to toggle)"
               aria-label="Keyboard shortcuts"
             >
@@ -1207,7 +1235,7 @@ export function ContentCalendarPage() {
             if (selectMode) exitSelectMode()
             else setSelectMode(true)
           }}
-          className={`${selectMode ? 'ml-auto' : ''} text-xs border rounded px-2 py-0.5 transition-colors ${
+          className={`${selectMode ? 'ml-auto' : ''} text-xs border rounded px-2 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
             selectMode
               ? 'bg-primary text-primary-foreground border-primary'
               : 'border-border text-muted-foreground hover:text-foreground'
@@ -1221,7 +1249,7 @@ export function ContentCalendarPage() {
               key={m}
               type="button"
               onClick={() => setViewMode(m)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 viewMode === m
                   ? 'bg-background shadow-sm text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -1249,6 +1277,9 @@ export function ContentCalendarPage() {
           - filters active and trimmed to zero → offer a Clear filters button
           - no entries at all this month → orientation hint */}
       {(() => {
+        // Hold the advisory back until the first fetch settles — otherwise it
+        // flashes "No posts scheduled" over the loading skeleton.
+        if (entries.isLoading || entries.isError) return null
         const filtersActive =
           filterPlatforms.length !== PLATFORMS.length ||
           filterStatus !== 'all' ||
@@ -1288,38 +1319,83 @@ export function ContentCalendarPage() {
       })()}
 
       {/* Day name headers */}
-      <div className="grid grid-cols-7 border-b border-border px-4 sm:px-6 shrink-0">
+      <div role="row" className="grid grid-cols-7 border-b border-border px-4 sm:px-6 shrink-0">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-          <div key={d} className="py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground text-center">
-            <span className="sm:hidden">{d.slice(0,1)}</span>
-            <span className="hidden sm:inline">{d}</span>
+          <div key={d} role="columnheader" aria-label={d} className="py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground text-center">
+            <span className="sm:hidden" aria-hidden>{d.slice(0,1)}</span>
+            <span className="hidden sm:inline" aria-hidden>{d}</span>
           </div>
         ))}
       </div>
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6">
-        <div
-          key={`${viewYear}-${viewMonth}`}
-          className="grid grid-cols-7 border-l border-t border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
-        >
-          {gridDays.map((day) => (
-            <DayCell
-              key={format(day, 'yyyy-MM-dd')}
-              day={day}
-              groups={groupsForDay(day)}
-              isCurrentMonth={isSameMonth(day, new Date(viewYear, viewMonth))}
-              tall={viewMode === 'week'}
-              onGroupClick={openEdit}
-              onAddClick={() => openCreate(format(day, 'yyyy-MM-dd'))}
-              selectMode={selectMode}
-              selectedGroupIds={selectedGroupIds}
-              onToggleSelect={toggleSelect}
-              onToggleSelectDay={toggleSelectDay}
-              onQuickAction={handleQuickAction}
-            />
-          ))}
-        </div>
+        {entries.isError ? (
+          // Fetch failed — give a reason and a retry instead of a silent
+          // blank grid.
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <p className="text-sm text-muted-foreground">
+              Couldn't load this month's calendar.
+            </p>
+            <p className="text-xs text-muted-foreground/80 max-w-sm">
+              {entries.error instanceof Error ? entries.error.message : 'Something went wrong.'}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => entries.refetch()}>
+              Try again
+            </Button>
+          </div>
+        ) : entries.isLoading ? (
+          // Skeleton grid while the first fetch is in flight — keeps the
+          // calendar's shape so the layout doesn't jump when data lands.
+          <div
+            className="grid grid-cols-7 border-l border-t border-border"
+            aria-hidden
+          >
+            {gridDays.map((day) => (
+              <div
+                key={format(day, 'yyyy-MM-dd')}
+                className={`border-b border-r border-border p-1.5 flex flex-col gap-1.5 ${viewMode === 'week' ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'}`}
+              >
+                <div className="h-4 w-4 rounded-full bg-muted animate-pulse" />
+                {((format(day, 'd').charCodeAt(0) % 3)) > 0 && (
+                  <div className="h-5 w-full rounded bg-muted/70 animate-pulse" />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            key={`${viewYear}-${viewMonth}`}
+            role="grid"
+            aria-label={`${format(new Date(viewYear, viewMonth), 'MMMM yyyy')} calendar`}
+            className="grid grid-cols-7 border-l border-t border-border motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
+          >
+            {/* Chunk the flat day list into weeks so each renders as an ARIA
+                row. display:contents keeps the row wrapper out of the visual
+                box model, so the 7-column CSS grid still lays the cells out
+                directly. */}
+            {Array.from({ length: gridDays.length / 7 }, (_, w) => gridDays.slice(w * 7, w * 7 + 7)).map((week) => (
+              <div key={format(week[0], 'yyyy-MM-dd')} role="row" style={{ display: 'contents' }}>
+                {week.map((day) => (
+                  <DayCell
+                    key={format(day, 'yyyy-MM-dd')}
+                    day={day}
+                    groups={groupsForDay(day)}
+                    isCurrentMonth={isSameMonth(day, new Date(viewYear, viewMonth))}
+                    tall={viewMode === 'week'}
+                    onGroupClick={openEdit}
+                    onAddClick={() => openCreate(format(day, 'yyyy-MM-dd'))}
+                    selectMode={selectMode}
+                    selectedGroupIds={selectedGroupIds}
+                    onToggleSelect={toggleSelect}
+                    onToggleSelectDay={toggleSelectDay}
+                    onQuickAction={handleQuickAction}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
         <DragOverlay>
           {draggingGroup && <EntryCardOverlay group={draggingGroup} />}
         </DragOverlay>

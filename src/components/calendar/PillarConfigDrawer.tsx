@@ -114,20 +114,28 @@ export function PillarConfigDrawer({
                 min={1}
                 max={100}
                 value={pct}
-                onChange={(e) => setPct(Number(e.target.value))}
+                onChange={(e) => {
+                  // Clamp to 1–100 so a stray keystroke can't store an
+                  // out-of-range target that throws off the distribution bar.
+                  const n = Number(e.target.value)
+                  setPct(Number.isFinite(n) ? Math.min(100, Math.max(1, Math.round(n))) : 1)
+                }}
                 className="h-8 text-sm w-24"
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs text-muted-foreground">Color</label>
-              <div className="flex flex-wrap gap-2">
-                {PILLAR_COLORS.map((c) => (
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Pillar color">
+                {PILLAR_COLORS.map((c, i) => (
                   <button
                     key={c}
                     type="button"
+                    role="radio"
+                    aria-checked={color === c}
+                    aria-label={`Color ${i + 1}`}
                     onClick={() => setColor(c)}
                     style={{ background: c }}
-                    className={`h-6 w-6 rounded-full transition-all duration-150 ${
+                    className={`h-6 w-6 rounded-full transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                       color === c
                         ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110'
                         : 'hover:scale-110 opacity-80 hover:opacity-100'
