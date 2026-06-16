@@ -503,7 +503,7 @@ export function EntryDrawer({
               Renders a thumbnail when the URL looks like an image. */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
-              Reference image{' '}
+              Reference{' '}
               <span className="text-muted-foreground font-normal text-xs">(optional)</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-start">
