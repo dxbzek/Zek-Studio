@@ -58,9 +58,20 @@ export function DayCell({
   // dismiss it. Radix handles outside-click and Esc to close.
   const [moreOpen, setMoreOpen] = useState(false)
 
+  // Spoken label for the cell — e.g. "Monday, June 16, today, 2 entries".
+  const cellLabel = [
+    format(day, 'EEEE, MMMM d'),
+    todayFlag ? 'today' : null,
+    groups.length === 0
+      ? 'no entries'
+      : `${groups.length} ${groups.length === 1 ? 'entry' : 'entries'}`,
+  ].filter(Boolean).join(', ')
+
   return (
     <div
       ref={setNodeRef}
+      role="gridcell"
+      aria-label={cellLabel}
       onClick={() => { if (!selectMode) onAddClick() }}
       className={`group border-b border-r border-border p-1 sm:p-1.5 flex flex-col gap-1 transition-[background-color,box-shadow] duration-200 ease-out ${tall ? 'min-h-[180px] sm:min-h-[200px]' : 'min-h-[80px] sm:min-h-[110px]'} ${!isCurrentMonth ? 'bg-muted/20 hover:bg-muted/40' : selectMode ? '' : 'hover:bg-accent/30'} ${selectMode ? '' : 'cursor-pointer'} ${isOver ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset shadow-[inset_0_0_0_2px_rgba(0,0,0,0.02)]' : ''}`}
     >
@@ -134,7 +145,8 @@ export function DayCell({
         <Popover open={moreOpen} onOpenChange={setMoreOpen}>
           <PopoverTrigger
             onClick={(e) => e.stopPropagation()}
-            className="text-[10px] text-muted-foreground hover:text-foreground px-1 font-mono tabular-nums text-left self-start rounded hover:bg-accent/50 transition-colors"
+            aria-label={`Show ${groups.length - MAX_VISIBLE} more ${groups.length - MAX_VISIBLE === 1 ? 'entry' : 'entries'} on ${format(day, 'EEEE, MMMM d')}`}
+            className="text-[10px] text-muted-foreground hover:text-foreground px-1 font-mono tabular-nums text-left self-start rounded hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
           >
             +{groups.length - MAX_VISIBLE} more
           </PopoverTrigger>

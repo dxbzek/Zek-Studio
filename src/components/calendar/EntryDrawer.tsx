@@ -165,6 +165,17 @@ const INITIAL: EntryFormValues = {
 
 const ALL_PLATFORMS = PLATFORMS.map((p) => p.value)
 
+// Quiet inline marker shown beside a field the title-watch effect filled in,
+// so the auto-fill is visible rather than a silent jump the user has to notice.
+function AutoFilledHint() {
+  return (
+    <span className="ml-1.5 align-middle inline-flex items-center gap-0.5 text-[10px] font-medium text-primary/70">
+      <Sparkles className="h-2.5 w-2.5" aria-hidden />
+      from title
+    </span>
+  )
+}
+
 export function EntryDrawer({
   open, onOpenChange, mode, group, defaultDate, defaultFormat, members, campaigns, pillars,
   saving, deleting, onSave, onDelete, onDuplicate, duplicating, onGenerateCaption,
@@ -186,6 +197,19 @@ export function EntryDrawer({
   const campaignManuallyPicked = useRef(false)
   const pillarManuallyPicked = useRef(false)
   const formatManuallyPicked = useRef(false)
+
+  // Which fields the title-watch effect filled in for the user. Surfaced as a
+  // quiet "from title" hint next to the field so the auto-fill isn't silent —
+  // the user can see why a chip changed and override it. Cleared per-field the
+  // moment the user picks that field manually.
+  const [inferredFields, setInferredFields] = useState<Set<keyof EntryFormValues>>(new Set())
+  const clearInferred = (k: keyof EntryFormValues) =>
+    setInferredFields((prev) => {
+      if (!prev.has(k)) return prev
+      const n = new Set(prev)
+      n.delete(k)
+      return n
+    })
 
   useEffect(() => {
     if (!open) return
@@ -235,6 +259,7 @@ export function EntryDrawer({
     }
     setValues(next)
     initialValuesRef.current = next
+    setInferredFields(new Set())
   }, [open, mode, group, defaultDate, defaultFormat, activeBrand])
 
   // Autofocus the title input when creating. Sheet animates in, so wait one
@@ -252,29 +277,35 @@ export function EntryDrawer({
   useEffect(() => {
     if (!open) return
     const patch: Partial<EntryFormValues> = {}
+    const inferred: (keyof EntryFormValues)[] = []
     if (!typeManuallyPicked.current) {
       const t = inferContentType(values.title)
-      if (t && t !== values.contentType) patch.contentType = t
+      if (t && t !== values.contentType) { patch.contentType = t; inferred.push('contentType') }
     }
     if (!campaignManuallyPicked.current && campaigns.length > 0) {
       const id = inferByNameMatch(values.title, campaigns)
-      if (id && id !== values.campaignId) patch.campaignId = id
+      if (id && id !== values.campaignId) { patch.campaignId = id; inferred.push('campaignId') }
     }
     if (!formatManuallyPicked.current) {
       // Default format follows the content type — Property Tour ⇒ reel,
       // Market Update ⇒ carousel, etc. The user can override via the chip.
       const def = FORMAT_BY_CONTENT_THEME[values.contentType]
-      if (def && def !== values.format) patch.format = def
+      if (def && def !== values.format) { patch.format = def; inferred.push('format') }
     }
     if (!pillarManuallyPicked.current && pillars.length > 0) {
       const id = inferByNameMatch(
         values.title,
         pillars.map((p) => ({ id: p.id, name: p.label })),
       )
-      if (id && id !== values.pillarId) patch.pillarId = id
+      if (id && id !== values.pillarId) { patch.pillarId = id; inferred.push('pillarId') }
     }
     if (Object.keys(patch).length > 0) {
       setValues((prev) => ({ ...prev, ...patch }))
+      setInferredFields((prev) => {
+        const n = new Set(prev)
+        inferred.forEach((k) => n.add(k))
+        return n
+      })
     }
   }, [values.title, values.contentType, open, campaigns, pillars]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -595,7 +626,10 @@ export function EntryDrawer({
 
           {/* Content type */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Content type</label>
+            <label className="text-sm font-medium">
+              Content type
+              {inferredFields.has('contentType') && <AutoFilledHint />}
+            </label>
             <div className="flex flex-wrap gap-1.5">
               {CONTENT_THEMES.map((ct) => (
                 <button
@@ -606,6 +640,7 @@ export function EntryDrawer({
                   aria-pressed={values.contentType === ct.value}
                   onClick={() => {
                     typeManuallyPicked.current = true
+                    clearInferred('contentType')
                     set('contentType', ct.value as ContentTheme)
                   }}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
@@ -625,11 +660,12 @@ export function EntryDrawer({
             <label className="text-sm font-medium">
               Format{' '}
               <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+              {inferredFields.has('format') && <AutoFilledHint />}
             </label>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => { formatManuallyPicked.current = true; set('format', null) }}
+                onClick={() => { formatManuallyPicked.current = true; clearInferred('format'); set('format', null) }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
                   values.format === null
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm'
@@ -645,7 +681,7 @@ export function EntryDrawer({
                   title={f.desc}
                   aria-label={`${f.label}: ${f.desc}`}
                   aria-pressed={values.format === f.value}
-                  onClick={() => { formatManuallyPicked.current = true; set('format', f.value) }}
+                  onClick={() => { formatManuallyPicked.current = true; clearInferred('format'); set('format', f.value) }}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
                     values.format === f.value
                       ? `${CONTENT_FORMAT_SOLID[f.value]} shadow-sm`
@@ -708,11 +744,13 @@ export function EntryDrawer({
                 <label className="text-sm font-medium">
                   Campaign{' '}
                   <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                  {inferredFields.has('campaignId') && <AutoFilledHint />}
                 </label>
                 <Select
                   value={values.campaignId ?? '__none__'}
                   onValueChange={(v) => {
                     campaignManuallyPicked.current = true
+                    clearInferred('campaignId')
                     set('campaignId', v === '__none__' ? null : v)
                   }}
                 >
@@ -748,12 +786,14 @@ export function EntryDrawer({
               <label className="text-sm font-medium">
                 Pillar{' '}
                 <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                {inferredFields.has('pillarId') && <AutoFilledHint />}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
                     pillarManuallyPicked.current = true
+                    clearInferred('pillarId')
                     set('pillarId', null)
                   }}
                   className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all duration-150 hover:-translate-y-px active:translate-y-0 active:scale-95 ${
@@ -770,6 +810,7 @@ export function EntryDrawer({
                     type="button"
                     onClick={() => {
                       pillarManuallyPicked.current = true
+                      clearInferred('pillarId')
                       set('pillarId', p.id)
                     }}
                     style={
