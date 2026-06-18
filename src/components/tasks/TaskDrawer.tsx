@@ -58,6 +58,11 @@ export function TaskDrawer({
   const [formStatus, setFormStatus] = useState<TaskStatus>(defaultStatus)
 
   // Sync form state when the drawer opens with a different task / mode.
+  // Intentional "reset local form state when the drawer opens for a different
+  // target" sync. The react.dev key-remount alternative isn't a fit here
+  // (controlled form, Sheet open/close animation, create-vs-edit modes), so we
+  // scope-disable set-state-in-effect for this one effect.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return
     if (mode === 'edit' && task) {
@@ -78,6 +83,7 @@ export function TaskDrawer({
       setFormStatus(defaultStatus)
     }
   }, [open, mode, task, defaultStatus])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleSave() {
     if (!formTitle.trim()) { toast.error('Title is required'); return }

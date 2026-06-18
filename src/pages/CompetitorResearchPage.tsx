@@ -87,6 +87,10 @@ export function CompetitorResearchPage() {
   const [transcribingPostId, setTranscribingPostId] = useState<string | null>(null)
   const [rescrapingId, setRescrapingId] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(10)
+  // Confirmation popup before destructive remove. Stores both id and handle
+  // so the dialog can name what's being removed. Declared with the other hooks
+  // (above the early return) so hook order stays stable.
+  const [pendingCompetitorDelete, setPendingCompetitorDelete] = useState<{ id: string; handle: string } | null>(null)
 
   const { competitors, runResearch, deleteCompetitor, transcribePost } = useCompetitors(activeBrand?.id ?? null)
   const { data: posts = [], isLoading: postsLoading } = useCompetitorPosts(
@@ -133,10 +137,6 @@ export function CompetitorResearchPage() {
       setSavingPostId(null)
     }
   }
-
-  // Confirmation popup before destructive remove. Stores both id and handle
-  // so the dialog can name what's being removed.
-  const [pendingCompetitorDelete, setPendingCompetitorDelete] = useState<{ id: string; handle: string } | null>(null)
 
   async function confirmDeleteCompetitor() {
     if (!pendingCompetitorDelete) return

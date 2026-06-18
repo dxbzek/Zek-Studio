@@ -260,6 +260,20 @@ export function ContentGeneratorPage() {
 
   const topRef = useRef<HTMLDivElement>(null)
 
+  // Declared above the early return so hook order stays stable. Computes from
+  // history.data directly (the plain `historyItems` const lives below the
+  // early return and is fine there — it isn't a hook).
+  const filteredHistory = useMemo(() => {
+    const items = history.data ?? []
+    if (!historySearch.trim()) return items
+    const q = historySearch.toLowerCase()
+    return items.filter((item) =>
+      item.brief.toLowerCase().includes(q) ||
+      item.type.toLowerCase().includes(q) ||
+      item.tone.toLowerCase().includes(q)
+    )
+  }, [history.data, historySearch])
+
   if (!activeBrand) return <NoBrandSelected />
 
   function updateOutput(index: number, value: string) {
@@ -350,16 +364,6 @@ export function ContentGeneratorPage() {
 
   const historyItems = history.data ?? []
   const isPackageResult = latestResult && editedOutput.length === 4
-
-  const filteredHistory = useMemo(() => {
-    if (!historySearch.trim()) return historyItems
-    const q = historySearch.toLowerCase()
-    return historyItems.filter((item) =>
-      item.brief.toLowerCase().includes(q) ||
-      item.type.toLowerCase().includes(q) ||
-      item.tone.toLowerCase().includes(q)
-    )
-  }, [historyItems, historySearch])
 
   return (
     <div className="p-6 space-y-6" ref={topRef}>
