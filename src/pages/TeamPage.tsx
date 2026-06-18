@@ -397,6 +397,11 @@ function InviteDialog({
 export default function TeamPage() {
   const { brands } = useBrands()
   const { members, grantAccess, revokeAccess, updateRole } = useAllTeam()
+  // Pin the (reference-stable) React Query mutators so the useCallback handlers
+  // below stay reference-stable — depending on `x.mutateAsync` trips the deps lint.
+  const revokeMutate = revokeAccess.mutateAsync
+  const grantMutate = grantAccess.mutateAsync
+  const updateRoleMutate = updateRole.mutateAsync
 
   const [inviteOpen, setInviteOpen] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState<Person | null>(null)
@@ -464,19 +469,19 @@ export default function TeamPage() {
   const handleRevoke = useCallback(async (member: TeamMember) => {
     setWorking(true)
     try {
-      await revokeAccess.mutateAsync(member.id)
+      await revokeMutate(member.id)
       toast.success(`Revoked access for ${member.email}`)
     } catch (err) {
       toast.error('Failed to revoke', { description: (err as Error).message })
     } finally {
       setWorking(false)
     }
-  }, [revokeAccess.mutateAsync])
+  }, [revokeMutate])
 
   const handleGrant = useCallback(async (email: string, brandId: string) => {
     setWorking(true)
     try {
-      await grantAccess.mutateAsync({ email, brandId, role: 'editor' })
+      await grantMutate({ email, brandId, role: 'editor' })
       toast.success(`Added ${email} to brand (Editor)`)
     } catch (err) {
       toast.error('Failed to grant access', {
@@ -485,20 +490,20 @@ export default function TeamPage() {
     } finally {
       setWorking(false)
     }
-  }, [grantAccess.mutateAsync])
+  }, [grantMutate])
 
   const handleChangeRole = useCallback(async (member: TeamMember, role: TeamRole) => {
     if (member.role === role) return
     setWorking(true)
     try {
-      await updateRole.mutateAsync({ memberId: member.id, role })
+      await updateRoleMutate({ memberId: member.id, role })
       toast.success(`Role changed to ${ROLE_STYLES[role].label}`)
     } catch (err) {
       toast.error('Failed to change role', { description: (err as Error).message })
     } finally {
       setWorking(false)
     }
-  }, [updateRole.mutateAsync])
+  }, [updateRoleMutate])
 
   async function handleRemoveAll(person: Person) {
     setWorking(true)

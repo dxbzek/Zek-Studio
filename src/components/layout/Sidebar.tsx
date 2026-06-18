@@ -86,9 +86,11 @@ export function Sidebar({ open, onClose, desktopHidden = false }: SidebarProps) 
   useEffect(() => {
     if (activeBrand && brands.length > 0) {
       const fresh = brands.find((b) => b.id === activeBrand.id)
-      if (fresh) setActiveBrand(fresh)
+      // Only re-sync when the refetched brand object actually differs — guards
+      // against a redundant set (and any re-run loop now that activeBrand is a dep).
+      if (fresh && fresh !== activeBrand) setActiveBrand(fresh)
     }
-  }, [brands])
+  }, [brands, activeBrand, setActiveBrand])
 
   async function handleSignOut() {
     await supabase.auth.signOut()

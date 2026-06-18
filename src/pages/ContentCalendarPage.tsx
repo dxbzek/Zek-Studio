@@ -405,7 +405,7 @@ export function ContentCalendarPage() {
       description: (failures[0].reason as Error | undefined)?.message
         ?? `${failures.length} of ${group.entries.length} platforms failed; the move was rolled back.`,
     })
-  }, [allGroups, updateEntry])
+  }, [allGroups, emergencyGroups, updateEntry])
 
   const [drawerOpen, setDrawerOpen]               = useState(false)
   const [drawerMode, setDrawerMode]               = useState<'create' | 'edit'>('create')

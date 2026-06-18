@@ -73,7 +73,7 @@ export default function TaskBoardPage({ isSpecialist = false }: TaskBoardPagePro
     useSensor(KeyboardSensor),
   )
 
-  const allTasks = rawTasks.data ?? []
+  const allTasks = useMemo(() => rawTasks.data ?? [], [rawTasks.data])
 
   // Fetch linked calendar entries so the card can show platform badges.
   const linkedEntryIds = useMemo(() => {
