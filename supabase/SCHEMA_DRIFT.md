@@ -76,16 +76,27 @@ schema: it was missing the entire SEO module (`seo_keywords`, `blog_posts`,
 Once #2 is resolved, regenerate it from the live DB and drop the `as any` casts
 in `src/hooks/useSeo.ts` and `src/hooks/useTeam.ts`.
 
+> **Resolved:** decision was **A — app is canonical**. The empty `brand_kpis`
+> table was recreated in the wide-column model (`048_brand_kpis_wide_model.sql`),
+> and the stale types were regenerated from the live DB (item 5 above is also
+> resolved — the SEO tables were added and the `as any` casts dropped).
+
 ---
 
-## Open question (blocks #2 and the type regen)
+## Performance advisories — decisions (won't-fix / partial)
 
-Which `brand_kpis` model is canonical?
+The Supabase performance advisor flags a few items that were reviewed and
+**intentionally not (fully) actioned** — they are low-value at this app's scale
+and/or carry production risk that outweighs the benefit:
 
-- **A — App is right:** migrate the live table back to the wide-column model
-  (`posts_target`, `views_target`, `engagement_target`, `keywords_target`,
-  `month`). Restores the Dashboard KPI Goals feature as designed.
-- **B — DB is right:** rewrite `DashboardPage` + types to the generic
-  `{platform, metric, target_value}` model.
-
-No code or schema change has been made for `brand_kpis` pending this decision.
+- **`unused_index` (0005)** — the 4 app-table indexes were dropped
+  (`049_drop_unused_app_indexes.sql`). The `dld_market.idx_dlm_*` indexes are
+  **kept**: that table is an out-of-band reference dataset, plausibly indexed for
+  ad-hoc SQL analysis.
+- **`extension_in_public` (0014) — `pg_net`** — **not moved.** Cron job #1 calls
+  `net.http_post(...)` for the weekly competitor auto-sync; relocating the
+  extension risks breaking it for a minor hardening advisory.
+- **`multiple_permissive_policies` (0006)** — **not consolidated.** Merging the
+  per-table `owner ALL` + per-action team-role policies into single OR'd
+  policies is a rewrite of live multi-tenant access control for a negligible
+  perf gain at this scale; the data-leak/lockout risk isn't worth it here.
