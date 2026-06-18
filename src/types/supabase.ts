@@ -360,6 +360,7 @@ export type Database = {
           accepted_at?: string | null
         }
         Update: {
+          brand_id?: string
           user_id?: string | null
           role?: 'admin' | 'editor' | 'approver' | 'viewer'
           accepted_at?: string | null
@@ -647,6 +648,177 @@ export type Database = {
           type?: string
           settings?: unknown
           expires_at?: string | null
+        }
+        Relationships: []
+      }
+      seo_keywords: {
+        Row: {
+          id: string
+          brand_id: string
+          keyword: string
+          volume: number | null
+          difficulty: string | null
+          intent: string | null
+          target_url: string | null
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          keyword: string
+          volume?: number | null
+          difficulty?: string | null
+          intent?: string | null
+          target_url?: string | null
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          brand_id?: string
+          keyword?: string
+          volume?: number | null
+          difficulty?: string | null
+          intent?: string | null
+          target_url?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      blog_posts: {
+        Row: {
+          id: string
+          brand_id: string
+          keyword_id: string | null
+          title: string
+          status: string
+          word_count: number | null
+          target_wc: number | null
+          publish_date: string | null
+          url: string | null
+          slug: string | null
+          meta_title: string | null
+          meta_description: string | null
+          content: string | null
+          has_h1h2: boolean
+          has_internal_links: boolean
+          has_meta_description: boolean
+          has_faq: boolean
+          has_schema: boolean
+          has_citations: boolean
+          has_eeat: boolean
+          has_author_bio: boolean
+          keyword_in_title: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          keyword_id?: string | null
+          title: string
+          status?: string
+          word_count?: number | null
+          target_wc?: number | null
+          publish_date?: string | null
+          url?: string | null
+          slug?: string | null
+          meta_title?: string | null
+          meta_description?: string | null
+          content?: string | null
+          has_h1h2?: boolean
+          has_internal_links?: boolean
+          has_meta_description?: boolean
+          has_faq?: boolean
+          has_schema?: boolean
+          has_citations?: boolean
+          has_eeat?: boolean
+          has_author_bio?: boolean
+          keyword_in_title?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          keyword_id?: string | null
+          title?: string
+          status?: string
+          word_count?: number | null
+          target_wc?: number | null
+          publish_date?: string | null
+          url?: string | null
+          slug?: string | null
+          meta_title?: string | null
+          meta_description?: string | null
+          content?: string | null
+          has_h1h2?: boolean
+          has_internal_links?: boolean
+          has_meta_description?: boolean
+          has_faq?: boolean
+          has_schema?: boolean
+          has_citations?: boolean
+          has_eeat?: boolean
+          has_author_bio?: boolean
+          keyword_in_title?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      seo_audit_items: {
+        Row: {
+          id: string
+          brand_id: string
+          category: string
+          issue: string
+          status: string
+          priority: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          category: string
+          issue: string
+          status?: string
+          priority?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          brand_id?: string
+          category?: string
+          issue?: string
+          status?: string
+          priority?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      review_snapshots: {
+        Row: {
+          id: string
+          brand_id: string
+          platform: string
+          count: number
+          target: number | null
+          recorded_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          brand_id: string
+          platform?: string
+          count: number
+          target?: number | null
+          recorded_at?: string
+          created_at?: string
+        }
+        Update: {
+          platform?: string
+          count?: number
+          target?: number | null
+          recorded_at?: string
         }
         Relationships: []
       }
