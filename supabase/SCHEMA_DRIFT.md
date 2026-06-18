@@ -28,7 +28,16 @@ is `20260527110548`.
 > file-name ↔ remote-version mapping is cosmetic, but worth aligning if the team
 > adopts `supabase db push`.
 
-## 2. `brand_kpis` — ⚠️ live table and app code disagree (Dashboard KPI Goals is broken)
+## 2. `brand_kpis` — ✅ fixed (migration 048)
+
+**Resolved:** decision was "app is canonical". The empty live table was recreated
+in the wide-column model the app expects via
+`048_brand_kpis_wide_model.sql` (`month, posts_target, views_target,
+engagement_target, keywords_target`, `UNIQUE(brand_id, month)`). No app/type
+changes were needed — they already matched. Original drift detail below for
+history.
+
+
 
 | Source                              | Shape |
 | ----------------------------------- | ----- |
