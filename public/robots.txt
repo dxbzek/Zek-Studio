@@ -1,0 +1,19 @@
+# Zek Studio is an authenticated SaaS app. Only the public entry points should
+# be crawlable; the in-app routes are gated and the share routes are tokenized
+# (one-off, private links that must never be indexed).
+User-agent: *
+Allow: /$
+Allow: /login
+Disallow: /report/
+Disallow: /approve/
+Disallow: /brands
+Disallow: /research
+Disallow: /content
+Disallow: /calendar
+Disallow: /campaigns
+Disallow: /analytics
+Disallow: /workspace
+Disallow: /reset
+
+# Add a Sitemap line once a canonical production domain is set, e.g.:
+# Sitemap: https://your-domain.com/sitemap.xml

@@ -6,7 +6,11 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `supabase/functions` are Deno edge functions, not part of the Vite app.
+  // They run under a different runtime/type system (and intentionally use
+  // `@ts-nocheck`), so linting them with the browser/React config only produces
+  // noise. Lint them separately with `deno lint` if needed.
+  globalIgnores(['dist', 'supabase/functions']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
