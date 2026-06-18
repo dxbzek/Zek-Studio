@@ -313,7 +313,7 @@ export default function AnalyticsPage() {
     if (p && PLATFORMS.some((pl) => pl.value === p)) setFilterPlatform(p as Platform)
   }, [searchParams])
 
-  const allMetrics = metrics.data ?? []
+  const allMetrics = useMemo(() => metrics.data ?? [], [metrics.data])
 
   const filteredMetrics = useMemo(
     () => filterPlatform === 'all' ? allMetrics : allMetrics.filter((m) => m.platform === filterPlatform),

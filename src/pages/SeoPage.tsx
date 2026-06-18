@@ -406,13 +406,17 @@ const KeywordRow = memo(function KeywordRow({ kw, onUpdate, onDelete }: KeywordR
 function BlogTab({ brand }: { brand: BrandProfile }) {
   const { posts, isLoading, addPost, updatePost, deletePost } = useBlogPosts(brand.id)
   // See KeywordsTab — stable mutators let BlogPostRow stay in memo's cache.
+  // Pin the (reference-stable) React Query mutators first; depending on the
+  // member access (updatePost.mutate) trips the deps lint.
+  const updatePostMutate = updatePost.mutate
+  const deletePostMutate = deletePost.mutate
   const handlePostUpdate = useCallback(
-    (id: string, patch: Partial<BlogPost>) => updatePost.mutate({ id, patch }),
-    [updatePost.mutate],
+    (id: string, patch: Partial<BlogPost>) => updatePostMutate({ id, patch }),
+    [updatePostMutate],
   )
   const handlePostDelete = useCallback(
-    (id: string) => deletePost.mutate(id),
-    [deletePost.mutate],
+    (id: string) => deletePostMutate(id),
+    [deletePostMutate],
   )
   const { keywords } = useSeoKeywords(brand.id)
   const [adding, setAdding] = useState(false)
