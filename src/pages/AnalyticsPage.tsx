@@ -669,6 +669,7 @@ export default function AnalyticsPage() {
               <span className="text-[11px] text-muted-foreground">Date range:</span>
               <input
                 type="date"
+                aria-label="Brand accounts date range — start"
                 value={syncFrom}
                 max={syncTo}
                 onChange={(e) => setSyncFrom(e.target.value)}
@@ -677,6 +678,7 @@ export default function AnalyticsPage() {
               <span className="text-[11px] text-muted-foreground">to</span>
               <input
                 type="date"
+                aria-label="Brand accounts date range — end"
                 value={syncTo}
                 min={syncFrom}
                 max={format(new Date(), 'yyyy-MM-dd')}
@@ -770,6 +772,7 @@ export default function AnalyticsPage() {
                     <>
                       <input
                         readOnly
+                        aria-label={`${type === 'report' ? 'Client report' : 'Content approval'} share link`}
                         value={url}
                         className="text-xs font-mono bg-muted rounded px-2 py-1 w-48 truncate border-none outline-none"
                       />
@@ -1143,6 +1146,7 @@ export default function AnalyticsPage() {
               <span className="text-[11px] text-muted-foreground">Date:</span>
               <input
                 type="date"
+                aria-label="Audit date range — start"
                 value={auditDateFrom}
                 max={auditDateTo}
                 onChange={(e) => setAuditDateFrom(e.target.value)}
@@ -1151,6 +1155,7 @@ export default function AnalyticsPage() {
               <span className="text-[11px] text-muted-foreground">to</span>
               <input
                 type="date"
+                aria-label="Audit date range — end"
                 value={auditDateTo}
                 min={auditDateFrom}
                 max={format(new Date(), 'yyyy-MM-dd')}
@@ -1159,6 +1164,7 @@ export default function AnalyticsPage() {
               />
               <select
                 value={auditPlatform}
+                aria-label="Filter audit by platform"
                 onChange={(e) => setAuditPlatform(e.target.value)}
                 className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
               >
