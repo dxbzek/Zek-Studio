@@ -77,14 +77,18 @@ function KeywordsTab({ brandId }: { brandId: string }) {
   const { keywords, isLoading, addKeyword, updateKeyword, deleteKeyword } = useSeoKeywords(brandId)
   // Stable row handlers so memoized KeywordRow doesn't re-render on every tab
   // state change. The row passes its own id back up, so the mutators can stay
-  // reference-stable across renders.
+  // reference-stable across renders. React Query's `mutate` is itself stable,
+  // so we pin it to a local first — depending on the member access
+  // (`updateKeyword.mutate`) trips react-hooks/preserve-manual-memoization.
+  const updateKeywordMutate = updateKeyword.mutate
+  const deleteKeywordMutate = deleteKeyword.mutate
   const handleRowUpdate = useCallback(
-    (id: string, patch: Partial<SeoKeyword>) => updateKeyword.mutate({ id, patch }),
-    [updateKeyword.mutate],
+    (id: string, patch: Partial<SeoKeyword>) => updateKeywordMutate({ id, patch }),
+    [updateKeywordMutate],
   )
   const handleRowDelete = useCallback(
-    (id: string) => deleteKeyword.mutate(id),
-    [deleteKeyword.mutate],
+    (id: string) => deleteKeywordMutate(id),
+    [deleteKeywordMutate],
   )
   const [adding, setAdding] = useState(false)
   const [filterStatus, setFilterStatus] = useState<SeoKeywordStatus | 'all'>('all')
