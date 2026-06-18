@@ -7,7 +7,7 @@ import type {
   ReviewSnapshot, ReviewSnapshotInsert,
 } from '@/types'
 
-const db = supabase as any
+const db = supabase
 
 // ─── Keywords ────────────────────────────────────────────────────────────────
 
