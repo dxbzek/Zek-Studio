@@ -85,7 +85,7 @@ interface EntryDrawerProps {
 // Auto-detect URLs in plain-text fields so a pasted reference link is
 // actually clickable. Excludes parens/brackets so markdown-style
 // `[label](url)` and parenthetical `(see https://x.com)` work cleanly.
-const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/gi
+const URL_RE = /https?:\/\/[^\s<>"'()[\]]+/gi
 
 function extractLinks(text: string): string[] {
   const matches = text.match(URL_RE) ?? []

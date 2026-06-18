@@ -1,3 +1,8 @@
+/* eslint-disable react-refresh/only-export-components --
+   This is a shared platform-branding util: it intentionally exports both the
+   PLATFORM_BRAND data map and the Platform{Badge,Pill} components from one
+   module (both are used widely across the app). The react-refresh constraint
+   is a dev-HMR nicety that doesn't apply to this non-route helper file. */
 import type { Platform } from '@/types'
 
 type BrandInfo = {

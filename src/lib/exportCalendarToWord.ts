@@ -3,7 +3,7 @@ import { CONTENT_FORMATS, CONTENT_THEMES } from '@/types'
 import type { CalendarEntry, ContentFormat, ContentTheme, Platform } from '@/types'
 import type { EntryGroup } from '@/components/calendar/entryGroups'
 
-const URL_RE = /https?:\/\/[^\s<>"'()\[\]]+/gi
+const URL_RE = /https?:\/\/[^\s<>"'()[\]]+/gi
 
 function extractLinks(text: string): string[] {
   const matches = text.match(URL_RE) ?? []
