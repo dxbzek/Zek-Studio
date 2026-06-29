@@ -9,7 +9,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const GROQ_MODEL = 'llama-3.3-70b-versatile'
+const GROQ_MODEL = 'moonshotai/kimi-k2-instruct'
 const REPURPOSE_PLATFORMS = ['Instagram', 'TikTok', 'Facebook', 'YouTube', 'LinkedIn']
 
 async function groq(prompt: string): Promise<string> {
